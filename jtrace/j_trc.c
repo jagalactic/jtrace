@@ -2,6 +2,7 @@
  * j_trc.c 
  */
 
+//#define J_TRC_TEST
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -52,7 +53,7 @@ static void j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 #define DUMP_HEX_BYTES_PER_LINE 16
 static void dump_hex_line(char *buf_ptr, int buf_len);
 
-static void j_trc_print_element(j_trc_element_t * tp);
+void j_trc_print_element(j_trc_element_t * tp);
 void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
                             int num_elems);
 
@@ -314,7 +315,7 @@ static char buf[J_TRC_KPRINT_BUF_SIZE];
 static int idx = 0;
 
 
-static void j_trc_print_element(j_trc_element_t * tp)
+void j_trc_print_element(j_trc_element_t * tp)
 {
     int prefix_len = 0;
 
@@ -547,6 +548,7 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	 * If things are really crashing, enable j_trc_kprint_enabled = 1 
 	 * for output to the console.
 	 */
+	printk("j_trc_v: addr %p\n", tp);
 	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
@@ -562,8 +564,6 @@ void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
               const char *func, int line, char *fmt, ...)
 {
     va_list vap;
-
-    printk("_j_trace called\n");
 
     va_start(vap, fmt);
 
@@ -1002,7 +1002,7 @@ static void j_trc_test(void)
 {
     char *id = 0;
     int value1 = 1;
-    int value2 = 2;
+    //int value2 = 2;
     char hex_dump_data[512];
     int i = 0;
 

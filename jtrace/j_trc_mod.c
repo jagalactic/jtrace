@@ -82,12 +82,14 @@ j_trc_ioctl(struct inode *inode,
 	return (-rc);
 }
 
+extern void j_trc_print_element(j_trc_element_t * tp);
 static j_trc_register_trc_info_t jtr;
 
 static int __init j_trc_cdev_init(void)
 {
 
 	int rc;
+	int i;
 
 	rc = misc_register(&jtr_mdev);
 
@@ -107,7 +109,8 @@ static int __init j_trc_cdev_init(void)
 	 * (as an example plus proof of functionality)
 	 */
 	{
-#define NUM_ELEM 1048576
+//#define NUM_ELEM 1048576
+#define NUM_ELEM 32
 		int elem_size = sizeof(j_trc_element_t);
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
@@ -119,7 +122,7 @@ static int __init j_trc_cdev_init(void)
 			
 		strcpy(jtr.mod_trc_info.j_trc_name, "master");
 
-		buf = vmalloc(bufsize);
+		buf = vmalloc_user(bufsize);
 		
 		jtr.mod_trc_info.j_trc_buf_ptr = (j_trc_element_t *)buf;
 		if (!buf) {
@@ -135,7 +138,30 @@ static int __init j_trc_cdev_init(void)
 		       "mask %x\n",
 		       MISC_MAJOR, jtr_mdev.minor, elem_size,
 		       jtr.mod_trc_info.j_trc_flags);
-		kTrc(KTR_CONF, 0, "jtrace module loaded");
+		kTrcPrintkSet(1);
+		kTrc(&jtr, 0, "jtrace module loaded");
+		kTrc(&jtr, 0, "jtrace module loaded");
+		kTrc(KTR_ERR, 0, "jtrace module loaded");
+		kTrc(KTR_ENTX, 0, "jtrace module loaded");
+		kTrc(KTR_MEM, 0, "jtrace module loaded");
+		kTrcPrintkSet(0);
+
+		for (i=jtr.mod_trc_info.j_trc_buf_index;
+		     (i+1) != jtr.mod_trc_info.j_trc_num_entries;
+		     i++) {
+			j_trc_element_t *tp;
+			if (i > jtr.mod_trc_info.j_trc_num_entries) 
+				i = 0;
+
+			tp = (j_trc_element_t *)
+				&jtr.mod_trc_info.j_trc_buf_ptr[i];
+			printk("slot %d addr %p fmt %d (%s)\n",
+			       i, tp, tp->elem_fmt,
+			       (tp->elem_fmt) ? "used" : "empty");
+
+			j_trc_print_element(tp);
+		}
+
 
 	}
 	return 0;
@@ -167,7 +193,7 @@ module_exit(j_trc_cdev_exit);
 
 MODULE_DESCRIPTION("John's kernel trace facility");
 MODULE_AUTHOR("Groves Technology Corporation");
-MODULE_LICENSE("Proprietary");
+MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(j_trc_register_trc_info);
 EXPORT_SYMBOL(j_trc_use_registered_trc_info);

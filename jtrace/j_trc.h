@@ -26,7 +26,7 @@ typedef enum {
 typedef struct _j_trc_regular_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -45,7 +45,7 @@ typedef struct _j_trc_regular_element {
 typedef struct _j_trc_hex_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -71,7 +71,7 @@ typedef struct _j_trc_hex_element {
 typedef struct _j_trc_prefmtstr_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */

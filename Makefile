@@ -10,7 +10,6 @@ clean:
 
 load:
 	insmod jtrace/jtrace.ko
-	jgstub/jgstub_load
 
 unload:
 	jgstub/jgstub_unload

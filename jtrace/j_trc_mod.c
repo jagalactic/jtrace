@@ -10,6 +10,8 @@
 #define EXPORT_SYMTAB
 #endif
 
+
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -32,11 +34,11 @@
 
 /* A chrdev is used for ioctl interface */
 int j_trc_ioctl(struct inode *inode, struct file *file,
-                       unsigned int cmd, unsigned long arg);
+		unsigned int cmd, unsigned long arg);
 
 static struct file_operations j_trc_fops = {
-    .owner = THIS_MODULE,
-    .ioctl = j_trc_ioctl,
+	.owner = THIS_MODULE,
+	.ioctl = j_trc_ioctl,
 };
 
 #define J_TRC_NAME "j_trc"
@@ -52,33 +54,35 @@ int
 j_trc_ioctl(struct inode *inode,
                    struct file *file, unsigned int cmd, unsigned long arg)
 {
-    int rc = EINVAL;
+	int rc = EINVAL;
 
-    switch (cmd) {
-    case J_TRC_CMD_IOCTL:
-        if (!arg) {
-            printk("arg must be non-zero\n");
-            return (-EINVAL);
-        }
-        rc = j_trc_cmd((j_trc_cmd_req_t *) arg);
-        break;
+	switch (cmd) {
+	case J_TRC_CMD_IOCTL:
+		if (!arg) {
+			printk("arg must be non-zero\n");
+			return (-EINVAL);
+		}
+		rc = j_trc_cmd((j_trc_cmd_req_t *) arg);
+		break;
 
 #if 0
-    case K_UTIL_ACPI_DUMP:
-        display_all_ACPI_devices();
-        rc = 0;
-        break;
-    case K_UTIL_PHYSLOC_DUMP:
-        rc = psi_display_all_physloc();
-        break;
+	case K_UTIL_ACPI_DUMP:
+		display_all_ACPI_devices();
+		rc = 0;
+		break;
+	case K_UTIL_PHYSLOC_DUMP:
+		rc = psi_display_all_physloc();
+		break;
 #endif
 
-    default:
-        rc = EINVAL;
-    }
+	default:
+		rc = EINVAL;
+	}
 
-    return (-rc);
+	return (-rc);
 }
+
+static j_trc_register_trc_info_t jtr;
 
 static int __init j_trc_cdev_init(void)
 {
@@ -107,16 +111,14 @@ static int __init j_trc_cdev_init(void)
 		int elem_size = sizeof(j_trc_element_t);
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
-		j_trc_register_trc_info_t jtr = {
-			.mod_trc_info =  {
-				.j_trc_num_entries = NUM_ELEM,
-				.j_trc_buf_size = bufsize,
-				.j_trc_flags = KTR_COMMON_FLAGS_MASK,
-			},
 
-		};
-
+		memset(&jtr, 0, sizeof(jtr));
+		jtr.mod_trc_info.j_trc_num_entries = NUM_ELEM;
+		jtr.mod_trc_info.j_trc_buf_size = bufsize;
+		jtr.mod_trc_info.j_trc_flags = KTR_COMMON_FLAGS_MASK;
+			
 		strcpy(jtr.mod_trc_info.j_trc_name, "master");
+
 		buf = vmalloc(bufsize);
 		
 		jtr.mod_trc_info.j_trc_buf_ptr = (j_trc_element_t *)buf;
@@ -129,8 +131,10 @@ static int __init j_trc_cdev_init(void)
 
 		j_trc_register_trc_info(&jtr);
 
-		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
-		       MISC_MAJOR, jtr_mdev.minor, elem_size);
+		printk("jtrace loaded: devno major %d minor %d elem size %d "
+		       "mask %x\n",
+		       MISC_MAJOR, jtr_mdev.minor, elem_size,
+		       jtr.mod_trc_info.j_trc_flags);
 		kTrc(KTR_CONF, 0, "jtrace module loaded");
 
 	}
@@ -148,6 +152,8 @@ static int __init j_trc_cdev_init(void)
 static void __exit j_trc_cdev_exit(void)
 {
 	printk("jtrace unloading\n");
+
+	j_trc_unregister_trc_info(&jtr);
 
 	j_trc_exit();
 

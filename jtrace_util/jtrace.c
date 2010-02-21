@@ -265,51 +265,51 @@ int set_trc_flags(char *buf_name, int trc_flags)
 
 int set_printk_value(char *buf_name, int value)
 {
-    int rc = 0;
-    k_trc_cmd_req_t cmd_req;
+	int rc = 0;
+	k_trc_cmd_req_t cmd_req;
 
-    bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
 
-    strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
+	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-    cmd_req.cmd = KTRCTL_SET_PRINTK;
-    cmd_req.data = &value;
-    rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
-    if (rc) {
-        printf("ioctl KTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
-               rc, errno);
-        return (rc);
-    }
-
-    return (0);
+	cmd_req.cmd = KTRCTL_SET_PRINTK;
+	cmd_req.data = &value;
+	rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
+	if (rc) {
+		printf("ioctl KTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
+		       rc, errno);
+		return (rc);
+	}
+	
+	return (0);
 }
 
 int display_all_ACPI_info(void)
 {
-    int rc = 0;
+	int rc = 0;
 
-    rc = ioctl(kutil_dev_fd, K_UTIL_ACPI_DUMP, 0);
-    if (rc) {
-        printf("ioctl K_UTIL_ACPI_DUMP failed, rc=%d errno=%d\n",
-               rc, errno);
-        return (errno);
-    }
+	rc = ioctl(kutil_dev_fd, K_UTIL_ACPI_DUMP, 0);
+	if (rc) {
+		printf("ioctl K_UTIL_ACPI_DUMP failed, rc=%d errno=%d\n",
+		       rc, errno);
+		return (errno);
+	}
 
-    return (0);
+	return (0);
 }
 
 int display_all_physloc_info(void)
 {
-    int rc = 0;
+	int rc = 0;
 
-    rc = ioctl(kutil_dev_fd, K_UTIL_PHYSLOC_DUMP, 0);
-    if (rc) {
-        printf("ioctl K_UTIL_PHYSLOC_DUMP failed, rc=%d errno=%d\n",
-               rc, errno);
-        return (errno);
-    }
+	rc = ioctl(kutil_dev_fd, K_UTIL_PHYSLOC_DUMP, 0);
+	if (rc) {
+		printf("ioctl K_UTIL_PHYSLOC_DUMP failed, rc=%d errno=%d\n",
+		       rc, errno);
+		return (errno);
+	}
 
-    return (0);
+	return (0);
 }
 
 /*
@@ -318,87 +318,90 @@ int display_all_physloc_info(void)
  */
 int get_all_trc_info(char *trc_buf_name)
 {
-    k_trc_module_trc_info_t *trace_infop = NULL;
-    k_trc_cmd_req_t cmd_req;
-    int i = 0;
-    char *out_bufp = 0;
-    int rc = 0;
+	k_trc_module_trc_info_t *trace_infop = NULL;
+	k_trc_cmd_req_t cmd_req;
+	int i = 0;
+	char *out_bufp = 0;
+	int rc = 0;
 
-    bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
 
-    cmd_req.cmd = KTRCTL_GET_ALL_TRC_INFO;
-    cmd_req.data = 0;
-    cmd_req.data_size = 0;
+	cmd_req.cmd = KTRCTL_GET_ALL_TRC_INFO;
+	cmd_req.data = 0;
+	cmd_req.data_size = 0;
 
-    /* Call once with zero to get required size */
-    rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
-    if (rc && (errno != ENOMEM)) {
-        printf("Failed describe errno=%d\n", errno);
-        return (rc);
-    }
-    if (verbose) {
-        printf("required_size=%d\n", cmd_req.data_size);
-    }
-    all_trc_info = malloc(cmd_req.data_size);
-    if (!all_trc_info) {
-        printf("malloc() failed\n");
-        return (-1);
+	/* Call once with zero to get required size */
+	rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
+	if (rc && (errno != ENOMEM)) {
+		printf("Failed describe errno=%d\n", errno);
+		return (rc);
+	}
+	if (verbose) {
+		printf("required_size=%d\n", cmd_req.data_size);
+	}
+	all_trc_info = malloc(cmd_req.data_size);
+	if (!all_trc_info) {
+		printf("malloc() failed\n");
+		return (-1);
+		
+	}
 
-    }
+	cmd_req.data = all_trc_info;
+	rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
+	if (rc) {
+		printf("Failed describe errno=%d\n", errno);
+		return (rc);
+	}
+	/* Number of common Flags */
+	out_bufp = all_trc_info;
+	memcpy(&k_trc_num_common_flags, out_bufp,
+	       sizeof(k_trc_num_common_flags));
+	out_bufp += sizeof(k_trc_num_common_flags);
 
-    cmd_req.data = all_trc_info;
-    rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
-    if (rc) {
-        printf("Failed describe errno=%d\n", errno);
-        return (rc);
-    }
-    /* Number of common Flags */
-    out_bufp = all_trc_info;
-    memcpy(&k_trc_num_common_flags, out_bufp,
-           sizeof(k_trc_num_common_flags));
-    out_bufp += sizeof(k_trc_num_common_flags);
+	/* Array of common flag descriptors */
+	k_trc_common_flag_array = (k_trc_flag_descriptor_t *) out_bufp;
+	out_bufp += (k_trc_num_common_flags * sizeof(k_trc_flag_descriptor_t));
 
-    /* Array of common flag descriptors */
-    k_trc_common_flag_array = (k_trc_flag_descriptor_t *) out_bufp;
-    out_bufp += (k_trc_num_common_flags * sizeof(k_trc_flag_descriptor_t));
+	/* Number of registered modules */
+	memcpy(&k_trc_num_registered_mods, out_bufp,
+	       sizeof(k_trc_num_registered_mods));
+	out_bufp += sizeof(k_trc_num_registered_mods);
 
-    /* Number of registered modules */
-    memcpy(&k_trc_num_registered_mods, out_bufp,
-           sizeof(k_trc_num_registered_mods));
-    out_bufp += sizeof(k_trc_num_registered_mods);
-
-    if (verbose) {
-        printf("k_trc_num_common_flags=%d k_trc_num_registered_mods=%d\n",
-               k_trc_num_common_flags, k_trc_num_registered_mods);
-    }
-
-    /* Array of registered modules, each followed by optional custom flags */
-    if (k_trc_num_registered_mods) {
-        k_trc_first_trace_infop = (k_trc_module_trc_info_t *) out_bufp;
-        trace_infop = k_trc_first_trace_infop;
-    }
-
-    /* If trc_buf_name supplied, find that trace module information */
-    if (trc_buf_name) {
-        for (i = 0; i < k_trc_num_registered_mods; i++) {
-            if (strcmp(trace_infop->k_trc_name, trc_buf_name) == 0) {
-                /* Found a match */
-                k_trc_trace_infop = trace_infop;
-                break;
-            }
-            /* Get next trace information */
-            out_bufp = (char *) trace_infop;
-            /* Skip past this trace information */
-            out_bufp += sizeof(k_trc_module_trc_info_t);
-            /* Also, skip past any custom flag descriptions */
-            out_bufp +=
-                (trace_infop->k_trc_num_custom_flags *
-                 sizeof(k_trc_flag_descriptor_t));
-            trace_infop = (k_trc_module_trc_info_t *) out_bufp;
-        }
-    }
-
-    return (rc);
+	if (verbose) {
+		printf("k_trc_num_common_flags=%d "
+		       "k_trc_num_registered_mods=%d\n",
+		       k_trc_num_common_flags, k_trc_num_registered_mods);
+	}
+	
+	/* Array of registered modules, each followed
+	 * by optional custom flags */
+	if (k_trc_num_registered_mods) {
+		k_trc_first_trace_infop = (k_trc_module_trc_info_t *) out_bufp;
+		trace_infop = k_trc_first_trace_infop;
+	}
+	
+	/* If trc_buf_name supplied, find that trace module information */
+	if (trc_buf_name) {
+		for (i = 0; i < k_trc_num_registered_mods; i++) {
+			if (strcmp(trace_infop->k_trc_name,
+				   trc_buf_name) == 0) {
+				/* Found a match */
+				k_trc_trace_infop = trace_infop;
+				break;
+			}
+			/* Get next trace information */
+			out_bufp = (char *) trace_infop;
+			/* Skip past this trace information */
+			out_bufp += sizeof(k_trc_module_trc_info_t);
+			/* Also, skip past any custom flag descriptions */
+			out_bufp +=
+				(trace_infop->k_trc_num_custom_flags *
+				 sizeof(k_trc_flag_descriptor_t));
+			trace_infop = (k_trc_module_trc_info_t *) out_bufp;
+		}
+	}
+	
+	return (rc);
 }
 
 
@@ -539,363 +542,377 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
     return (-1);
 }
 
+#define TRC_BUF_NAME_REQUIRED "ERROR: Specify -n <trc_buf_name> first.\n"
+
 int main(int argc, char **argv)
 {
-    int ch, trace;
-    uint32_t trc_flags = 0;
-    uint32_t trc_flag = 0;
-    int n_flag = 0;
-    int printk_value = 0;
-    int rc = 0;
+	int ch, trace;
+	uint32_t trc_flags = 0;
+	uint32_t trc_flag = 0;
+	int n_flag = 0;
+	int printk_value = 0;
+	int rc = 0;
 
-    trace = 0;
+	trace = 0;
 
-    kutil_dev_fd = open(k_trc_dev, O_RDWR);
-    if (kutil_dev_fd < 0) {
-        printf("Device open failed %d\n", errno);
-        exit(-1);
-    }
+	kutil_dev_fd = open(k_trc_dev, O_RDWR);
+	if (kutil_dev_fd < 0) {
+		printf("Device open failed %d\n", errno);
+		exit(-1);
+	}
 
-    while ((ch = getopt(argc, argv, "?ZvALgh:cd:f:s:u:p:n:")) != EOF) {
-        switch (ch) {
-        case 'A':
-            rc = display_all_ACPI_info();
-            if (rc) {
-                printf("ERROR, display_all_ACPI_info() returned rc=%d\n",
-                       rc);
-            } else {
-                printf("Dumped all ACPI info to default trace buffer\n");
-            }
-            goto k_trc_util_exit;
-
-        case 'L':
-            rc = display_all_physloc_info();
-            if (rc) {
-                printf
-                    ("ERROR, display_all_physloc_info() returned rc=%d\n",
-                     rc);
-            } else {
-                printf
-                    ("Dumped all physloc info to default trace buffer\n");
-            }
-            goto k_trc_util_exit;
-
-
-        case 'Z':              /* undocumented -Zdebug option    */
-            ++debugLvl;
-            break;
-
-        case 'v':
-            ++verbose;
-
-            break;
-
-        case 'p':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-
-            printk_value = strtol(optarg, NULL, 16);
-            rc = set_printk_value(trc_buf_name, printk_value);
-            if (rc) {
-                printf("Could not set trace flags to 0x%x\n", trc_flags);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            printf("\nPrintk set to (%d):\n\n", printk_value);
-            rc = 0;
-            goto k_trc_util_exit;
-            break;
-
-        case 'n':
-            n_flag++;
-            if (!trc_buf_name) {
-                trc_buf_name = optarg;
-            } else {
-                usage(1);
-                rc = -1;
-                goto k_trc_util_exit;
-
-            }
-            printf("\ntrc_buf_name=%s\n", trc_buf_name);
-            /* get trace_info from running kernel */
-            rc = get_all_trc_info(trc_buf_name);
-            if (rc) {
-                printf("get_trc_info failed errno=%d\n", rc);
-                goto k_trc_util_exit;
-            }
-            break;
+	while ((ch = getopt(argc, argv, "?ZvALgh:cd:f:s:u:p:n:")) != EOF) {
+		switch (ch) {
+		case 'A':
+			rc = display_all_ACPI_info();
+			if (rc) {
+				printf("ERROR, display_all_ACPI_info() "
+				       "rc=%d\n", rc);
+			} else {
+				printf("Dumped all ACPI info to default "
+				       "trace buffer\n");
+			}
+			goto k_trc_util_exit;
+			
+		case 'L':
+			rc = display_all_physloc_info();
+			if (rc) {
+				printf("ERROR, display_all_physloc_info() "
+				       "rc=%d\n", rc);
+			} else {
+				printf("Dumped all physloc info to "
+				       "default trace buffer\n");
+			}
+			goto k_trc_util_exit;
 
 
-        case 'h':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
+		case 'Z':              /* undocumented -Zdebug option    */
+			++debugLvl;
+			break;
+			
+		case 'v':
+			++verbose;
+			
+			break;
+			
+		case 'p':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			
+			printk_value = strtol(optarg, NULL, 16);
+			rc = set_printk_value(trc_buf_name, printk_value);
+			if (rc) {
+				printf("Could not set trace flags to 0x%x\n",
+				       trc_flags);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			printf("\nPrintk set to (%d):\n\n", printk_value);
+			rc = 0;
+			goto k_trc_util_exit;
+			break;
+			
+		case 'n':
+			n_flag++;
+			if (!trc_buf_name) {
+				trc_buf_name = optarg;
+			} else {
+				usage(1);
+				rc = -1;
+				goto k_trc_util_exit;
+				
+			}
+			printf("\ntrc_buf_name=%s\n", trc_buf_name);
+			/* get trace_info from running kernel */
+			rc = get_all_trc_info(trc_buf_name);
+			if (rc) {
+				printf("get_trc_info failed errno=%d\n", rc);
+				goto k_trc_util_exit;
+			}
+			break;
 
-            trc_flags = strtol(optarg, NULL, 16);
-            rc = set_trc_flags(trc_buf_name, trc_flags);
-            if (rc) {
-                printf("Could not set trace flags to 0x%x\n", trc_flags);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            printf("\nTrace flags set to (0x%08x):\n\n", trc_flags);
-            show_trc_flags(trc_flags);
-            rc = 0;
-            goto k_trc_util_exit;
 
-            break;
+		case 'h':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
 
-        case 'g':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
+			trc_flags = strtol(optarg, NULL, 16);
+			rc = set_trc_flags(trc_buf_name, trc_flags);
+			if (rc) {
+				printf("Could not set trace flags to 0x%x\n",
+				       trc_flags);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			printf("\nTrace flags set to (0x%08x):\n\n",
+			       trc_flags);
+			show_trc_flags(trc_flags);
+			rc = 0;
+			goto k_trc_util_exit;
+			
+			break;
+			
+		case 'g':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			
+			printf("\nCurrent set trace flags(0x%08x) for %s:\n\n",
+			       k_trc_trace_infop->k_trc_flags,
+			       k_trc_trace_infop->k_trc_name);
+			show_trc_flags(k_trc_trace_infop->k_trc_flags);
+			rc = 0;
+			goto k_trc_util_exit;
+			
+		case 'f':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			
+			trc_flags = 0;
+			/* Get first flag string */
+			rc = flag_str_to_flag(optarg, &trc_flag);
+			if (rc) {
+				printf("Invalid flag %s\n", optarg);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			/* trc_flag was valid */
+			trc_flags |= trc_flag;
+			/* See if there are other valid flag strings */
+			while (optind < argc) {
+				rc = flag_str_to_flag(argv[optind], &trc_flag);
+				if (rc) {
+					printf("Invalid flag %s\n",
+					       argv[optind]);
+					usage(rc);
+					rc = -1;
+					goto k_trc_util_exit;
+				}
+				/* trc_flag was valid */
+				trc_flags |= trc_flag;
+				optind++;
+			}
+			/* Set the flags to the new value */
+			rc = set_trc_flags(trc_buf_name, trc_flags);
+			if (rc) {
+				printf("Could not set trace flags.\n");
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			printf("\nTrace flags set to (0x%08x):\n\n",
+			       trc_flags);
+			show_trc_flags(trc_flags);
+			rc = 0;
+			goto k_trc_util_exit;
+			
+		case 's':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			
+			trc_flags = k_trc_trace_infop->k_trc_flags;
+			
+			/* Get first flag string */
+			rc = flag_str_to_flag(optarg, &trc_flag);
+			if (rc) {
+				printf("Invalid flag %s\n", optarg);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			/* trc_flag was valid */
+			trc_flags |= trc_flag;
+			/* See if there are other valid flag strings */
+			while (optind < argc) {
+				rc = flag_str_to_flag(argv[optind], &trc_flag);
+				if (rc) {
+					printf("Invalid flag %s\n",
+					       argv[optind]);
+					usage(rc);
+					rc = -1;
+					goto k_trc_util_exit;
+				}
+				/* trc_flag was valid */
+				trc_flags |= trc_flag;
+				optind++;
+			}
+			/* Set the flags to the new value */
+			rc = set_trc_flags(trc_buf_name, trc_flags);
+			if (rc) {
+				printf("Could not set trace flags.\n");
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			printf("\nCurrent set trace flags (0x%08x):\n\n",
+			       trc_flags);
+			show_trc_flags(trc_flags);
+			rc = 0;
+			goto k_trc_util_exit;
+			
+		case 'u':
+			
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			
+			trc_flags = k_trc_trace_infop->k_trc_flags;
+			
+			/* Get first flag string */
+			rc = flag_str_to_flag(optarg, &trc_flag);
+			if (rc) {
+				printf("Invalid flag %s\n", optarg);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			/* trc_flag was valid */
+			trc_flags &= ~(trc_flag);
+			/* See if there are other valid flag strings */
+			while (optind < argc) {
+				rc = flag_str_to_flag(argv[optind], &trc_flag);
+				if (rc) {
+					printf("Invalid flag %s\n",
+					       argv[optind]);
+					usage(rc);
+					rc = -1;
+					goto k_trc_util_exit;
+				}
+				/* trc_flag was valid */
+				trc_flags &= ~(trc_flag);
+				optind++;
+			}
+			/* Set the flags to the new value */
+			rc = set_trc_flags(trc_buf_name, trc_flags);
+			if (rc) {
+				printf("Could not set trace flags.\n");
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			printf("\nCurrent set trace flags (0x%08x):\n\n",
+			       trc_flags);
 
-            printf("\nCurrent set trace flags(0x%08x) for %s:\n\n",
-                   k_trc_trace_infop->k_trc_flags,
-                   k_trc_trace_infop->k_trc_name);
-            show_trc_flags(k_trc_trace_infop->k_trc_flags);
-            rc = 0;
-            goto k_trc_util_exit;
-
-        case 'f':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-
-            trc_flags = 0;
-            /* Get first flag string */
-            rc = flag_str_to_flag(optarg, &trc_flag);
-            if (rc) {
-                printf("Invalid flag %s\n", optarg);
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            /* trc_flag was valid */
-            trc_flags |= trc_flag;
-            /* See if there are other valid flag strings */
-            while (optind < argc) {
-                rc = flag_str_to_flag(argv[optind], &trc_flag);
-                if (rc) {
-                    printf("Invalid flag %s\n", argv[optind]);
-                    usage(rc);
-                    rc = -1;
-                    goto k_trc_util_exit;
-                }
-                /* trc_flag was valid */
-                trc_flags |= trc_flag;
-                optind++;
-            }
-            /* Set the flags to the new value */
-            rc = set_trc_flags(trc_buf_name, trc_flags);
-            if (rc) {
-                printf("Could not set trace flags.\n");
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            printf("\nTrace flags set to (0x%08x):\n\n", trc_flags);
-            show_trc_flags(trc_flags);
-            rc = 0;
-            goto k_trc_util_exit;
-
-        case 's':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-
-            trc_flags = k_trc_trace_infop->k_trc_flags;
-
-            /* Get first flag string */
-            rc = flag_str_to_flag(optarg, &trc_flag);
-            if (rc) {
-                printf("Invalid flag %s\n", optarg);
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            /* trc_flag was valid */
-            trc_flags |= trc_flag;
-            /* See if there are other valid flag strings */
-            while (optind < argc) {
-                rc = flag_str_to_flag(argv[optind], &trc_flag);
-                if (rc) {
-                    printf("Invalid flag %s\n", argv[optind]);
-                    usage(rc);
-                    rc = -1;
-                    goto k_trc_util_exit;
-                }
-                /* trc_flag was valid */
-                trc_flags |= trc_flag;
-                optind++;
-            }
-            /* Set the flags to the new value */
-            rc = set_trc_flags(trc_buf_name, trc_flags);
-            if (rc) {
-                printf("Could not set trace flags.\n");
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            printf("\nCurrent set trace flags (0x%08x):\n\n", trc_flags);
-            show_trc_flags(trc_flags);
-            rc = 0;
-            goto k_trc_util_exit;
-
-        case 'u':
-
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-
-            trc_flags = k_trc_trace_infop->k_trc_flags;
-
-            /* Get first flag string */
-            rc = flag_str_to_flag(optarg, &trc_flag);
-            if (rc) {
-                printf("Invalid flag %s\n", optarg);
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            /* trc_flag was valid */
-            trc_flags &= ~(trc_flag);
-            /* See if there are other valid flag strings */
-            while (optind < argc) {
-                rc = flag_str_to_flag(argv[optind], &trc_flag);
-                if (rc) {
-                    printf("Invalid flag %s\n", argv[optind]);
-                    usage(rc);
-                    rc = -1;
-                    goto k_trc_util_exit;
-                }
-                /* trc_flag was valid */
-                trc_flags &= ~(trc_flag);
-                optind++;
-            }
-            /* Set the flags to the new value */
-            rc = set_trc_flags(trc_buf_name, trc_flags);
-            if (rc) {
-                printf("Could not set trace flags.\n");
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            printf("\nCurrent set trace flags (0x%08x):\n\n", trc_flags);
-            show_trc_flags(trc_flags);
-            rc = -1;
-            goto k_trc_util_exit;
-            break;
-
+			show_trc_flags(trc_flags);
+			rc = -1;
+			goto k_trc_util_exit;
+			break;
+			
 #if 0
-            /* XXX maybe in 2.6 kernel linux will support kernel dumps. */
-        case 'd':
-            coref = optarg;
-            ++isDumpFile;
-            setup(namel, coref, O_RDONLY);
-            dump_trace(k_trc_trace_infop);
-            /* XXX not yet supported */
-            rc = -1;
-            goto k_trc_util_exit;
+			/* XXX maybe in 2.6 kernel linux will support
+			 * kernel dumps. */
+		case 'd':
+			coref = optarg;
+			++isDumpFile;
+			setup(namel, coref, O_RDONLY);
+			dump_trace(k_trc_trace_infop);
+			/* XXX not yet supported */
+			rc = -1;
+			goto k_trc_util_exit;
 #endif
+			
+		case 'c':
+			if (!n_flag) {
+				printf(TRC_BUF_NAME_REQUIRED);
+				usage(rc);
+				rc = -1;
+				goto k_trc_util_exit;
+			}
+			clear_trace_buf(trc_buf_name);
+			printf("Trace buffer cleared\n");
+			rc = 0;
+			goto k_trc_util_exit;
+			
+		case '?':
+			/* Try to get all info for flag information */
+			get_all_trc_info(trc_buf_name);
+			usage(0);
+			rc = 0;
+			goto k_trc_util_exit;
+			
+		default:
+			usage(1);
+		}
+	}
 
-        case 'c':
-            if (!n_flag) {
-                printf("ERROR: Specify -n <trc_buf_name> first.\n");
-                usage(rc);
-                rc = -1;
-                goto k_trc_util_exit;
-            }
-            clear_trace_buf(trc_buf_name);
-            printf("Trace buffer cleared\n");
-            rc = 0;
-            goto k_trc_util_exit;
+	if (!k_trc_trace_infop) {
+		printf("Error: Could not find trc_buf_name=%s\n",
+		       trc_buf_name);
+		/* Try to get all info for module and flag information */
+		get_all_trc_info(trc_buf_name);
+		usage(1);
+		rc = -1;
+		goto k_trc_util_exit;
+	}
+	
+	if (optind < argc) {
+		namel = argv[optind++];
+	}
+	if (optind < argc) {
+		coref = argv[optind++];
+	}
+	
+	setup(namel, coref, O_RDONLY);
+	
+	dump_trace(k_trc_trace_infop);
+	
+	if (verbose) {
+		printf("cache stats: fastHits %d hits %d misses %d\n",
+		       cStats.fastHits, cStats.hits, cStats.misses);
+	}
 
-        case '?':
-            /* Try to get all info for flag information */
-            get_all_trc_info(trc_buf_name);
-            usage(0);
-            rc = 0;
-            goto k_trc_util_exit;
-
-        default:
-            usage(1);
-        }
-    }
-
-    if (!k_trc_trace_infop) {
-        printf("Error: Could not find trc_buf_name=%s\n", trc_buf_name);
-        /* Try to get all info for module and flag information */
-        get_all_trc_info(trc_buf_name);
-        usage(1);
-        rc = -1;
-        goto k_trc_util_exit;
-    }
-
-    if (optind < argc) {
-        namel = argv[optind++];
-    }
-    if (optind < argc) {
-        coref = argv[optind++];
-    }
-
-    setup(namel, coref, O_RDONLY);
-
-    dump_trace(k_trc_trace_infop);
-
-    if (verbose) {
-        printf("cache stats: fastHits %d hits %d misses %d\n",
-               cStats.fastHits, cStats.hits, cStats.misses);
-    }
-
-  k_trc_util_exit:
-    if (all_trc_info) {
-        free(all_trc_info);
-    }
-
-    if (kutil_dev_fd > 0) {
-        close(kutil_dev_fd);
-    }
-
-    exit(0);
+k_trc_util_exit:
+	if (all_trc_info) {
+		free(all_trc_info);
+	}
+	
+	if (kutil_dev_fd > 0) {
+		close(kutil_dev_fd);
+	}
+	
+	exit(0);
 }
 
 
 char *save_str(char *fmt, ...)
 {
-    char buf[512];
-    int len;
-    char *p;
-    va_list ap;
+	char buf[512];
+	int len;
+	char *p;
+	va_list ap;
 
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    va_end(ap);
+	va_start(ap, fmt);
+	vsprintf(buf, fmt, ap);
+	va_end(ap);
 
-    len = strlen(buf);
-    if (!(p = (char *) malloc(len + 1))) {
-        printf("no mem, err=%d\n", errno);
-    }
+	len = strlen(buf);
+	if (!(p = (char *) malloc(len + 1))) {
+		printf("no mem, err=%d\n", errno);
+	}
 
-    bcopy(buf, p, len + 1);
+	bcopy(buf, p, len + 1);
 
-    return p;
+	return p;
 }
 
 static uint32_t slot;
@@ -906,153 +923,158 @@ static int was_nl;
 
 int dump_trace(k_trc_module_trc_info_t * trace_infop)
 {
-    size_t ldTbufSz;
-    uint32_t slot_idx, mark_slot;
-    k_trc_element_t *tp;
-    char *beg_buf = NULL;
-    char *end_buf = NULL;
-    void *p = NULL;
-    uint32_t zero_slots = 0;
+	size_t ldTbufSz;
+	uint32_t slot_idx, mark_slot;
+	k_trc_element_t *tp;
+	char *beg_buf = NULL;
+	char *end_buf = NULL;
+	void *p = NULL;
+	uint32_t zero_slots = 0;
 
-    if (!trace_infop) {
-        printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
-        return (-1);
-    }
+	if (!trace_infop) {
+		printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
+		return (-1);
+	}
 #if 0
-    if (isDumpFile) {
+	if (isDumpFile) {
 #ifdef J_LATER
-        osDumpInit(coref, &trace_info_addr);
-        /* get trace_info from dump file */
-        snarf(trace_info_addr, &trace_info, sizeof(k_trc_info));
+		osDumpInit(coref, &trace_info_addr);
+		/* get trace_info from dump file */
+		snarf(trace_info_addr, &trace_info, sizeof(k_trc_info));
 #endif
-    } else {
-        strncpy(trace_info.k_trc_name, buf_name,
-                sizeof(trace_info.k_trc_name));
+	} else {
+		strncpy(trace_info.k_trc_name, buf_name,
+			sizeof(trace_info.k_trc_name));
 
 #if 0
-        /* get trace_info from running kernel */
-        rc = get_trc_info(&trace_info);
-        if (rc) {
-            printf("get_trc_info failed errno=%d\n", rc);
-            return 1;
-        }
+		/* get trace_info from running kernel */
+		rc = get_trc_info(&trace_info);
+		if (rc) {
+			printf("get_trc_info failed errno=%d\n", rc);
+			return 1;
+		}
 #endif
-    }
+	}
 #endif
 
-    if (verbose) {
-        printf("k_trc_info.k_trc_buf_size=0x%x,"
-               " k_trc_info.k_trc_buf_index=0x%x\n",
-               trace_infop->k_trc_buf_size, trace_infop->k_trc_buf_index);
-    }
+	if (verbose) {
+		printf("k_trc_info.k_trc_buf_size=0x%x,"
+		       " k_trc_info.k_trc_buf_index=0x%x\n",
+		       trace_infop->k_trc_buf_size,
+		       trace_infop->k_trc_buf_index);
+	}
+	
+	ldTbufSz = trace_infop->k_trc_buf_size;
+	slot_idx = trace_infop->k_trc_buf_index;
 
-    ldTbufSz = trace_infop->k_trc_buf_size;
-    slot_idx = trace_infop->k_trc_buf_index;
+	if (verbose) {
+		printf("trace_infop->ldTbuf=%p, trace_infop->ldTbufSz=0x%x, "
+		       "trace_infop->slotidx=0x%x "
+		       "trace_infop->num_slots=0x%x\n",
+		       trace_infop->k_trc_buf_ptr,
+		       trace_infop->k_trc_buf_size,
+		       trace_infop->k_trc_buf_index,
+		       trace_infop->k_trc_num_entries);
+	}
 
-    if (verbose) {
-        printf("trace_infop->ldTbuf=%p, trace_infop->ldTbufSz=0x%x,"
-               " trace_infop->slotidx=0x%x trace_infop->num_slots=0x%x\n",
-               trace_infop->k_trc_buf_ptr,
-               trace_infop->k_trc_buf_size,
-               trace_infop->k_trc_buf_index,
-               trace_infop->k_trc_num_entries);
-    }
+	p = malloc(ldTbufSz);
+	ldTbuf = (k_trc_element_t *) p;
 
-    p = malloc(ldTbufSz);
-    ldTbuf = (k_trc_element_t *) p;
+	if (ldTbuf == NULL) {
+		printf("malloc failed");
+		return 1;
+	}
 
-    if (ldTbuf == NULL) {
-        printf("malloc failed");
-        return 1;
-    }
+	snarf(trace_infop->k_trc_buf_ptr, (void *) ldTbuf, ldTbufSz);
 
-    snarf(trace_infop->k_trc_buf_ptr, (void *) ldTbuf, ldTbufSz);
+	if (verbose) {
+		printf("ldTbuf = %p, ldTbufSz=%lx slot_idx=0x%x\n",
+		       ldTbuf, (long) ldTbufSz, slot_idx);
+		printf("sizeof(k_trc_arg_t)=%ld\n",
+		       (long) sizeof(k_trc_arg_t));
+		printf("sizeof(k_trc_element_t)=%ld\n",
+		       (long) sizeof(k_trc_element_t));
+	}
 
-    if (verbose) {
-        printf("ldTbuf = %p, ldTbufSz=%lx slot_idx=0x%x\n",
-               ldTbuf, (long) ldTbufSz, slot_idx);
-        printf("sizeof(k_trc_arg_t)=%ld\n", (long) sizeof(k_trc_arg_t));
-        printf("sizeof(k_trc_element_t)=%ld\n",
-               (long) sizeof(k_trc_element_t));
-    }
+	num_slots = trace_infop->k_trc_num_entries;
+	beg_buf = (char *) ldTbuf;
+	end_buf = beg_buf + ldTbufSz;
 
-    num_slots = trace_infop->k_trc_num_entries;
-    beg_buf = (char *) ldTbuf;
-    end_buf = beg_buf + ldTbufSz;
+	was_nl = 0;
+	slot = slot_idx % num_slots;
 
-    was_nl = 0;
-    slot = slot_idx % num_slots;
+	for (mark_slot = slot; ++slot != mark_slot;) {
+		if (slot >= num_slots) {
+			slot = -1;
+			continue;
+		}
 
-    for (mark_slot = slot; ++slot != mark_slot;) {
-        if (slot >= num_slots) {
-            slot = -1;
-            continue;
-        }
+		tp = &ldTbuf[slot];
 
-        tp = &ldTbuf[slot];
+		if (verbose) {
+			printf("num_slots=0x%x mark_slot=0x%x, slot=0x%x, "
+			       "elem_fmt=%d zero_slots=0x%x\n",
+			       num_slots, mark_slot, slot,
+			       tp->elem_fmt, zero_slots);
+			
+		}
 
-        if (verbose) {
-            printf
-                ("num_slots=0x%x mark_slot=0x%x, slot=0x%x, elem_fmt=%d zero_slots=0x%x\n",
-                 num_slots, mark_slot, slot, tp->elem_fmt, zero_slots);
-
-        }
-
-        switch (tp->elem_fmt) {
-        case KTRC_FORMAT_REGULAR:
-
-            if (tp->reg.fmt == 0) {
-                continue;
-            }
-            display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
-            zero_slots = 0;
-            break;
-
-            /* This dumps hex data slots until KTRC_HEX_DATA_END */
-        case KTRC_HEX_DATA_BEGIN:
-            display_hex_begin_trc_elem(tp);
-            zero_slots = 0;
-            break;
-
-            /*  
-             * If we hit these here, we've lost the BEGIN slot context, 
-             * so just skip 
-             */
-        case KTRC_HEX_DATA_CONTINUE:
-        case KTRC_HEX_DATA_END:
-            zero_slots = 0;
-            break;
-
-        case KTRC_PREFORMATTED_STR_BEGIN:
-            display_preformatted_str_begin_trc_elem(tp);
-            zero_slots = 0;
-            break;
-
-            /*
-             * If we hit these here, we've lost the BEGIN slot context,
-             * so just skip
-             */
-        case KTRC_PREFORMATTED_STR_CONTINUE:
-        case KTRC_PREFORMATTED_STR_END:
-            zero_slots = 0;
-            break;
-
-        default:
-            zero_slots++;
-            break;
-        }
-        /* 
-         * The slot may have been incremented by display_hex_begin_trc_elem()
-         * or display_preformatted_str_begin_trc_elem(). If so and now equal
-         * to marked slot, we are done.
-         */
-        if (slot == mark_slot) {
-            break;
-        }
-    }
-
-    printf("\n");
-    return (0);
+		switch (tp->elem_fmt) {
+		case KTRC_FORMAT_REGULAR:
+			
+			if (tp->reg.fmt == 0) {
+				continue;
+			}
+			display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
+			zero_slots = 0;
+			break;
+			
+			/* This dumps hex data slots until KTRC_HEX_DATA_END */
+		case KTRC_HEX_DATA_BEGIN:
+			display_hex_begin_trc_elem(tp);
+			zero_slots = 0;
+			break;
+			
+			/*  
+			 * If we hit these here, we've lost the BEGIN
+			 * slot context, so just skip 
+			 */
+		case KTRC_HEX_DATA_CONTINUE:
+		case KTRC_HEX_DATA_END:
+			zero_slots = 0;
+			break;
+			
+		case KTRC_PREFORMATTED_STR_BEGIN:
+			display_preformatted_str_begin_trc_elem(tp);
+			zero_slots = 0;
+			break;
+			
+			/*
+			 * If we hit these here, we've lost the BEGIN slot
+			 * context, so just skip
+			 */
+		case KTRC_PREFORMATTED_STR_CONTINUE:
+		case KTRC_PREFORMATTED_STR_END:
+			zero_slots = 0;
+			break;
+			
+		default:
+			zero_slots++;
+			break;
+		}
+		/* 
+		 * The slot may have been incremented by
+		 * display_hex_begin_trc_elem() or
+		 * display_preformatted_str_begin_trc_elem().
+		 * If so and now equal to marked slot, we are done.
+		 */
+		if (slot == mark_slot) {
+			break;
+		}
+	}
+	
+	printf("\n");
+	return (0);
 }
 
 int display_reg_trc_elem(k_trc_regular_element_t * tp, char *beg_buf,
@@ -1084,7 +1106,7 @@ int display_reg_trc_elem(k_trc_regular_element_t * tp, char *beg_buf,
              time_stamp_formated.tm_hour,
              time_stamp_formated.tm_min,
              time_stamp_formated.tm_sec,
-             tp->tv_usec,
+             tp->tv_nsec,
              tp->cpu,
              tp->tid,
              ((int) (2 * sizeof(tp->id))),
@@ -1130,7 +1152,7 @@ int display_preformatted_str_begin_trc_elem(k_trc_element_t * tp)
              time_stamp_formated.tm_hour,
              time_stamp_formated.tm_min,
              time_stamp_formated.tm_sec,
-             tp->pfs_begin.tv_usec,
+             tp->pfs_begin.tv_nsec,
              tp->pfs_begin.cpu,
              tp->pfs_begin.tid,
              ((int) (2 * sizeof(tp->pfs_begin.id))),
@@ -1203,7 +1225,7 @@ int display_hex_begin_trc_elem(k_trc_element_t * tp)
              time_stamp_formated.tm_hour,
              time_stamp_formated.tm_min,
              time_stamp_formated.tm_sec,
-             tp->hex_begin.tv_usec,
+             tp->hex_begin.tv_nsec,
              tp->hex_begin.cpu,
              tp->hex_begin.tid,
              ((int) (2 * sizeof(tp->hex_begin.id))),

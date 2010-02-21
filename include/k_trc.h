@@ -35,7 +35,7 @@ typedef void *k_trc_arg_t;
 typedef struct _k_trc_regular_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -54,7 +54,7 @@ typedef struct _k_trc_regular_element {
 typedef struct _k_trc_hex_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -80,7 +80,7 @@ typedef struct _k_trc_hex_element {
 typedef struct _k_trc_prefmtstr_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -157,7 +157,7 @@ typedef enum {
 typedef struct _j_trc_regular_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -176,7 +176,7 @@ typedef struct _j_trc_regular_element {
 typedef struct _j_trc_hex_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -202,7 +202,7 @@ typedef struct _j_trc_hex_element {
 typedef struct _j_trc_prefmtstr_begin_element {
     int cpu;                    /* cpu */
     uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_usec;               /* copy of `tod' tv_usec */
+    uint tv_nsec;               /* copy of `tod' tv_nsec */
     void *tid;                  /* tasket or tid */
     const char *func_name;      /* pointer to function name */
     int line_num;               /* line number */
@@ -337,6 +337,7 @@ typedef enum {
 
 #define K_TRC_MAX_PREFMT_STR_PER_ELEM \
     (sizeof(k_trc_element_t)-offsetof(k_trc_element_t, pfs_continue.data_start)-1)
+
 
 typedef struct _k_trc_module_trc_info {
 #define KTRC_MOD_NAME_SIZE 32

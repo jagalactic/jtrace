@@ -855,42 +855,42 @@ static int j_trc_panic_event(struct notifier_block *this,
  */
 int j_trc_register_trc_info(j_trc_register_trc_info_t * ktr_infop)
 {
-    unsigned long flags;
+	unsigned long flags;
 
-    if (strnlen(ktr_infop->mod_trc_info.j_trc_name,
-                sizeof(ktr_infop->mod_trc_info.j_trc_name)) == 0) {
-        printk
-            ("ERROR: j_trc_register_trc_info: j_trc_name must be non-NULL\n");
-        return (EINVAL);
-    }
+	if (strnlen(ktr_infop->mod_trc_info.j_trc_name,
+		    sizeof(ktr_infop->mod_trc_info.j_trc_name)) == 0) {
+		printk("ERROR: j_trc_register_trc_info: "
+		       "j_trc_name must be non-NULL\n");
+		return (EINVAL);
+	}
 
-    if (ktr_infop->mod_trc_info.
-        j_trc_custom_flags_mask & KTR_COMMON_FLAGS_MASK) {
-        printk
-            ("ERROR: j_trc_register_trc_info: Custom flag values contain reserved KTR_COMMON_FLAGS_MASK\n");
-        return (EINVAL);
-    }
+	if (ktr_infop->mod_trc_info.
+	    j_trc_custom_flags_mask & KTR_COMMON_FLAGS_MASK) {
+		printk("ERROR: j_trc_register_trc_info: Custom flag values "
+		       "contain reserved KTR_COMMON_FLAGS_MASK\n");
+		return (EINVAL);
+	}
 
-    spin_lock_irqsave(&j_trc_mutex, flags);
+	spin_lock_irqsave(&j_trc_mutex, flags);
 
-    if (j_trc_find_trc_info_by_addr(ktr_infop) ||
-        j_trc_find_trc_info_by_name(ktr_infop->mod_trc_info.j_trc_name)) {
-        printk("j_trc_register_trc_info: EALREADY\n");
-        spin_unlock_irqrestore(&j_trc_mutex, flags);
-        return (EALREADY);
-    }
+	if (j_trc_find_trc_info_by_addr(ktr_infop) ||
+	    j_trc_find_trc_info_by_name(ktr_infop->mod_trc_info.j_trc_name)) {
+		printk("j_trc_register_trc_info: EALREADY\n");
+		spin_unlock_irqrestore(&j_trc_mutex, flags);
+		return (EALREADY);
+	}
 
-    spin_lock_init(&ktr_infop->j_trc_buf_mutex);
-    ktr_infop->mod_trc_info.j_trc_buf_index = 0;
-    memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
-           ktr_infop->mod_trc_info.j_trc_buf_size);
-    list_add_tail(&ktr_infop->j_trc_list, &j_trc_registered_mods);
-    j_trc_num_registered_mods++;
-    ktr_infop->use_count++;
+	spin_lock_init(&ktr_infop->j_trc_buf_mutex);
+	ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+	memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
+	       ktr_infop->mod_trc_info.j_trc_buf_size);
+	list_add_tail(&ktr_infop->j_trc_list, &j_trc_registered_mods);
+	j_trc_num_registered_mods++;
+	ktr_infop->use_count++;
 
-    spin_unlock_irqrestore(&j_trc_mutex, flags);
+	spin_unlock_irqrestore(&j_trc_mutex, flags);
 
-    return (0);
+	return (0);
 }
 
 /* 

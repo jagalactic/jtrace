@@ -33,35 +33,35 @@ typedef void *k_trc_arg_t;
  * Regular format trace buffer element
  */
 typedef struct _k_trc_regular_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    char *fmt;                  /**< printf() format string */
-    k_trc_arg_t a0;             /**< arg 0 */
-    k_trc_arg_t a1;             /**< arg 1 */
-    k_trc_arg_t a2;             /**< arg 2 */
-    k_trc_arg_t a3;             /**< arg 3 */
-    k_trc_arg_t a4;             /**< arg 4 */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    char *fmt;                  /* printf() format string */
+    k_trc_arg_t a0;             /* arg 0 */
+    k_trc_arg_t a1;             /* arg 1 */
+    k_trc_arg_t a2;             /* arg 2 */
+    k_trc_arg_t a3;             /* arg 3 */
+    k_trc_arg_t a4;             /* arg 4 */
 } k_trc_regular_element_t;
 
 /**
  * Hex dump begin format trace buffer element
  */
 typedef struct _k_trc_hex_begin_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    char *msg;                  /**< message to print */
-    int total_length;           /**< Total length of data to dump */
-    char data_start;            /**< First byte of binary hex data */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    char *msg;                  /* message to print */
+    int total_length;           /* Total length of data to dump */
+    char data_start;            /* First byte of binary hex data */
 } k_trc_hex_begin_element_t;
 
 
@@ -69,8 +69,8 @@ typedef struct _k_trc_hex_begin_element {
  * Hex dump format trace buffer element
  */
 typedef struct _k_trc_hex_element {
-    unsigned char length;                /**< Length of data for this element */
-    char data_start;            /**< First byte of binary hex data in this element */
+    unsigned char length;                /* Length of data for this element */
+    char data_start;            /* First byte of binary hex data in this element */
 } k_trc_hex_element_t;
 
 
@@ -78,15 +78,15 @@ typedef struct _k_trc_hex_element {
  * Preformatted str trace buffer element begin
  */
 typedef struct _k_trc_prefmtstr_begin_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    int total_length;           /**< Total length of formatted str to dump */
-    char data_start;            /**< First byte of formatted str */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    int total_length;           /* Total length of formatted str to dump */
+    char data_start;            /* First byte of formatted str */
 } k_trc_prefmtstr_begin_element_t;
 
 
@@ -94,8 +94,8 @@ typedef struct _k_trc_prefmtstr_begin_element {
  * Preformatted str trace buffer element continue
  */
 typedef struct _k_trc_prefmtstr_element {
-    unsigned char length;                /**< Length of data for this element */
-    char data_start;            /**< First byte of str data in this element */
+    unsigned char length;                /* Length of data for this element */
+    char data_start;            /* First byte of str data in this element */
 } k_trc_prefmtstr_element_t;
 
 
@@ -104,7 +104,7 @@ typedef struct _k_trc_prefmtstr_element {
  * Trace buffer element
  */
 typedef struct _k_trc_element {
-    k_trc_element_fmt_t elem_fmt; /**< Element format type */
+    k_trc_element_fmt_t elem_fmt; /* Element format type */
     union {
         k_trc_regular_element_t reg;
         k_trc_hex_begin_element_t hex_begin;
@@ -155,35 +155,35 @@ typedef enum {
  * Regular format trace buffer element
  */
 typedef struct _j_trc_regular_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    char *fmt;                  /**< printf() format string */
-    j_trc_arg_t a0;             /**< arg 0 */
-    j_trc_arg_t a1;             /**< arg 1 */
-    j_trc_arg_t a2;             /**< arg 2 */
-    j_trc_arg_t a3;             /**< arg 3 */
-    j_trc_arg_t a4;             /**< arg 4 */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    char *fmt;                  /* printf() format string */
+    j_trc_arg_t a0;             /* arg 0 */
+    j_trc_arg_t a1;             /* arg 1 */
+    j_trc_arg_t a2;             /* arg 2 */
+    j_trc_arg_t a3;             /* arg 3 */
+    j_trc_arg_t a4;             /* arg 4 */
 } j_trc_regular_element_t;
 
 /**
  * Hex dump begin format trace buffer element
  */
 typedef struct _j_trc_hex_begin_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    char *msg;                  /**< message to print */
-    int total_length;           /**< Total length of data to dump */
-    char data_start;            /**< First byte of binary hex data */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    char *msg;                  /* message to print */
+    int total_length;           /* Total length of data to dump */
+    char data_start;            /* First byte of binary hex data */
 } j_trc_hex_begin_element_t;
 
 
@@ -191,8 +191,8 @@ typedef struct _j_trc_hex_begin_element {
  * Hex dump format trace buffer element
  */
 typedef struct _j_trc_hex_element {
-    unsigned char length;                /**< Length of data for this element */
-    char data_start;            /**< First byte of binary hex data in this element */
+    unsigned char length;                /* Length of data for this element */
+    char data_start;            /* First byte of binary hex data in this element */
 } j_trc_hex_element_t;
 
 
@@ -200,15 +200,15 @@ typedef struct _j_trc_hex_element {
  * Preformatted str trace buffer element begin
  */
 typedef struct _j_trc_prefmtstr_begin_element {
-    int cpu;                    /**< cpu */
-    uint tv_sec;                /**< copy of `tod' tv_sec  */
-    uint tv_usec;               /**< copy of `tod' tv_usec */
-    void *tid;                  /**< tasket or tid */
-    const char *func_name;      /**< pointer to function name */
-    int line_num;               /**< line number */
-    void *id;                   /**< correlator */
-    int total_length;           /**< Total length of formatted str to dump */
-    char data_start;            /**< First byte of formatted str */
+    int cpu;                    /* cpu */
+    uint tv_sec;                /* copy of `tod' tv_sec  */
+    uint tv_usec;               /* copy of `tod' tv_usec */
+    void *tid;                  /* tasket or tid */
+    const char *func_name;      /* pointer to function name */
+    int line_num;               /* line number */
+    void *id;                   /* correlator */
+    int total_length;           /* Total length of formatted str to dump */
+    char data_start;            /* First byte of formatted str */
 } j_trc_prefmtstr_begin_element_t;
 
 
@@ -216,8 +216,8 @@ typedef struct _j_trc_prefmtstr_begin_element {
  * Preformatted str trace buffer element continue
  */
 typedef struct _j_trc_prefmtstr_element {
-    unsigned char length;                /**< Length of data for this element */
-    char data_start;            /**< First byte of str data in this element */
+    unsigned char length;                /* Length of data for this element */
+    char data_start;            /* First byte of str data in this element */
 } j_trc_prefmtstr_element_t;
 
 
@@ -225,7 +225,7 @@ typedef struct _j_trc_prefmtstr_element {
  * Trace buffer element
  */
 typedef struct _j_trc_element {
-    j_trc_element_fmt_t elem_fmt; /**< Element format type */
+    j_trc_element_fmt_t elem_fmt; /* Element format type */
     union {
         j_trc_regular_element_t reg;
         j_trc_hex_begin_element_t hex_begin;

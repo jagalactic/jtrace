@@ -21,13 +21,14 @@
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 #include <asm/current.h>
 #include <asm/smp.h>
 #include "j_trc_mod.h"
 #include "j_trc.h"
 #include "j_trc_devfile.h"
-
+//#include "../include/k_trc.h"
 
 /* A chrdev is used for ioctl interface */
 int j_trc_ioctl(struct inode *inode, struct file *file,
@@ -97,9 +98,42 @@ static int __init j_trc_cdev_init(void)
 
 #define JTR_SPFILE "jtrace"
 
-	printk("jtrace loaded: devno major %d minor %d\n",
-	       MISC_MAJOR, jtr_mdev.minor);
+	/* 
+	 * Register and put something in the "master" trace buffer
+	 * (as an example plus proof of functionality)
+	 */
+	{
+#define NUM_ELEM 1048576
+		int elem_size = sizeof(j_trc_element_t);
+		int bufsize = (elem_size * NUM_ELEM);
+		char *buf;
+		j_trc_register_trc_info_t jtr = {
+			.mod_trc_info =  {
+				.j_trc_num_entries = NUM_ELEM,
+				.j_trc_buf_size = bufsize,
+				.j_trc_flags = KTR_COMMON_FLAGS_MASK,
+			},
 
+		};
+
+		strcpy(jtr.mod_trc_info.j_trc_name, "master");
+		buf = vmalloc(bufsize);
+		
+		jtr.mod_trc_info.j_trc_buf_ptr = (j_trc_element_t *)buf;
+		if (!buf) {
+			printk("jtrace: unable to vmalloc master buffer\n");
+			goto errexit;
+		}
+
+		strcpy(jtr.mod_trc_info.j_trc_name, "master");
+
+		j_trc_register_trc_info(&jtr);
+
+		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
+		       MISC_MAJOR, jtr_mdev.minor, elem_size);
+		kTrc(KTR_CONF, 0, "jtrace module loaded");
+
+	}
 	return 0;
 
   errexit:

@@ -273,41 +273,41 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
 
 void dump_hex_line(char *buf_ptr, int buf_len)
 {
-    int idx;
-    char ch;
+	int idx;
+	char ch;
 #ifdef OUTPUT_EBCIDIC_TOO
-    int ebcdic_ch;
+	int ebcdic_ch;
 #endif
 
-    /* Print the hexadecimal values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            printk("%02x ", ((int) buf_ptr[idx]) & 0xff);
-        } else {
-            printk("   ");
-        }
-    }
-    printk("  ");
-    /* Translate and print hex to ASCII values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ch = buf_ptr[idx];
-            if ((ch < 0x20) || (ch > 0x7e)) {
-                printk(".");
-            } else {
-                printk("%c", buf_ptr[idx]);
-            }
-        }
-    }
+	/* Print the hexadecimal values */
+	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+		if (idx < buf_len) {
+			printk("%02x ", ((int) buf_ptr[idx]) & 0xff);
+		} else {
+			printk("   ");
+		}
+	}
+	printk("  ");
+	/* Translate and print hex to ASCII values */
+	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+		if (idx < buf_len) {
+			ch = buf_ptr[idx];
+			if ((ch < 0x20) || (ch > 0x7e)) {
+				printk(".");
+			} else {
+				printk("%c", buf_ptr[idx]);
+			}
+		}
+	}
 #ifdef OUTPUT_EBCIDIC_TOO
-    printk("  ");
-    /* Translate and print hex to EBCDIC values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ebcdic_ch = (((int) buf_ptr[idx]) & 0xff);
-            printk("%c", e2a[ebcdic_ch]);
-        }
-    }
+	printk("  ");
+	/* Translate and print hex to EBCDIC values */
+	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+		if (idx < buf_len) {
+			ebcdic_ch = (((int) buf_ptr[idx]) & 0xff);
+			printk("%c", e2a[ebcdic_ch]);
+		}
+	}
 #endif
 }
 
@@ -318,10 +318,10 @@ static int idx = 0;
 
 void j_trc_print_element(j_trc_element_t * tp)
 {
-    int prefix_len = 0;
+	int prefix_len = 0;
 
-    switch (tp->elem_fmt) {
-    case KTRC_FORMAT_REGULAR:
+	switch (tp->elem_fmt) {
+	case KTRC_FORMAT_REGULAR:
 
         prefix_len = snprintf(buf, J_TRC_KPRINT_BUF_SIZE,
                               "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",

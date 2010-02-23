@@ -146,121 +146,121 @@ struct CacheStats {
 
 char *snarf_str(void *addr)
 {
-    static struct StrCache {
-        void *addr;
-        char str[128];
-        uint lru;
-    } cache[512], *last, *hiwat = &cache[0];
-    static uint lru;
-    struct StrCache *ent, *old;
-
-    if (last && last->addr == addr) {
-        ++cStats.fastHits;
-
-        return last->str;
-    }
-
-    for (old = ent = cache; ent < hiwat; ++ent) {
-        if (ent->addr == addr) {
-            ++cStats.hits;
-
-            ent->lru = ++lru;
-
-            last = ent;
-
-            return ent->str;
-        }
-        if (old->lru > ent->lru)
-            old = ent;
-    }
-
-    /*
-     * cache miss - either use a new entry, or the oldest
-     */
-    if (ent == hiwat && hiwat < &cache[512])
-        ent = hiwat++;
-    else
-        ent = old;
-
-    ent->addr = addr;
-    ent->lru = ++lru;
-
-    snarf(addr, ent->str, (size_t) sizeof(ent->str));
-
-    ent->str[sizeof(ent->str) - 1] = 0;
-
-    ++cStats.misses;
-
-    return (last = ent)->str;
+	static struct StrCache {
+		void *addr;
+		char str[128];
+		uint lru;
+	} cache[512], *last, *hiwat = &cache[0];
+	static uint lru;
+	struct StrCache *ent, *old;
+	
+	if (last && last->addr == addr) {
+		++cStats.fastHits;
+		
+		return last->str;
+	}
+	
+	for (old = ent = cache; ent < hiwat; ++ent) {
+		if (ent->addr == addr) {
+			++cStats.hits;
+			
+			ent->lru = ++lru;
+			
+			last = ent;
+			
+			return ent->str;
+		}
+		if (old->lru > ent->lru)
+			old = ent;
+	}
+	
+	/*
+	 * cache miss - either use a new entry, or the oldest
+	 */
+	if (ent == hiwat && hiwat < &cache[512])
+		ent = hiwat++;
+	else
+		ent = old;
+	
+	ent->addr = addr;
+	ent->lru = ++lru;
+	
+	snarf(addr, ent->str, (size_t) sizeof(ent->str));
+	
+	ent->str[sizeof(ent->str) - 1] = 0;
+	
+	++cStats.misses;
+	
+	return (last = ent)->str;
 }
 
 
 void setup(char *namelist, char *corefile, int flag)
 {
 #if APP_KREL < 26
-    /* /dev/kmem currently broken in 2.6, just skip */
-    kfd = open(corefile, flag);
-
-    if (kfd < 0) {
-        printf("Corefile open error, %s, errno=%d\n", corefile, errno);
-    }
+	/* /dev/kmem currently broken in 2.6, just skip */
+	kfd = open(corefile, flag);
+	
+	if (kfd < 0) {
+		printf("Corefile open error, %s, errno=%d\n", corefile, errno);
+	}
 #endif
-    return;
+	return;
 }
 
 
 int clear_trace_buf(char *buf_name)
 {
-    k_trc_cmd_req_t cmd_req;
+	k_trc_cmd_req_t cmd_req;
 
-    bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
 
-    strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
+	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-    cmd_req.cmd = KTRCTL_CLEAR;
-    if (ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req)) {
-        printf("Failed describe errno=%d\n", errno);
-        return 1;
-    }
+	cmd_req.cmd = KTRCTL_CLEAR;
+	if (ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req)) {
+		printf("Failed describe errno=%d\n", errno);
+		return 1;
+	}
 
-    return (0);
+	return (0);
 }
 
 int snarf_no_kmem(void *addr, void *buf, size_t len)
 {
-    k_trc_cmd_req_t cmd_req;
+	k_trc_cmd_req_t cmd_req;
 
-    cmd_req.snarf_addr = addr;
-    cmd_req.data = buf;
-    cmd_req.data_size = len;
+	cmd_req.snarf_addr = addr;
+	cmd_req.data = buf;
+	cmd_req.data_size = len;
 
-    cmd_req.cmd = KTRCTL_SNARF;
-    if (ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req)) {
-        printf("Failed describe errno=%d\n", errno);
-        return 1;
-    }
+	cmd_req.cmd = KTRCTL_SNARF;
+	if (ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req)) {
+		printf("Failed describe errno=%d\n", errno);
+		return 1;
+	}
 
-    return (0);
+	return (0);
 }
 
 int set_trc_flags(char *buf_name, int trc_flags)
 {
-    int rc = 0;
-    k_trc_cmd_req_t cmd_req;
+	int rc = 0;
+	k_trc_cmd_req_t cmd_req;
 
-    bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
-    strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
+	bzero(&cmd_req, sizeof(k_trc_cmd_req_t));
+	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-    cmd_req.cmd = KTRCTL_SET_TRC_FLAGS;
-    cmd_req.data = &trc_flags;
-    rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
-    if (rc) {
-        printf("ioctl KTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
-               rc, errno);
-        return (rc);
-    }
+	cmd_req.cmd = KTRCTL_SET_TRC_FLAGS;
+	cmd_req.data = &trc_flags;
+	rc = ioctl(kutil_dev_fd, K_TRC_CMD_IOCTL, &cmd_req);
+	if (rc) {
+		printf("ioctl KTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
+		       rc, errno);
+		return (rc);
+	}
 
-    return (0);
+	return (0);
 }
 
 int set_printk_value(char *buf_name, int value)
@@ -407,139 +407,144 @@ int get_all_trc_info(char *trc_buf_name)
 
 int show_trc_flags(uint32_t trc_flags)
 {
-    int i = 0;
-    int j = 0;
-    char *ptr = NULL;
-    k_trc_flag_descriptor_t *flag_descp = NULL;
-    k_trc_module_trc_info_t *trace_infop = NULL;
+	int i = 0;
+	int j = 0;
+	char *ptr = NULL;
+	k_trc_flag_descriptor_t *flag_descp = NULL;
+	k_trc_module_trc_info_t *trace_infop = NULL;
 
-    printf("\nCommon trace flags:\n");
-    for (i = 0; i < k_trc_num_common_flags; i++) {
-        flag_descp = &k_trc_common_flag_array[i];
-        if ((KTR_COMMON_FLAG(i)) & trc_flags) {
-            printf("%12s (0x%08x) - %s\n",
-                   flag_descp->k_trc_flag_cmd_line_name,
-                   KTR_COMMON_FLAG(i), flag_descp->k_trc_flag_description);
-        }
-    }
+	printf("\nCommon trace flags:\n");
+	for (i = 0; i < k_trc_num_common_flags; i++) {
+		flag_descp = &k_trc_common_flag_array[i];
+		if ((KTR_COMMON_FLAG(i)) & trc_flags) {
+			printf("%12s (0x%08x) - %s\n",
+			       flag_descp->k_trc_flag_cmd_line_name,
+			       KTR_COMMON_FLAG(i),
+			       flag_descp->k_trc_flag_description);
+		}
+	}
 
-    /* Specific trace module requested */
-    if (k_trc_trace_infop) {
-        if (k_trc_trace_infop->k_trc_num_custom_flags) {
-            printf("\nCustom trace flags for module %s:\n",
-                   k_trc_trace_infop->k_trc_name);
-            /* Custom flags start after the module trc info */
-            ptr = (char *) k_trc_trace_infop;
-            ptr += sizeof(k_trc_module_trc_info_t);
-            flag_descp = (k_trc_flag_descriptor_t *) ptr;
-            for (i = 0; i < (k_trc_trace_infop->k_trc_num_custom_flags);
-                 i++) {
-                if ((KTR_CUSTOM_FLAG(i)) & trc_flags) {
-                    printf("%12s (0x%08x) - %s\n",
-                           flag_descp->k_trc_flag_cmd_line_name,
-                           KTR_CUSTOM_FLAG(i),
-                           flag_descp->k_trc_flag_description);
-                }
-                flag_descp++;
-            }
-        } else {
-            printf("\nNo custom trace flags for module %s:\n",
-                   k_trc_trace_infop->k_trc_name);
-        }
-        printf("\n\n");
-        return (0);
-    }
+	/* Specific trace module requested */
+	if (k_trc_trace_infop) {
+		if (k_trc_trace_infop->k_trc_num_custom_flags) {
+			printf("\nCustom trace flags for module %s:\n",
+			       k_trc_trace_infop->k_trc_name);
+			/* Custom flags start after the module trc info */
+			ptr = (char *) k_trc_trace_infop;
+			ptr += sizeof(k_trc_module_trc_info_t);
+			flag_descp = (k_trc_flag_descriptor_t *) ptr;
+			for (i = 0;
+			     i < (k_trc_trace_infop->k_trc_num_custom_flags);
+			     i++) {
+				if ((KTR_CUSTOM_FLAG(i)) & trc_flags) {
+					printf("%12s (0x%08x) - %s\n",
+					       flag_descp->k_trc_flag_cmd_line_name,
+					       KTR_CUSTOM_FLAG(i),
+					       flag_descp->k_trc_flag_description);
+				}
+				flag_descp++;
+			}
+		} else {
+			printf("\nNo custom trace flags for module %s:\n",
+			       k_trc_trace_infop->k_trc_name);
+		}
+		printf("\n\n");
+		return (0);
+	}
 
-    trace_infop = k_trc_first_trace_infop;
-    if (!trace_infop) {
-        /* No registered trace modules */
-        printf("\n\n");
-        return (0);
-    }
+	trace_infop = k_trc_first_trace_infop;
+	if (!trace_infop) {
+		/* No registered trace modules */
+		printf("\n\n");
+		return (0);
+	}
 
-    /*
-     * No specific trace module requested. 
-     * Check all registered modules 
-     */
-    for (i = 0; i < k_trc_num_registered_mods; i++) {
+	/*
+	 * No specific trace module requested. 
+	 * Check all registered modules 
+	 */
+	for (i = 0; i < k_trc_num_registered_mods; i++) {
 
-        if (trace_infop->k_trc_num_custom_flags) {
-            printf("\nCustom trace flags for module %s:\n",
-                   trace_infop->k_trc_name);
+		if (trace_infop->k_trc_num_custom_flags) {
+			printf("\nCustom trace flags for module %s:\n",
+			       trace_infop->k_trc_name);
+			
+			/* Custom flags start after the module trc info */
+			ptr = (char *) trace_infop;
+			ptr += sizeof(k_trc_module_trc_info_t);
+			flag_descp = (k_trc_flag_descriptor_t *) ptr;
+			for (j = 0;
+			     j < (trace_infop->k_trc_num_custom_flags); j++) {
+				if ((KTR_CUSTOM_FLAG(j)) & trc_flags) {
+					printf("%12s (0x%08x) - %s\n",
+					       flag_descp->k_trc_flag_cmd_line_name,
+					       KTR_CUSTOM_FLAG(j),
+					       flag_descp->k_trc_flag_description);
+				}
+				flag_descp++;
+			}
+		} else {
+			printf("\nNo custom trace flags for module %s:\n",
+			       trace_infop->k_trc_name);
+		}
 
-            /* Custom flags start after the module trc info */
-            ptr = (char *) trace_infop;
-            ptr += sizeof(k_trc_module_trc_info_t);
-            flag_descp = (k_trc_flag_descriptor_t *) ptr;
-            for (j = 0; j < (trace_infop->k_trc_num_custom_flags); j++) {
-                if ((KTR_CUSTOM_FLAG(j)) & trc_flags) {
-                    printf("%12s (0x%08x) - %s\n",
-                           flag_descp->k_trc_flag_cmd_line_name,
-                           KTR_CUSTOM_FLAG(j),
-                           flag_descp->k_trc_flag_description);
-                }
-                flag_descp++;
-            }
-        } else {
-            printf("\nNo custom trace flags for module %s:\n",
-                   trace_infop->k_trc_name);
-        }
+		/* Get next trace information */
+		ptr = (char *) trace_infop;
+		/* Skip past this trace information */
+		ptr += sizeof(k_trc_module_trc_info_t);
+		/* Also, skip past any custom flag descriptions */
+		ptr +=
+			(trace_infop->k_trc_num_custom_flags *
+			 sizeof(k_trc_flag_descriptor_t));
+		trace_infop = (k_trc_module_trc_info_t *) ptr;
+	}
 
-        /* Get next trace information */
-        ptr = (char *) trace_infop;
-        /* Skip past this trace information */
-        ptr += sizeof(k_trc_module_trc_info_t);
-        /* Also, skip past any custom flag descriptions */
-        ptr +=
-            (trace_infop->k_trc_num_custom_flags *
-             sizeof(k_trc_flag_descriptor_t));
-        trace_infop = (k_trc_module_trc_info_t *) ptr;
-    }
-
-    printf("\n\n");
-    return (0);
+	printf("\n\n");
+	return (0);
 }
 
 int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 {
-    int i = 0;
-    char *ptr = NULL;
-    k_trc_flag_descriptor_t *flag_descp = NULL;
+	int i = 0;
+	char *ptr = NULL;
+	k_trc_flag_descriptor_t *flag_descp = NULL;
 
-    for (i = 0; i < k_trc_num_common_flags; i++) {
-        flag_descp = &k_trc_common_flag_array[i];
-        if (strcmp(flag_descp->k_trc_flag_cmd_line_name, trc_flag_str) ==
-            0) {
-            /* Found a match */
-            *trc_flag = KTR_COMMON_FLAG(i);
-            return (0);
-        }
-    }
+	for (i = 0; i < k_trc_num_common_flags; i++) {
+		flag_descp = &k_trc_common_flag_array[i];
+		if (strcmp(flag_descp->k_trc_flag_cmd_line_name,
+			   trc_flag_str) ==
+		    0) {
+			/* Found a match */
+			*trc_flag = KTR_COMMON_FLAG(i);
+			return (0);
+		}
+	}
 
-    if (k_trc_trace_infop && k_trc_trace_infop->k_trc_num_custom_flags) {
-        if (verbose) {
-            printf("Checking custom flags for %s\n",
-                   k_trc_trace_infop->k_trc_name);
+	if (k_trc_trace_infop && k_trc_trace_infop->k_trc_num_custom_flags) {
+		if (verbose) {
+			printf("Checking custom flags for %s\n",
+			       k_trc_trace_infop->k_trc_name);
+			
+		}
+		/* Custom flags start after the module trc info */
+		ptr = (char *) k_trc_trace_infop;
+		ptr += sizeof(k_trc_module_trc_info_t);
+		flag_descp = (k_trc_flag_descriptor_t *) ptr;
+		for (i = 0;
+		     i < (k_trc_trace_infop->k_trc_num_custom_flags); i++) {
+			
+			if (strcmp(flag_descp->k_trc_flag_cmd_line_name,
+				   trc_flag_str) == 0) {
+				/* Found a match */
+				*trc_flag = KTR_CUSTOM_FLAG(i);
+				return (0);
+			}
+			flag_descp++;
+		}
+	}
 
-        }
-        /* Custom flags start after the module trc info */
-        ptr = (char *) k_trc_trace_infop;
-        ptr += sizeof(k_trc_module_trc_info_t);
-        flag_descp = (k_trc_flag_descriptor_t *) ptr;
-        for (i = 0; i < (k_trc_trace_infop->k_trc_num_custom_flags); i++) {
-
-            if (strcmp(flag_descp->k_trc_flag_cmd_line_name, trc_flag_str)
-                == 0) {
-                /* Found a match */
-                *trc_flag = KTR_CUSTOM_FLAG(i);
-                return (0);
-            }
-            flag_descp++;
-        }
-    }
-
-    /* Found no match, invalid flag */
-    return (-1);
+	/* Found no match, invalid flag */
+	return (-1);
 }
 
 #define TRC_BUF_NAME_REQUIRED "ERROR: Specify -n <trc_buf_name> first.\n"

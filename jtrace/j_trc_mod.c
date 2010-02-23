@@ -6,10 +6,11 @@
 
 
 /* This is to export entry points */
+#if 0
 #ifndef EXPORT_SYMTAB
 #define EXPORT_SYMTAB
 #endif
-
+#endif
 
 
 #include <linux/types.h>
@@ -89,7 +90,7 @@ static int __init j_trc_cdev_init(void)
 {
 
 	int rc;
-	int i;
+	//int i;
 
 	rc = misc_register(&jtr_mdev);
 
@@ -109,8 +110,8 @@ static int __init j_trc_cdev_init(void)
 	 * (as an example plus proof of functionality)
 	 */
 	{
-//#define NUM_ELEM 1048576
-#define NUM_ELEM 32
+#define NUM_ELEM 1048576
+//#define NUM_ELEM 32
 		int elem_size = sizeof(j_trc_element_t);
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
@@ -132,12 +133,13 @@ static int __init j_trc_cdev_init(void)
 
 		strcpy(jtr.mod_trc_info.j_trc_name, "master");
 
+
+		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
+		       MISC_MAJOR, jtr_mdev.minor, elem_size);
+
+#if 0
 		j_trc_register_trc_info(&jtr);
 
-		printk("jtrace loaded: devno major %d minor %d elem size %d "
-		       "mask %x\n",
-		       MISC_MAJOR, jtr_mdev.minor, elem_size,
-		       jtr.mod_trc_info.j_trc_flags);
 		kTrcPrintkSet(1);
 		kTrc(&jtr, 0, "jtrace module loaded");
 		kTrc(&jtr, 0, "jtrace module loaded");
@@ -161,7 +163,7 @@ static int __init j_trc_cdev_init(void)
 
 			j_trc_print_element(tp);
 		}
-
+#endif
 
 	}
 	return 0;
@@ -179,7 +181,7 @@ static void __exit j_trc_cdev_exit(void)
 {
 	printk("jtrace unloading\n");
 
-	j_trc_unregister_trc_info(&jtr);
+	//j_trc_unregister_trc_info(&jtr);
 
 	j_trc_exit();
 
@@ -195,6 +197,7 @@ MODULE_DESCRIPTION("John's kernel trace facility");
 MODULE_AUTHOR("Groves Technology Corporation");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL(j_trc_reg_infop);
 EXPORT_SYMBOL(j_trc_register_trc_info);
 EXPORT_SYMBOL(j_trc_use_registered_trc_info);
 EXPORT_SYMBOL(j_trc_unregister_trc_info);

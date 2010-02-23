@@ -32,7 +32,10 @@ j_trc_flag_descriptor_t j_trc_common_flag_array[] = {
     ,
     {"IOCTL", "Trace ioctl() calls"}
     ,
-    {"MEMORY", "Trace memory alloc/free"}
+    {"XMIT", "Transmit activities"}
+    ,
+    {"DEBUG", "General debug"}
+    ,
 };
 
 #define J_TRC_NUM_COMMON_FLAGS (sizeof(j_trc_common_flag_array)/sizeof(j_trc_flag_descriptor_t))
@@ -47,6 +50,7 @@ static int j_trc_num_registered_mods;
  * local fuctions
  */
 static void j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
+		    struct timespec *tm,
                     const char *func, int line, char *fmt, va_list vap);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -205,7 +209,6 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
 
 	/* KTRCTL_GET_ALL_TRC_INFO does not require valid ktr_infop */
 	if (cmd_req->cmd == KTRCTL_GET_ALL_TRC_INFO) {
-		printk("KTRCTL_GET_ALL_TRC_INFO\n");
 		rc = j_trc_get_all_trc_info(cmd_req);
 		cmd_req->status = rc;
 		return (rc);
@@ -213,7 +216,6 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
 
 	/* KTRCTL_SNARF does not require valid ktr_infop */
 	if (cmd_req->cmd == KTRCTL_SNARF) {
-		printk("KTRCTL_SNARF\n");
 		rc = j_trc_snarf(cmd_req);
 		cmd_req->status = rc;
 		return (rc);
@@ -233,8 +235,8 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
         {
 		int value;
 		printk("KTRCTL_SET_PRINTK\n");
-		copy_from_user((caddr_t) & value,
-			       (caddr_t) cmd_req->data, sizeof(value));
+		rc = copy_from_user((caddr_t) & value,
+				    (caddr_t) cmd_req->data, sizeof(value));
 		if (!((value == 0) || (value == 1))) {
 			cmd_req->status = EINVAL;
 			rc = EINVAL;
@@ -247,15 +249,14 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
         break;
 
 	case KTRCTL_SET_TRC_FLAGS:
-		printk("KTRCTL_SET_TRC_FLAGS\n");
-		copy_from_user((caddr_t) & ktr_infop->mod_trc_info.j_trc_flags,
-			       (caddr_t) cmd_req->data,
-			       sizeof(ktr_infop->mod_trc_info.j_trc_flags));
+		rc = copy_from_user((caddr_t) 
+			    &ktr_infop->mod_trc_info.j_trc_flags,
+			    (caddr_t) cmd_req->data,
+			    sizeof(ktr_infop->mod_trc_info.j_trc_flags));
 		cmd_req->status = 0;
 		rc = 0;
 		break;
 	case KTRCTL_CLEAR:
-		printk("KTRCTL_CLEAR\n");
 		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
 		memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
 		       ktr_infop->mod_trc_info.j_trc_buf_size);
@@ -508,6 +509,7 @@ void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
  */
 static void
 j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
+	struct timespec *tm,
         const char *func_name, int line_num, char *fmt, va_list vap)
 {
 	register j_trc_element_t *tp;
@@ -516,8 +518,11 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 
 	spin_lock_irqsave(&ktr_infop->j_trc_buf_mutex, flags);
 
-	/* XXX: this is slow; need to just read the clock */
-	getnstimeofday(&time);
+	if (!tm) {
+		tm = &time;
+		/* XXX: this is slow; need to just read the clock */
+		getnstimeofday(&time);
+	}
 
 	/* Increment index and handle wrap */
 	ktr_infop->mod_trc_info.j_trc_buf_index++;
@@ -530,8 +535,8 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 						    j_trc_buf_index];
 
 	tp->elem_fmt = KTRC_FORMAT_REGULAR;
-	tp->reg.tv_sec = time.tv_sec;
-	tp->reg.tv_nsec = time.tv_nsec;
+	tp->reg.tv_sec = tm->tv_sec;
+	tp->reg.tv_nsec = tm->tv_nsec;
 	tp->reg.cpu = smp_processor_id();
 	tp->reg.tid = (void *) current;
 	tp->reg.func_name = func_name;
@@ -548,7 +553,7 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	 * If things are really crashing, enable j_trc_kprint_enabled = 1 
 	 * for output to the console.
 	 */
-	printk("j_trc_v: addr %p\n", tp);
+	//printk("j_trc_v: addr %p\n", tp);
 	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
@@ -561,13 +566,14 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
  * _j_trace -    add trace entries to buffer
  */
 void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
+	      struct timespec *tm,
               const char *func, int line, char *fmt, ...)
 {
     va_list vap;
 
     va_start(vap, fmt);
 
-    j_trc_v(ktr_infop, id, func, line, fmt, vap);
+    j_trc_v(ktr_infop, id, tm, func, line, fmt, vap);
 
     va_end(vap);
 }
@@ -954,46 +960,45 @@ j_trc_register_trc_info_t *j_trc_reg_infop = NULL;
 int j_trc_init(void)
 {
 
-    int result;
+	int result;
 
-    //notifier_chain_register(&panic_notifier_list, &j_trc_panic_block);
+	//notifier_chain_register(&panic_notifier_list, &j_trc_panic_block);
 
-    strncpy(j_trc_default_info.mod_trc_info.j_trc_name,
-            "j_trc_default",
-            sizeof(j_trc_default_info.mod_trc_info.j_trc_name));
-    j_trc_default_info.mod_trc_info.j_trc_buf_ptr = &j_trc_default_buf[0];
-    j_trc_default_info.mod_trc_info.j_trc_num_entries =
-        J_TRC_DEFAULT_NUM_ELEMENTS;
-    j_trc_default_info.mod_trc_info.j_trc_buf_size =
-        sizeof(j_trc_default_buf);
-    j_trc_default_info.mod_trc_info.j_trc_buf_index = 0;
-    j_trc_default_info.mod_trc_info.j_trc_kprint_enabled = 0;
-    j_trc_default_info.mod_trc_info.j_trc_flags =
-        KTR_ERR | KTR_WARN | KTR_CONF;
+	strncpy(j_trc_default_info.mod_trc_info.j_trc_name,
+		"j_trc_default",
+		sizeof(j_trc_default_info.mod_trc_info.j_trc_name));
+	j_trc_default_info.mod_trc_info.j_trc_buf_ptr = &j_trc_default_buf[0];
+	j_trc_default_info.mod_trc_info.j_trc_num_entries =
+		J_TRC_DEFAULT_NUM_ELEMENTS;
+	j_trc_default_info.mod_trc_info.j_trc_buf_size =
+		sizeof(j_trc_default_buf);
+	j_trc_default_info.mod_trc_info.j_trc_buf_index = 0;
+	j_trc_default_info.mod_trc_info.j_trc_kprint_enabled = 0;
+	j_trc_default_info.mod_trc_info.j_trc_flags = KTR_COMMON_FLAGS_MASK;
 
-    result = j_trc_register_trc_info(&j_trc_default_info);
-    if (result) {
-        return (result);
-    }
+	result = j_trc_register_trc_info(&j_trc_default_info);
+	if (result) {
+		return (result);
+	}
 
-    j_trc_reg_infop = &j_trc_default_info;
+	j_trc_reg_infop = &j_trc_default_info;
 #ifdef J_TRC_TEST
-    j_trc_test();
+	j_trc_test();
 #endif
 
-    return 0;
+	return 0;
 
 }
 
 void j_trc_exit(void)
 {
-    if (j_trc_reg_infop) {
-        j_trc_unregister_trc_info(j_trc_reg_infop);
-    }
+	if (j_trc_reg_infop) {
+		j_trc_unregister_trc_info(j_trc_reg_infop);
+	}
 
-    //notifier_chain_unregister(&panic_notifier_list, &j_trc_panic_block);
+	//notifier_chain_unregister(&panic_notifier_list, &j_trc_panic_block);
 
-    return;
+	return;
 }
 
 #ifdef J_TRC_TEST

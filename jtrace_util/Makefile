@@ -7,6 +7,7 @@ PWD := $(shell pwd)
 #include $(MAIN_TOP_DIR)/io64-src/src/make_gnu.master
 
 UTIL_INST_DIR:=/usr/bin
+INSTDIR:=$(UTIL_INST_DIR)
 
 ifeq ("$(KREL)","2.4")
 APP_KREL=24

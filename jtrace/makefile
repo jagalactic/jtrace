@@ -6,7 +6,7 @@ clean:
 
 
 install:
-	mkdir -p /lib/modules/`uname -r`/updates/kernel/drivers/infiniband/hw/rxe
-	cp ib_rxe.ko /lib/modules/`uname -r`/updates/kernel/drivers/infiniband/hw/rxe/
+	mkdir -p /lib/modules/`uname -r`/updates/kernel/drivers/misc
+	cp jtrace.ko /lib/modules/`uname -r`/updates/kernel/drivers/misc
 	depmod -a
 

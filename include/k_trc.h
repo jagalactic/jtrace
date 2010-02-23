@@ -124,7 +124,7 @@ typedef struct _k_trc_flag_descriptor {
 /* 
  * A reasonable amount of common flags.
  */
-k_trc_flag_descriptor_t j_trc_common_flag_array[] = {
+static k_trc_flag_descriptor_t j_trc_common_flag_array[] = {
     {"ERROR", "Trace error conditions"}
     ,
     {"WARN", "Trace warning conditions"}
@@ -311,7 +311,10 @@ typedef struct _j_trc_flag_descriptor {
 #define KTR_IOCTL   KTR_COMMON_FLAG(4)  /* Trace ioctl() calls */
 #define KTR_MEM     KTR_COMMON_FLAG(5)  /* Trace memory alloc/free */
 
-#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM)
+#define KTR_XMIT    KTR_COMMON_FLAG(6)  /* Trace memory alloc/free */
+#define KTR_DEBUG   KTR_COMMON_FLAG(7)  /* General debug */
+
+#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_XMIT|KTR_DEBUG)
 
 /* The first "custom flag" starts at 6 */
 #define KTR_CUSTOM_FLAG( ktr_flag_num ) ( 1 << ((ktr_flag_num) + 6))
@@ -398,11 +401,13 @@ typedef struct _j_trc_register_trc_info {
     int use_count;
 } j_trc_register_trc_info_t;
 
+
 extern int j_trc_init(void);
 extern void j_trc_exit(void);
 extern int j_trc_cmd(struct _j_trc_cmd_req *cmd_req);
 extern j_trc_register_trc_info_t *j_trc_reg_infop;
 extern void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
+		     struct timespec *tm,
                      const char *func, int line, char *fmt, ...);
 extern void _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop,
                             const char *func, uint line, void *id,
@@ -432,11 +437,18 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  * @param ... - Up to 5 arguments for the trace format string.
  */
 #define kTrc(mask, id, fmt, ...)  do { \
-    if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-	_j_trace( j_trc_reg_infop, (void *)(id), __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
+    if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)) { \
+	    _j_trace(j_trc_reg_infop, (void *)(id), (struct timespec *)NULL, \
+		     __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
-
+/* Same thing, but caller provides timespec... */
+#define kTrc_tm(mask, id, tm, fmt, ...)  do {		     \
+    if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)) { \
+	    _j_trace( j_trc_reg_infop, (void *)(id), (struct timespec *)tm, \
+		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
+    }\
+} while (0)
 /**
  * Macro to send a formatted trace string to the trace buffer.
  *

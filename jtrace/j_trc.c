@@ -951,11 +951,13 @@ void j_trc_unregister_trc_info(j_trc_register_trc_info_t * ktr_infop)
 	return;
 }
 
-#define  J_TRC_DEFAULT_NUM_ELEMENTS  (5 * 1024) /* # trace entries  */
+#define  J_TRC_DEFAULT_NUM_ELEMENTS  (0x100000) /* # trace entries  */
 static j_trc_element_t j_trc_default_buf[J_TRC_DEFAULT_NUM_ELEMENTS];
 static j_trc_register_trc_info_t j_trc_default_info;
 j_trc_register_trc_info_t *j_trc_reg_infop = NULL;
 
+
+#define DEFAULT_BUF_NAME "j_trc_default"
 
 int j_trc_init(void)
 {
@@ -965,7 +967,7 @@ int j_trc_init(void)
 	//notifier_chain_register(&panic_notifier_list, &j_trc_panic_block);
 
 	strncpy(j_trc_default_info.mod_trc_info.j_trc_name,
-		"j_trc_default",
+		DEFAULT_BUF_NAME,
 		sizeof(j_trc_default_info.mod_trc_info.j_trc_name));
 	j_trc_default_info.mod_trc_info.j_trc_buf_ptr = &j_trc_default_buf[0];
 	j_trc_default_info.mod_trc_info.j_trc_num_entries =

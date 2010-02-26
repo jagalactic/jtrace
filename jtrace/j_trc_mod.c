@@ -28,9 +28,9 @@
 #include <asm/uaccess.h>
 #include <asm/current.h>
 #include <asm/smp.h>
-#include "j_trc_mod.h"
+//#include "j_trc_mod.h"
 #include "j_trc.h"
-#include "j_trc_devfile.h"
+//#include "j_trc_devfile.h"
 //#include "../include/k_trc.h"
 
 /* A chrdev is used for ioctl interface */
@@ -72,7 +72,7 @@ j_trc_ioctl(struct inode *inode,
 		rc = 0;
 		break;
 	case K_UTIL_PHYSLOC_DUMP:
-		rc = psi_display_all_physloc();
+		rc = jtr_display_all_physloc();
 		break;
 #endif
 

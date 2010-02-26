@@ -180,13 +180,14 @@ typedef struct _j_trc_flag_descriptor {
 #define KTR_ENTX    KTR_COMMON_FLAG(3)  /* Trace all routine entry and exit points." */
 #define KTR_IOCTL   KTR_COMMON_FLAG(4)  /* Trace ioctl() calls */
 #define KTR_MEM     KTR_COMMON_FLAG(5)  /* Trace memory alloc/free */
+#define KTR_DEBUG   KTR_COMMON_FLAG(6)  /* General debug */
 
-#define KTR_ARB     KTR_COMMON_FLAG(6)  /* Arbiter */
-#define KTR_DEBUG   KTR_COMMON_FLAG(7)  /* General debug */
+#define KTR_ARB     KTR_COMMON_FLAG(7)  /* Arbiter */
 #define KTR_REQ     KTR_COMMON_FLAG(8)  /* Requester */
 #define KTR_RESP    KTR_COMMON_FLAG(9)  /* Responder */
+#define KTR_COMP    KTR_COMMON_FLAG(10) /* Completer */
 
-#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_ARB|KTR_DEBUG|KTR_REQ|KTR_RESP)
+#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_ARB|KTR_DEBUG|KTR_REQ|KTR_RESP|KTR_COMP)
 
 /* The first "custom flag" starts at 6 */
 #define KTR_CUSTOM_FLAG( ktr_flag_num ) ( 1 << ((ktr_flag_num) + 6))

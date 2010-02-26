@@ -11,6 +11,8 @@ clean:
 install:
 	cd jtrace; make install
 	cd jtrace_util; make install
+#	cp jtrace/j_trc.h /usr/include/linux/j_trc.h
+
 load:
 	insmod jtrace/jtrace.ko
 

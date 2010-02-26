@@ -32,9 +32,15 @@ j_trc_flag_descriptor_t j_trc_common_flag_array[] = {
     ,
     {"IOCTL", "Trace ioctl() calls"}
     ,
-    {"XMIT", "Transmit activities"}
-    ,
     {"DEBUG", "General debug"}
+    ,
+    {"ARB", "Arbiter"}
+    ,
+    {"REQ", "Requester"}
+    ,
+    {"RESP", "Responder"}
+    ,
+    {"COMP", "Completer"}
     ,
 };
 

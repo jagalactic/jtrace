@@ -53,7 +53,7 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp);
 int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp);
 
 int show_trc_flags(uint32_t trc_flags);
-int dump_trace(j_trc_module_trc_info_t * trace_infop);
+int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask);
 int set_printk_value(char *buf_name, int value);
 
 int snarf_no_kmem(void *addr, void *buf, size_t len);
@@ -531,6 +531,7 @@ int main(int argc, char **argv)
 	int n_flag = 0;
 	int printk_value = 0;
 	int rc = 0;
+	unsigned int dump_mask = 0xffffffff;
 
 	trace = 0;
 
@@ -540,7 +541,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	while ((ch = getopt(argc, argv, "?Zvgh:cd:f:s:u:p:n:D")) != EOF) {
+	while ((ch = getopt(argc, argv, "?Zvgh:cd:f:s:u:p:n:Dm:")) != EOF) {
 		switch (ch) {
 
 		case 'Z':              /* undocumented -Zdebug option    */
@@ -613,6 +614,12 @@ int main(int argc, char **argv)
 			break;
 
 
+		case 'm':
+			dump_mask = strtol(optarg, NULL, 16);
+			printf("\ndump_mask %x\n\n",
+			       dump_mask);
+			break;
+			
 		case 'h':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -851,7 +858,7 @@ int main(int argc, char **argv)
 	
 	setup(namel, coref, O_RDONLY);
 	
-	dump_trace(j_trc_trace_infop);
+	dump_trace(j_trc_trace_infop, dump_mask);
 	
 	if (verbose) {
 		printf("cache stats: fastHits %d hits %d misses %d\n",
@@ -898,7 +905,7 @@ static j_trc_element_t *ldTbuf;
 
 static int was_nl;
 
-int dump_trace(j_trc_module_trc_info_t * trace_infop)
+int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 {
 	size_t ldTbufSz;
 	uint32_t slot_idx, mark_slot;
@@ -996,12 +1003,14 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop)
 			
 		}
 
+		if (tp->flag & dump_mask)
 		switch (tp->elem_fmt) {
 		case KTRC_FORMAT_REGULAR:
 			
 			if (tp->reg.fmt == 0) {
 				continue;
 			}
+			printf("%03x ", tp->flag);
 			display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
 			zero_slots = 0;
 			break;

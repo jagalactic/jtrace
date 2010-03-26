@@ -10,14 +10,14 @@
 typedef void *j_trc_arg_t;
 
 typedef enum {
-    KTRC_FORMAT_INVALID = 0,
-    KTRC_FORMAT_REGULAR,
-    KTRC_HEX_DATA_BEGIN,
-    KTRC_HEX_DATA_CONTINUE,
-    KTRC_HEX_DATA_END,
-    KTRC_PREFORMATTED_STR_BEGIN,
-    KTRC_PREFORMATTED_STR_CONTINUE,
-    KTRC_PREFORMATTED_STR_END
+	KTRC_FORMAT_INVALID = 0,
+	KTRC_FORMAT_REGULAR,
+	KTRC_HEX_DATA_BEGIN,
+	KTRC_HEX_DATA_CONTINUE,
+	KTRC_HEX_DATA_END,
+	KTRC_PREFORMATTED_STR_BEGIN,
+	KTRC_PREFORMATTED_STR_CONTINUE,
+	KTRC_PREFORMATTED_STR_END
 } j_trc_element_fmt_t;
 
 
@@ -25,35 +25,35 @@ typedef enum {
  * Regular format trace buffer element
  */
 typedef struct _j_trc_regular_element {
-    int cpu;                    /* cpu */
-    uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_nsec;               /* copy of `tod' tv_nsec */
-    void *tid;                  /* tasket or tid */
-    const char *func_name;      /* pointer to function name */
-    int line_num;               /* line number */
-    void *id;                   /* correlator */
-    char *fmt;                  /* printf() format string */
-    j_trc_arg_t a0;             /* arg 0 */
-    j_trc_arg_t a1;             /* arg 1 */
-    j_trc_arg_t a2;             /* arg 2 */
-    j_trc_arg_t a3;             /* arg 3 */
-    j_trc_arg_t a4;             /* arg 4 */
+	int cpu;                    /* cpu */
+	uint tv_sec;                /* copy of `tod' tv_sec  */
+	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	void *tid;                  /* tasket or tid */
+	const char *func_name;      /* pointer to function name */
+	int line_num;               /* line number */
+	void *id;                   /* correlator */
+	char *fmt;                  /* printf() format string */
+	j_trc_arg_t a0;             /* arg 0 */
+	j_trc_arg_t a1;             /* arg 1 */
+	j_trc_arg_t a2;             /* arg 2 */
+	j_trc_arg_t a3;             /* arg 3 */
+	j_trc_arg_t a4;             /* arg 4 */
 } j_trc_regular_element_t;
 
 /**
  * Hex dump begin format trace buffer element
  */
 typedef struct _j_trc_hex_begin_element {
-    int cpu;                    /* cpu */
-    uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_nsec;               /* copy of `tod' tv_nsec */
-    void *tid;                  /* tasket or tid */
-    const char *func_name;      /* pointer to function name */
-    int line_num;               /* line number */
-    void *id;                   /* correlator */
-    char *msg;                  /* message to print */
-    int total_length;           /* Total length of data to dump */
-    char data_start;            /* First byte of binary hex data */
+	int cpu;                    /* cpu */
+	uint tv_sec;                /* copy of `tod' tv_sec  */
+	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	void *tid;                  /* tasket or tid */
+	const char *func_name;      /* pointer to function name */
+	int line_num;               /* line number */
+	void *id;                   /* correlator */
+	char *msg;                  /* message to print */
+	int total_length;           /* Total length of data to dump */
+	char data_start;            /* First byte of binary hex data */
 } j_trc_hex_begin_element_t;
 
 
@@ -70,15 +70,15 @@ typedef struct _j_trc_hex_element {
  * Preformatted str trace buffer element begin
  */
 typedef struct _j_trc_prefmtstr_begin_element {
-    int cpu;                    /* cpu */
-    uint tv_sec;                /* copy of `tod' tv_sec  */
-    uint tv_nsec;               /* copy of `tod' tv_nsec */
-    void *tid;                  /* tasket or tid */
-    const char *func_name;      /* pointer to function name */
-    int line_num;               /* line number */
-    void *id;                   /* correlator */
-    int total_length;           /* Total length of formatted str to dump */
-    char data_start;            /* First byte of formatted str */
+	int cpu;                    /* cpu */
+	uint tv_sec;                /* copy of `tod' tv_sec  */
+	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	void *tid;                  /* tasket or tid */
+	const char *func_name;      /* pointer to function name */
+	int line_num;               /* line number */
+	void *id;                   /* correlator */
+	int total_length;           /* Total length of formatted str to dump */
+	char data_start;            /* First byte of formatted str */
 } j_trc_prefmtstr_begin_element_t;
 
 
@@ -95,14 +95,15 @@ typedef struct _j_trc_prefmtstr_element {
  * Trace buffer element
  */
 typedef struct _j_trc_element {
-    j_trc_element_fmt_t elem_fmt; /* Element format type */
-    union {
-        j_trc_regular_element_t reg;
-        j_trc_hex_begin_element_t hex_begin;
-        j_trc_hex_element_t hex;
-        j_trc_prefmtstr_begin_element_t pfs_begin;
-        j_trc_prefmtstr_element_t pfs_continue;
-    };
+	j_trc_element_fmt_t elem_fmt; /* Element format type */
+	uint32_t flag;
+	union {
+		j_trc_regular_element_t reg;
+		j_trc_hex_begin_element_t hex_begin;
+		j_trc_hex_element_t hex;
+		j_trc_prefmtstr_begin_element_t pfs_begin;
+		j_trc_prefmtstr_element_t pfs_continue;
+	};
 } j_trc_element_t;
 
 #define J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM \
@@ -126,42 +127,42 @@ typedef struct _j_trc_element {
  */
 typedef struct _j_trc_module_trc_info {
 #define KTRC_MOD_NAME_SIZE 32
-    /** Module trace info name */
-    char j_trc_name[KTRC_MOD_NAME_SIZE];
+	/** Module trace info name */
+	char j_trc_name[KTRC_MOD_NAME_SIZE];
 
-    /** Number of trace entries in the buffer. */
-    uint32_t j_trc_num_entries;
+	/** Number of trace entries in the buffer. */
+	uint32_t j_trc_num_entries;
 
-    /** Size of the trace buffer */
-    uint32_t j_trc_buf_size;
+	/** Size of the trace buffer */
+	uint32_t j_trc_buf_size;
 
-    /** Index to current trace entry */
-    uint32_t j_trc_buf_index;
+	/** Index to current trace entry */
+	uint32_t j_trc_buf_index;
 
-    /** Pointer to the trace buffer */
-    j_trc_element_t *j_trc_buf_ptr;
+	/** Pointer to the trace buffer */
+	j_trc_element_t *j_trc_buf_ptr;
 
-    /** 
-     * If enabled, then all trace statements are sent to console.
-     * Use this if things get hairy and the buffer cannot be 
-     * extracted. (Note, this is very slow.)
-     */
-    int j_trc_kprint_enabled;
+	/** 
+	 * If enabled, then all trace statements are sent to console.
+	 * Use this if things get hairy and the buffer cannot be 
+	 * extracted. (Note, this is very slow.)
+	 */
+	int j_trc_kprint_enabled;
 
-    /** 
-     * Trace flag mask.
-     */
-    uint32_t j_trc_flags;
+	/** 
+	 * Trace flag mask.
+	 */
+	uint32_t j_trc_flags;
 
-    /**
-     * Custom defined flags for this module.
-     */
-    int j_trc_num_custom_flags;
+	/**
+	 * Custom defined flags for this module.
+	 */
+	int j_trc_num_custom_flags;
 
-    /**
-     * Mask of valid custom flags.
-     */
-    uint32_t j_trc_custom_flags_mask;
+	/**
+	 * Mask of valid custom flags.
+	 */
+	uint32_t j_trc_custom_flags_mask;
 
 } j_trc_module_trc_info_t;
 
@@ -212,11 +213,11 @@ typedef enum {
  * register this structure.
  */
 typedef struct _j_trc_register_trc_info {
-    j_trc_module_trc_info_t mod_trc_info;
-    struct _j_trc_flag_descriptor *custom_flags;
-    spinlock_t j_trc_buf_mutex;
-    struct list_head j_trc_list;
-    int use_count;
+	j_trc_module_trc_info_t mod_trc_info;
+	struct _j_trc_flag_descriptor *custom_flags;
+	spinlock_t j_trc_buf_mutex;
+	struct list_head j_trc_list;
+	int use_count;
 } j_trc_register_trc_info_t;
 
 extern int j_trc_init(void);
@@ -224,13 +225,15 @@ extern void j_trc_exit(void);
 extern int j_trc_cmd(struct _j_trc_cmd_req *cmd_req);
 extern j_trc_register_trc_info_t *j_trc_reg_infop;
 extern void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
-		     struct timespec *tm,
+		     uint32_t tflags, struct timespec *tm,
                      const char *func, int line, char *fmt, ...);
 extern void _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop,
-                            const char *func, uint line, void *id,
+                            const char *func, uint line,
+			    void *id, uint32_t tflags,
                             char *msg, void *p, uint len);
 extern void _j_trace_preformated_str(j_trc_register_trc_info_t * ktr_infop,
-                                     void *id, const char *func, int line,
+                                     void *id, uint32_t tflags,
+				     const char *func, int line,
                                      char *fmt, ...);
 extern void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
                                    int num_elems);
@@ -245,6 +248,11 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
                                       ktr_infop);
 
 #ifdef KTRC_ENABLE
+#define kTrc_setmask(mask) do{			\
+		j_trc_reg_infop->mod_trc_info.j_trc_flags = mask;	\
+	} while (0)
+#define kTrc_off() kTrc_setmask(0)
+
 /**
  * Macro to send a trace statement to the buffer.
  *
@@ -253,16 +261,17 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  * @param fmt - The trace format strings.
  * @param ... - Up to 5 arguments for the trace format string.
  */
-#define kTrc(mask, id, fmt, ...)  do { \
+#define kTrc(mask, id, fmt, ...)  do {		     \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-	    _j_trace( j_trc_reg_infop, (void *)(id), (struct timespec *)NULL, \
+	    _j_trace( j_trc_reg_infop, (void *)(id), mask,		\
+		      (struct timespec *)NULL,				\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
 /* Same thing, but caller provides timespec... */
 #define kTrc_tm(mask, id, tm, fmt, ...)  do {		     \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-	    _j_trace( j_trc_reg_infop, (void *)(id), tm, \
+	    _j_trace( j_trc_reg_infop, (void *)(id), mask, tm,		\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
@@ -280,7 +289,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  */
 #define kTrcPFS(mask, id, fmt, ...)  do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-        _j_trace_preformated_str( j_trc_reg_infop, (void *)(id), __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
+	    _j_trace_preformated_str( j_trc_reg_infop, (void *)(id), mask,\
+		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
     }\
 } while (0)
 
@@ -299,7 +309,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  */
 #define kTrcFuncLine(mask, id, func, line, fmt, ...)  do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-        _j_trace(j_trc_reg_infop, (void *)(id), (func), (line), (fmt) , ## __VA_ARGS__); \
+	    _j_trace(j_trc_reg_infop, (void *)(id), mask,	\
+		     (func), (line), (fmt) , ## __VA_ARGS__);	\
     }\
 } while (0)
 
@@ -315,7 +326,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  */
 #define kTrcHexDump(mask, id, msg, p, len) do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
-	_j_trc_hex_dump(j_trc_reg_infop, __FUNCTION__, __LINE__, (void *)(id), (msg), (p), (len));\
+	_j_trc_hex_dump(j_trc_reg_infop, __FUNCTION__, __LINE__, (void *)(id),\
+			mask, (msg), (p), (len));			\
     }\
 } while (0)
 

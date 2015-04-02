@@ -1,4 +1,9 @@
 
+MODULE_NAME = j_trc
+
+obj-m += $(MODULE_NAME).o
+
+
 all:
 	make -f Makefile -C /lib/modules/`uname -r`/build M=`pwd`
 

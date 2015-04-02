@@ -1,15 +1,19 @@
 
-MODULE_NAME = j_trc
+MODULE_NAME = jtrc
 
 obj-m += $(MODULE_NAME).o
 
+$(MODULE_NAME)-objs = j_trc.o j_trc_mod.o
+
+KDIR  := /lib/modules/$(shell uname -r)/build
+PWD   := $(shell pwd)
 
 all:
-	make -f Makefile -C /lib/modules/`uname -r`/build M=`pwd`
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
-	make -f Makefile -C /lib/modules/`uname -r`/build M=`pwd` clean
-
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 
 install:
 	mkdir -p /lib/modules/`uname -r`/updates/kernel/drivers/misc

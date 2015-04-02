@@ -34,12 +34,11 @@
 //#include "../include/k_trc.h"
 
 /* A chrdev is used for ioctl interface */
-int j_trc_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg);
+long j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 static struct file_operations j_trc_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = j_trc_ioctl,
+	.unlocked_ioctl = j_trc_ioctl,
 };
 
 #define J_TRC_NAME "j_trc"
@@ -51,9 +50,8 @@ static struct miscdevice jtr_mdev = {
 };
 
 
-int
-j_trc_ioctl(struct inode *inode,
-                   struct file *file, unsigned int cmd, unsigned long arg)
+long
+j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int rc = EINVAL;
 

@@ -47,7 +47,7 @@ j_trc_flag_descriptor_t j_trc_common_flag_array[] = {
 #define J_TRC_NUM_COMMON_FLAGS (sizeof(j_trc_common_flag_array)/sizeof(j_trc_flag_descriptor_t))
 static int j_trc_num_common_flags = J_TRC_NUM_COMMON_FLAGS;
 
-static spinlock_t j_trc_mutex = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(j_trc_mutex);
 static struct list_head j_trc_registered_mods =
 LIST_HEAD_INIT(j_trc_registered_mods);
 static int j_trc_num_registered_mods;
@@ -131,16 +131,36 @@ static j_trc_register_trc_info_t *j_trc_find_trc_info_by_name(char
 
 #define CONDITIONAL_COPYOUT(objp, obj_size) do {\
     required_size += obj_size;\
-    if(out_buffer && (objp) && (obj_size) && (rc == 0) && (required_size <= out_buffer_size) ){\
+    if (out_buffer && (objp) && (obj_size) && (rc == 0) && (required_size <= out_buffer_size) ){\
         rc = copy_to_user(out_buffer, (objp), (obj_size));\
         out_buffer += (obj_size);\
     }\
 } while(0);
 
+static inline int
+conditional_copyout(char **out_buffer,  /* Where to copy */
+		    void *objp,         /* What to copy */
+		    int obj_size,       /* How big is it */
+		    int *required_size,
+		    int *out_buf_remainder)
+{
+	int rc;
+	*required_size += obj_size;					\
+	if (*out_buffer &&
+	    (objp) &&
+	    (obj_size) &&
+	    (required_size <= out_buf_remainder) ) {
+		rc = copy_to_user(*out_buffer, (objp), (obj_size));
+		*out_buffer += obj_size;
+		*out_buf_remainder -= obj_size;
+	}
+	return rc;
+}
+
 static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 {
 	char *out_buffer = 0;
-	int out_buffer_size = 0;
+	int out_buf_remainder = 0;
 	int required_size = 0;
 	j_trc_register_trc_info_t *ktr_reg_infop = NULL;
 	int i = 0;
@@ -151,42 +171,82 @@ static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 	}
 
 	out_buffer = cmd_req->data;
-	out_buffer_size = cmd_req->data_size;
+	out_buf_remainder = cmd_req->data_size;
 
 
 	/* Output the number of common flags */
+#if 0
 	CONDITIONAL_COPYOUT((char *) &j_trc_num_common_flags,
 			    sizeof(j_trc_num_common_flags));
+#else
+	rc = conditional_copyout(&out_buffer,
+				 (void *)&j_trc_num_common_flags,
+				 sizeof(j_trc_num_common_flags),
+				 &required_size,
+				 &out_buf_remainder);
+#endif
 
 	/* Output common flag descriptors */
 	for (i = 0; i < j_trc_num_common_flags; i++) {
+#if 0
 		CONDITIONAL_COPYOUT((char *) &j_trc_common_flag_array[i],
 				    sizeof(j_trc_flag_descriptor_t));
+#else
+		rc = conditional_copyout(&out_buffer,
+					 (void *) &j_trc_common_flag_array[i],
+					 sizeof(j_trc_flag_descriptor_t),
+					 &required_size,
+					 &out_buf_remainder);
+#endif
 	}
 
 	/* Output number of registered modules */
+#if 0
 	CONDITIONAL_COPYOUT((char *) &j_trc_num_registered_mods,
 			    sizeof(j_trc_num_registered_mods));
+#else
+	rc = conditional_copyout(&out_buffer,
+				 (char *) &j_trc_num_registered_mods,
+				 sizeof(j_trc_num_registered_mods),
+				 &required_size,
+				 &out_buf_remainder);
+#endif
 
 
 	/* Output each registered module's info */
 	list_for_each_entry(ktr_reg_infop,
 			    &j_trc_registered_mods, j_trc_list) {
+#if 0
 		CONDITIONAL_COPYOUT((char *) &ktr_reg_infop->mod_trc_info,
 				    sizeof(j_trc_module_trc_info_t));
+#else
+		rc = conditional_copyout(&out_buffer,
+					 (char *) &ktr_reg_infop->mod_trc_info,
+					 sizeof(j_trc_module_trc_info_t),
+					 &required_size,
+					 &out_buf_remainder);
+#endif
 		/* Output each registered module's custom flags */
 		for (i = 0;
 		     i < ktr_reg_infop->mod_trc_info.j_trc_num_custom_flags;
 		     i++) {
+#if 0
 			CONDITIONAL_COPYOUT((char *)
 					    &ktr_reg_infop->custom_flags[i],
 					    sizeof(j_trc_flag_descriptor_t));
+#else
+			rc = conditional_copyout(&out_buffer,
+						 &ktr_reg_infop->custom_flags[i],
+						 sizeof(j_trc_flag_descriptor_t),
+						 &required_size,
+						 &out_buf_remainder);
+#endif
 		}
 	}
 
 	/* Always set required size */
-	if (required_size > out_buffer_size) {
-		rc = ENOMEM;
+	if (required_size > out_buf_remainder) {
+		rc = -ENOMEM;
 		cmd_req->data_size = required_size;
 	}
 
@@ -205,7 +265,7 @@ static int j_trc_snarf(j_trc_cmd_req_t * cmd_req)
 	rc = copy_to_user(cmd_req->data, cmd_req->snarf_addr,
 			  cmd_req->data_size);
 
-	return (rc);
+	return (-rc);
 }
 
 

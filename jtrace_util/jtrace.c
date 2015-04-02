@@ -99,8 +99,8 @@ void snarf(void *addr, void *buf, size_t len)
 	size_t cc = 0;
 
 #if APP_KREL >= 26
-	/* 
-	 * Access to /dev/kmem is broken in 2.6 
+	/*
+	 * Access to /dev/kmem is broken in 2.6
 	 * Just have jtrace copyout the info we need.
 	 * Yep, its slower.
 	 */
@@ -123,11 +123,11 @@ void snarf(void *addr, void *buf, size_t len)
 		/* reading from memory */
 		offset = lseek(kfd, (off_t) addr, SEEK_SET);
 		if (offset == -1) {
-			/* 
+			/*
 			 * TODO: On the IA64 RHE1, this keeps returning -1
 			 * even though the data looks sane. Just comment
 			 * out for now.  */
-			/* printf("snarf: lseek(%p) offset=%p errno=%d sizeof(offset)=%d\n", 
+			/* printf("snarf: lseek(%p) offset=%p errno=%d sizeof(offset)=%d\n",
 			   addr, offset, errno, sizeof(offset)); */
 		}
 		cc = read(kfd, buf, len);
@@ -281,7 +281,7 @@ int set_printk_value(char *buf_name, int value)
 		       rc, errno);
 		return (rc);
 	}
-	
+
 	return (0);
 }
 
@@ -317,7 +317,6 @@ int get_all_trc_info(char *trc_buf_name)
 	if (!all_trc_info) {
 		printf("malloc() failed\n");
 		return (-1);
-		
 	}
 
 	cmd_req.data = all_trc_info;
@@ -346,14 +345,14 @@ int get_all_trc_info(char *trc_buf_name)
 		       "j_trc_num_registered_mods=%d\n",
 		       j_trc_num_common_flags, j_trc_num_registered_mods);
 	}
-	
+
 	/* Array of registered modules, each followed
 	 * by optional custom flags */
 	if (j_trc_num_registered_mods) {
 		j_trc_first_trace_infop = (j_trc_module_trc_info_t *) out_bufp;
 		trace_infop = j_trc_first_trace_infop;
 	}
-	
+
 	/* If trc_buf_name supplied, find that trace module information */
 	if (trc_buf_name) {
 		for (i = 0; i < j_trc_num_registered_mods; i++) {
@@ -374,7 +373,7 @@ int get_all_trc_info(char *trc_buf_name)
 			trace_infop = (j_trc_module_trc_info_t *) out_bufp;
 		}
 	}
-	
+
 	return (rc);
 }
 
@@ -547,12 +546,11 @@ int main(int argc, char **argv)
 		case 'Z':              /* undocumented -Zdebug option    */
 			++debugLvl;
 			break;
-			
+
 		case 'v':
 			++verbose;
-			
 			break;
-			
+
 		case 'p':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -560,7 +558,7 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto j_trc_util_exit;
 			}
-			
+
 			printk_value = strtol(optarg, NULL, 16);
 			rc = set_printk_value(trc_buf_name, printk_value);
 			if (rc) {
@@ -573,7 +571,7 @@ int main(int argc, char **argv)
 			rc = 0;
 			goto j_trc_util_exit;
 			break;
-			
+
 		case 'n':
 			n_flag++;
 			if (!trc_buf_name) {
@@ -582,7 +580,6 @@ int main(int argc, char **argv)
 				usage(1);
 				rc = -1;
 				goto j_trc_util_exit;
-				
 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
@@ -603,7 +600,7 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto j_trc_util_exit;
 				
-			}
+ 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
 			rc = get_all_trc_info(trc_buf_name);
@@ -613,13 +610,12 @@ int main(int argc, char **argv)
 			}
 			break;
 
-
 		case 'm':
 			dump_mask = strtol(optarg, NULL, 16);
 			printf("\ndump_mask %x\n\n",
 			       dump_mask);
 			break;
-			
+
 		case 'h':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -641,9 +637,8 @@ int main(int argc, char **argv)
 			show_trc_flags(trc_flags);
 			rc = 0;
 			goto j_trc_util_exit;
-			
 			break;
-			
+
 		case 'g':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -651,14 +646,14 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto j_trc_util_exit;
 			}
-			
+
 			printf("\nCurrent set trace flags(0x%08x) for %s:\n\n",
 			       j_trc_trace_infop->j_trc_flags,
 			       j_trc_trace_infop->j_trc_name);
 			show_trc_flags(j_trc_trace_infop->j_trc_flags);
 			rc = 0;
 			goto j_trc_util_exit;
-			
+
 		case 'f':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -666,7 +661,7 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto j_trc_util_exit;
 			}
-			
+
 			trc_flags = 0;
 			/* Get first flag string */
 			rc = flag_str_to_flag(optarg, &trc_flag);
@@ -704,7 +699,7 @@ int main(int argc, char **argv)
 			show_trc_flags(trc_flags);
 			rc = 0;
 			goto j_trc_util_exit;
-			
+
 		case 's':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -712,9 +707,9 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto j_trc_util_exit;
 			}
-			
+
 			trc_flags = j_trc_trace_infop->j_trc_flags;
-			
+
 			/* Get first flag string */
 			rc = flag_str_to_flag(optarg, &trc_flag);
 			if (rc) {
@@ -751,18 +746,17 @@ int main(int argc, char **argv)
 			show_trc_flags(trc_flags);
 			rc = 0;
 			goto j_trc_util_exit;
-			
+
 		case 'u':
-			
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
 				goto j_trc_util_exit;
 			}
-			
+
 			trc_flags = j_trc_trace_infop->j_trc_flags;
-			
+
 			/* Get first flag string */
 			rc = flag_str_to_flag(optarg, &trc_flag);
 			if (rc) {
@@ -801,7 +795,7 @@ int main(int argc, char **argv)
 			rc = -1;
 			goto j_trc_util_exit;
 			break;
-			
+
 #if 0
 			/* XXX maybe in 2.6 kernel linux will support
 			 * kernel dumps. */
@@ -814,7 +808,7 @@ int main(int argc, char **argv)
 			rc = -1;
 			goto j_trc_util_exit;
 #endif
-			
+
 		case 'c':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -826,7 +820,7 @@ int main(int argc, char **argv)
 			printf("Trace buffer cleared\n");
 			rc = 0;
 			goto j_trc_util_exit;
-			
+
 		case '?':
 			/* Try to get all info for flag information */
 			get_all_trc_info(trc_buf_name);
@@ -848,18 +842,18 @@ int main(int argc, char **argv)
 		rc = -1;
 		goto j_trc_util_exit;
 	}
-	
+
 	if (optind < argc) {
 		namel = argv[optind++];
 	}
 	if (optind < argc) {
 		coref = argv[optind++];
 	}
-	
+
 	setup(namel, coref, O_RDONLY);
-	
+
 	dump_trace(j_trc_trace_infop, dump_mask);
-	
+
 	if (verbose) {
 		printf("cache stats: fastHits %d hits %d misses %d\n",
 		       cStats.fastHits, cStats.hits, cStats.misses);
@@ -869,11 +863,11 @@ j_trc_util_exit:
 	if (all_trc_info) {
 		free(all_trc_info);
 	}
-	
+
 	if (kutil_dev_fd > 0) {
 		close(kutil_dev_fd);
 	}
-	
+
 	exit(0);
 }
 
@@ -947,7 +941,7 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 		       trace_infop->j_trc_buf_size,
 		       trace_infop->j_trc_buf_index);
 	}
-	
+
 	ldTbufSz = trace_infop->j_trc_buf_size;
 	slot_idx = trace_infop->j_trc_buf_index;
 
@@ -1006,7 +1000,6 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 		if (tp->flag & dump_mask)
 		switch (tp->elem_fmt) {
 		case KTRC_FORMAT_REGULAR:
-			
 			if (tp->reg.fmt == 0) {
 				continue;
 			}
@@ -1014,27 +1007,27 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
 			zero_slots = 0;
 			break;
-			
+
 			/* This dumps hex data slots until KTRC_HEX_DATA_END */
 		case KTRC_HEX_DATA_BEGIN:
 			display_hex_begin_trc_elem(tp);
 			zero_slots = 0;
 			break;
-			
-			/*  
+
+			/* 
 			 * If we hit these here, we've lost the BEGIN
-			 * slot context, so just skip 
+			 * slot context, so just skip
 			 */
 		case KTRC_HEX_DATA_CONTINUE:
 		case KTRC_HEX_DATA_END:
 			zero_slots = 0;
 			break;
-			
+
 		case KTRC_PREFORMATTED_STR_BEGIN:
 			display_preformatted_str_begin_trc_elem(tp);
 			zero_slots = 0;
 			break;
-			
+
 			/*
 			 * If we hit these here, we've lost the BEGIN slot
 			 * context, so just skip
@@ -1043,12 +1036,12 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 		case KTRC_PREFORMATTED_STR_END:
 			zero_slots = 0;
 			break;
-			
+
 		default:
 			zero_slots++;
 			break;
 		}
-		/* 
+		/*
 		 * The slot may have been incremented by
 		 * display_hex_begin_trc_elem() or
 		 * display_preformatted_str_begin_trc_elem().
@@ -1058,7 +1051,7 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			break;
 		}
 	}
-	
+
 	printf("\n");
 	return (0);
 }
@@ -1071,7 +1064,6 @@ int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
     time_t time_stamp_secs;
     struct tm time_stamp_formated;
     char header[256];
-
 
     if (debugLvl) {
         printf("fmt addr=%p\n", tp->fmt);
@@ -1199,7 +1191,6 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
     char header[256];
     char *end_buf;
 
-
     tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
     tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
 
@@ -1224,7 +1215,6 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
              tp->hex_begin.total_length);
 
     printf("%s", header);
-
     printf("\n");
 
     int idx = 0;
@@ -1363,7 +1353,6 @@ static const unsigned char e2a[] =
     ;
 
 
-
 void dump_hex_line(char *buf_ptr, int buf_len)
 {
     int idx;
@@ -1399,5 +1388,4 @@ void dump_hex_line(char *buf_ptr, int buf_len)
             printf("%c", e2a[ebcdic_ch]);
         }
     }
-
 }

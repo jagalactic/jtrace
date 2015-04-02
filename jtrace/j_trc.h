@@ -144,12 +144,12 @@ typedef struct _j_trc_module_trc_info {
 
 	/** 
 	 * If enabled, then all trace statements are sent to console.
-	 * Use this if things get hairy and the buffer cannot be 
+	 * Use this if things get hairy and the buffer cannot be
 	 * extracted. (Note, this is very slow.)
 	 */
 	int j_trc_kprint_enabled;
 
-	/** 
+	/**
 	 * Trace flag mask.
 	 */
 	uint32_t j_trc_flags;

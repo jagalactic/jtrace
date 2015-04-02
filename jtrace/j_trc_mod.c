@@ -120,7 +120,7 @@ static int __init j_trc_cdev_init(void)
 		jtr.mod_trc_info.j_trc_num_entries = NUM_ELEM;
 		jtr.mod_trc_info.j_trc_buf_size = bufsize;
 		jtr.mod_trc_info.j_trc_flags = KTR_COMMON_FLAGS_MASK;
-			
+
 		strcpy(jtr.mod_trc_info.j_trc_name, "master");
 
 		buf = vmalloc_user(bufsize);
@@ -152,7 +152,7 @@ static int __init j_trc_cdev_init(void)
 		     (i+1) != jtr.mod_trc_info.j_trc_num_entries;
 		     i++) {
 			j_trc_element_t *tp;
-			if (i > jtr.mod_trc_info.j_trc_num_entries) 
+			if (i > jtr.mod_trc_info.j_trc_num_entries)
 				i = 0;
 
 			tp = (j_trc_element_t *)

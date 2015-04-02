@@ -266,13 +266,14 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
 		cmd_req->status = 0;
 		rc = 0;
 		break;
+
 	case KTRCTL_CLEAR:
 		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
 		memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
 		       ktr_infop->mod_trc_info.j_trc_buf_size);
 		rc = 0;
 		break;
-		
+
 	default:
 		cmd_req->status = EINVAL;
 		return EINVAL;
@@ -540,7 +541,7 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
 		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
 	}
-	
+
 	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->mod_trc_info.
 						    j_trc_buf_index];
 
@@ -560,8 +561,8 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	tp->reg.a3 = va_arg(vap, j_trc_arg_t);
 	tp->reg.a4 = va_arg(vap, j_trc_arg_t);
 
-	/* 
-	 * If things are really crashing, enable j_trc_kprint_enabled = 1 
+	/*
+	 * If things are really crashing, enable j_trc_kprint_enabled = 1
 	 * for output to the console.
 	 */
 	//printk("j_trc_v: addr %p\n", tp);
@@ -763,51 +764,51 @@ _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
 	tp->hex_begin.id = id;
 	tp->hex_begin.msg = msg;
 	tp->hex_begin.total_length = max_len;
-	
+
 	/* Fill the rest of first element with hex data */
 	length2 = MIN((in_buf_end - in_buf), J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 	out_buf = (char *) &tp->hex_begin.data_start;
 	memcpy(out_buf, in_buf, length2);
-	
+
 	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
-	
+
 	in_buf += length2;
-	
+
 	/* Fill in remaining elements */
 	if (in_buf < in_buf_end) {
 		elem_fmt = KTRC_HEX_DATA_CONTINUE;
 		while (in_buf < in_buf_end) {
 			length2 = MIN((in_buf_end - in_buf),
 				      J_TRC_MAX_HEX_DATA_PER_ELEM);
-			
+
 			ktr_infop->mod_trc_info.j_trc_buf_index++;
 			if (ktr_infop->mod_trc_info.j_trc_buf_index >
 			    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
 				ktr_infop->mod_trc_info.j_trc_buf_index = 0;
 			}
-			
+
 			tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->
 							    mod_trc_info.
 							    j_trc_buf_index];
 			tp->elem_fmt = elem_fmt;
 			tp->hex.length = length2;
-			
+
 			out_buf = (char *) &tp->hex.data_start;
-			
+
 			memcpy(out_buf, in_buf, length2);
-			
+
 			if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
 				j_trc_print_element(tp);
 			}
-			
+
 			in_buf += length2;
 			elem_fmt = KTRC_HEX_DATA_CONTINUE;
 		}
 		tp->elem_fmt = KTRC_HEX_DATA_END;
 	}
-	
+
 	spin_unlock_irqrestore(&ktr_infop->j_trc_buf_mutex, flags);
 
 }

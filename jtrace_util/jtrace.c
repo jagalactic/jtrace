@@ -72,15 +72,15 @@ void usage(rc)
 	    "    -D     use default trace buffer name\n"
             "    [-v]        verbose\n"
             /* XXX maybe once on 2.6 kernel.. "    [-d dumpfile] pull out of dumpfile, not memory\n" */
-            "\n    Trace flag control (requires -n first):\n"
+            "\n    Trace flag control (requires -n|-D first):\n"
             "    [-h trace_flags]  trace flags absolute, hex value\n"
             "    [-f trace_flag_strs] trace flags absolute, string values\n"
             "    [-s trace_flag_strs] set a trace flag(s) (logical or)\n"
             "    [-u trace_flag_strs] unset a trace flag(s) (logical nand)\n"
             "    [-g ] Show currently set trace flags\n"
-            "\n    Output Trace to console (requires -n first):\n"
+            "\n    Output Trace to console (requires -n|-D first):\n"
             "    [-p <0|1> ] Set printk value (1=print to console enabled) \n"
-            "\n    Clear Trace buffer (requires -n first):\n"
+            "\n    Clear Trace buffer (requires -n|-D first):\n"
             "    [-c]        clear the trace buffer\n"
             "\n    ACPI/Config helpers :\n"
             "    [-A]        Dump ACPI info to j_trc_default.\n"
@@ -1101,6 +1101,10 @@ int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
     printf("%s", header);
 
     printf(":");
+    {
+	    int len = strlen(tp->fmt);
+	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = NULL;
+    }
     printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
 
     /*

@@ -8,7 +8,9 @@
 #define JTRACE_DEV_SPECIAL_FILE_NAME "jtrace"
 #define JTRACE_DEV_SPECIAL_FILE "/dev/jtrace"
 
-#define KTRC_ENABLE 
+#ifndef KTRC_ENABLE
+#define KTRC_ENABLE
+#endif
 
 #define JTRACE_IOCTL_BASE 0xCC
 

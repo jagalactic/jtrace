@@ -256,10 +256,10 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 /**
  * Macro to send a trace statement to the buffer.
  *
- * @param mask - Trace flags for this statement.
- * @param id - This can be used as a tag or correlator.
- * @param fmt - The trace format strings.
- * @param ... - Up to 5 arguments for the trace format string.
+ * @mask - Trace flags for this statement.
+ * @id   - This can be used as a tag or correlator.
+ * @fmt  - The trace format strings.
+ * @...  - Up to 5 arguments for the trace format string.
  */
 #define kTrc(mask, id, fmt, ...)  do {		     \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
@@ -278,6 +278,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 
 
 /**
+ * kTrcPFS
+ *
  * Macro to send a formatted trace string to the trace buffer.
  *
  * The string is first formatted, and then then entire
@@ -295,6 +297,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
+ * kTrcFuncLine
+ *
  * Macro to send a trace statement to the buffer, also specifying
  * function name and line number.  This is useful for trace statements 
  * in utility functions where the context of the calling function is
@@ -315,6 +319,8 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
+ * kTrcHexDump
+ *
  * Dump hex data to the trace buffer.
  * WARNING: Slow, don't use in performance path.
  *

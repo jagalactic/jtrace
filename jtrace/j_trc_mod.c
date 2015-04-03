@@ -64,16 +64,6 @@ j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = j_trc_cmd((j_trc_cmd_req_t *) arg);
 		break;
 
-#if 0
-	case K_UTIL_ACPI_DUMP:
-		display_all_ACPI_devices();
-		rc = 0;
-		break;
-	case K_UTIL_PHYSLOC_DUMP:
-		rc = jtr_display_all_physloc();
-		break;
-#endif
-
 	default:
 		rc = EINVAL;
 	}

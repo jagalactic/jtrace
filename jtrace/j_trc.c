@@ -81,7 +81,6 @@ static struct notifier_block j_trc_panic_block = {
 static void j_trc_test(void);
 #endif
 
-
 /*
  * Find ktr_infop in j_trc_registered_mods list by address 
  */
@@ -108,8 +107,8 @@ static j_trc_register_trc_info_t
 /*
  * Find trace info by name.
  */
-static j_trc_register_trc_info_t *j_trc_find_trc_info_by_name(char
-                                                              *trc_name)
+static j_trc_register_trc_info_t *
+j_trc_find_trc_info_by_name(char *trc_name)
 {
 	int found = 0;
 	j_trc_register_trc_info_t *ktr_infop = NULL;
@@ -129,18 +128,18 @@ static j_trc_register_trc_info_t *j_trc_find_trc_info_by_name(char
 }
 
 static inline int
-conditional_copyout(char **out_buffer,  /* Where to copy */
-		    void *objp,         /* What to copy */
-		    int obj_size,       /* How big is it */
-		    int *required_size,
-		    int *out_buf_remainder)
+copyout_append(char **out_buffer,  /* Where to copy */
+	       void *objp,         /* What to copy */
+	       int obj_size,       /* How big is it */
+	       int *total_bytes_copied,
+	       int *out_buf_remainder)
 {
 	int rc = 0;
-	*required_size += obj_size;					\
+	*total_bytes_copied += obj_size;
 	if (*out_buffer &&
 	    (objp) &&
 	    (obj_size) &&
-	    (required_size <= out_buf_remainder) ) {
+	    (total_bytes_copied <= out_buf_remainder) ) {
 		rc = copy_to_user(*out_buffer, (objp), (obj_size));
 		*out_buffer += obj_size;
 		*out_buf_remainder -= obj_size;
@@ -152,7 +151,7 @@ static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 {
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
-	int required_size = 0;
+	int total_bytes_copied = 0;
 	j_trc_register_trc_info_t *ktr_reg_infop = NULL;
 	int i = 0;
 	int rc = 0;
@@ -164,55 +163,54 @@ static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 	out_buffer = cmd_req->data;
 	out_buf_remainder = cmd_req->data_size;
 
-
 	/* Output the number of common flags */
-	rc = conditional_copyout(&out_buffer,
-				 (void *)&j_trc_num_common_flags,
-				 sizeof(j_trc_num_common_flags),
-				 &required_size,
-				 &out_buf_remainder);
+	rc = copyout_append(&out_buffer,
+			    (void *)&j_trc_num_common_flags,
+			    sizeof(j_trc_num_common_flags),
+			    &total_bytes_copied,
+			    &out_buf_remainder);
 
 	/* Output common flag descriptors */
 	for (i = 0; i < j_trc_num_common_flags; i++) {
-		rc = conditional_copyout(&out_buffer,
-					 (void *) &j_trc_common_flag_array[i],
-					 sizeof(j_trc_flag_descriptor_t),
-					 &required_size,
-					 &out_buf_remainder);
+		rc = copyout_append(&out_buffer,
+				    (void *) &j_trc_common_flag_array[i],
+				    sizeof(j_trc_flag_descriptor_t),
+				    &total_bytes_copied,
+				    &out_buf_remainder);
 	}
 
 	/* Output number of registered modules */
-	rc = conditional_copyout(&out_buffer,
-				 (char *) &j_trc_num_registered_mods,
-				 sizeof(j_trc_num_registered_mods),
-				 &required_size,
-				 &out_buf_remainder);
+	rc = copyout_append(&out_buffer,
+			    (char *) &j_trc_num_registered_mods,
+			    sizeof(j_trc_num_registered_mods),
+			    &total_bytes_copied,
+			    &out_buf_remainder);
 
 	/* Output each registered module's info */
 	list_for_each_entry(ktr_reg_infop,
 			    &j_trc_registered_mods, j_trc_list) {
-		rc = conditional_copyout(&out_buffer,
-					 (char *) &ktr_reg_infop->mod_trc_info,
-					 sizeof(j_trc_module_trc_info_t),
-					 &required_size,
-					 &out_buf_remainder);
+		rc = copyout_append(&out_buffer,
+				    (char *) &ktr_reg_infop->mod_trc_info,
+				    sizeof(j_trc_module_trc_info_t),
+				    &total_bytes_copied,
+				    &out_buf_remainder);
 
 		/* Output each registered module's custom flags */
 		for (i = 0;
 		     i < ktr_reg_infop->mod_trc_info.j_trc_num_custom_flags;
 		     i++) {
-			rc = conditional_copyout(&out_buffer,
-						 &ktr_reg_infop->custom_flags[i],
-						 sizeof(j_trc_flag_descriptor_t),
-						 &required_size,
-						 &out_buf_remainder);
+			rc = copyout_append(&out_buffer,
+					    &ktr_reg_infop->custom_flags[i],
+					    sizeof(j_trc_flag_descriptor_t),
+					    &total_bytes_copied,
+					    &out_buf_remainder);
 		}
 	}
 
 	/* Always set required size */
-	if (required_size > out_buf_remainder) {
+	if (total_bytes_copied > out_buf_remainder) {
 		rc = -ENOMEM;
-		cmd_req->data_size = required_size;
+		cmd_req->data_size = total_bytes_copied;
 	}
 
 	return (rc);
@@ -234,8 +232,12 @@ static int j_trc_snarf(j_trc_cmd_req_t * cmd_req)
 }
 
 
-/*
+/**
+ * j_trc_cmd
+ *
  * IOCTL handler for j_trc
+ *
+ * @cmd_req - j_trc_cmd_req_t struct, describing what the caller wants
  */
 int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
 {
@@ -351,7 +353,14 @@ void dump_hex_line(char *buf_ptr, int buf_len)
 static char buf[J_TRC_KPRINT_BUF_SIZE];
 static int idx = 0;
 
-
+/**
+ * j_trc_print_element
+ *
+ * @tp - the trace element to print
+ *
+ * This prints a trace element to the system log (printk) in an
+ * element-type-dependent format
+ */
 void j_trc_print_element(j_trc_element_t * tp)
 {
 	int prefix_len = 0;
@@ -489,6 +498,12 @@ void j_trc_print_element(j_trc_element_t * tp)
 }
 
 
+/**
+ * j_trc_print_last_elems
+ *
+ * @ktr_infop - the jtrace context
+ * @num_elems - the number of elements to print, at the tail of the trace
+ */
 void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
                             int num_elems)
 {
@@ -540,7 +555,7 @@ void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
     return;
 }
 
-/*
+/**
  * j_trc_v - add trace entries to buffer
  */
 static void
@@ -590,16 +605,14 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	 * If things are really crashing, enable j_trc_kprint_enabled = 1
 	 * for output to the console.
 	 */
-	//printk("j_trc_v: addr %p\n", tp);
 	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
 	spin_unlock_irqrestore(&ktr_infop->j_trc_buf_mutex, flags);
-
 }
 
 
-/*
+/**
  * _j_trace -    add trace entries to buffer
  */
 void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
@@ -615,7 +628,7 @@ void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
     va_end(vap);
 }
 
-/*
+/**
  * j_trc_preformatted_str_v - add trace entries to buffer
  */
 static void
@@ -997,12 +1010,10 @@ static j_trc_element_t j_trc_default_buf[J_TRC_DEFAULT_NUM_ELEMENTS];
 static j_trc_register_trc_info_t j_trc_default_info;
 j_trc_register_trc_info_t *j_trc_reg_infop = NULL;
 
-
 #define DEFAULT_BUF_NAME "j_trc_default"
 
 int j_trc_init(void)
 {
-
 	int result;
 
 	//notifier_chain_register(&panic_notifier_list, &j_trc_panic_block);

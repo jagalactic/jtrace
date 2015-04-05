@@ -2,7 +2,7 @@
  * j_trc.c 
  */
 
-//#define J_TRC_TEST
+#define J_TRC_TEST
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -33,14 +33,6 @@ j_trc_flag_descriptor_t j_trc_common_flag_array[] = {
     {"IOCTL", "Trace ioctl() calls"}
     ,
     {"DEBUG", "General debug"}
-    ,
-    {"ARB", "Arbiter"}
-    ,
-    {"REQ", "Requester"}
-    ,
-    {"RESP", "Responder"}
-    ,
-    {"COMP", "Completer"}
     ,
 };
 
@@ -127,91 +119,140 @@ j_trc_find_trc_info_by_name(char *trc_name)
 	return (ktr_infop);
 }
 
+/**
+ * copyout_append()
+ *
+ * Copy to user space; can be called repeatedly and will append the data
+ * in user space, keeping track of remainder.
+ *
+ * The total_bytes_copied is updated whether or not we copy to user space.
+ * This is how we count up how much data we need room for.  User spaces uses
+ * this by calling us with 0 (or undersized buffer) first to find out how
+ * much space is needed.
+ *
+ * @out_buffer         - user space address to copy to; pointer updated
+ *                       to point to the append point
+ * @objp               - object to copy out
+ * @obj_size           - size of object
+ * @total_bytes        - this gets updated each time we get called
+ * @out_buf_remainder  - this gets updated until it goes to 0
+ *
+ * Return value
+ * 0 - if copy_to_user() was not called
+ * Otherwise, the return value of copy_to_user()
+ */
 static inline int
 copyout_append(char **out_buffer,  /* Where to copy */
 	       void *objp,         /* What to copy */
 	       int obj_size,       /* How big is it */
-	       int *total_bytes_copied,
+	       int *total_bytes,
 	       int *out_buf_remainder)
 {
 	int rc = 0;
-	*total_bytes_copied += obj_size;
+	printk("copyout_append: out %p objp %p obj_size %d "
+	       "total_bytes %d out_buf_remainder %d\n",
+	       out_buffer, objp, obj_size,
+	       *total_bytes, *out_buf_remainder);
 	if (*out_buffer &&
 	    (objp) &&
 	    (obj_size) &&
-	    (total_bytes_copied <= out_buf_remainder) ) {
-		rc = copy_to_user(*out_buffer, (objp), (obj_size));
-		*out_buffer += obj_size;
-		*out_buf_remainder -= obj_size;
+	    (obj_size <= *out_buf_remainder) ) {
+		int size = MIN(obj_size, *out_buf_remainder);
+		printk("copyout(*out_buffer, objp, obj_size) "
+		       "remainder %d total_bytes %d\n",
+		       *out_buf_remainder, *total_bytes);
+		rc = copy_to_user(*out_buffer, objp, size);
+		*out_buf_remainder -= size;
+		*out_buffer += size;
 	}
+	*total_bytes += obj_size;
 	return rc;
 }
 
+/**
+ * j_trc_get_all_trc_info()
+ *
+ * Get all of the trace elements in the specified trace buffer
+ *
+ * @cmd_req - the cmd_req struct from user space
+ */
 static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 {
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
-	int total_bytes_copied = 0;
+	int total_bytes = 0;
 	j_trc_register_trc_info_t *ktr_reg_infop = NULL;
 	int i = 0;
 	int rc = 0;
+	int req_size;
 
 	if (!cmd_req) {
 		return (EINVAL);
 	}
 
 	out_buffer = cmd_req->data;
-	out_buf_remainder = cmd_req->data_size;
+	out_buf_remainder = req_size = cmd_req->data_size;
+
+	if (cmd_req->data_size == 0)
+		printk("j_trc_get_all_trc_info: just getting size\n");
+	else
+		printk("j_trc_get_all_trc_info: size=%d\n", out_buf_remainder);
 
 	/* Output the number of common flags */
-	rc = copyout_append(&out_buffer,
-			    (void *)&j_trc_num_common_flags,
-			    sizeof(j_trc_num_common_flags),
-			    &total_bytes_copied,
-			    &out_buf_remainder);
+	copyout_append(&out_buffer,
+		       (void *)&j_trc_num_common_flags,
+		       sizeof(j_trc_num_common_flags),
+		       &total_bytes,
+		       &out_buf_remainder);
 
 	/* Output common flag descriptors */
 	for (i = 0; i < j_trc_num_common_flags; i++) {
-		rc = copyout_append(&out_buffer,
-				    (void *) &j_trc_common_flag_array[i],
-				    sizeof(j_trc_flag_descriptor_t),
-				    &total_bytes_copied,
-				    &out_buf_remainder);
+		copyout_append(&out_buffer,
+			       (void *) &j_trc_common_flag_array[i],
+			       sizeof(j_trc_flag_descriptor_t),
+			       &total_bytes,
+			       &out_buf_remainder);
 	}
 
 	/* Output number of registered modules */
-	rc = copyout_append(&out_buffer,
-			    (char *) &j_trc_num_registered_mods,
-			    sizeof(j_trc_num_registered_mods),
-			    &total_bytes_copied,
-			    &out_buf_remainder);
+	copyout_append(&out_buffer,
+		       (char *) &j_trc_num_registered_mods,
+		       sizeof(j_trc_num_registered_mods),
+		       &total_bytes,
+		       &out_buf_remainder);
 
 	/* Output each registered module's info */
 	list_for_each_entry(ktr_reg_infop,
 			    &j_trc_registered_mods, j_trc_list) {
-		rc = copyout_append(&out_buffer,
-				    (char *) &ktr_reg_infop->mod_trc_info,
-				    sizeof(j_trc_module_trc_info_t),
-				    &total_bytes_copied,
-				    &out_buf_remainder);
+		copyout_append(&out_buffer,
+			       (char *) &ktr_reg_infop->mod_trc_info,
+			       sizeof(j_trc_module_trc_info_t),
+			       &total_bytes,
+			       &out_buf_remainder);
 
 		/* Output each registered module's custom flags */
 		for (i = 0;
 		     i < ktr_reg_infop->mod_trc_info.j_trc_num_custom_flags;
 		     i++) {
-			rc = copyout_append(&out_buffer,
-					    &ktr_reg_infop->custom_flags[i],
-					    sizeof(j_trc_flag_descriptor_t),
-					    &total_bytes_copied,
-					    &out_buf_remainder);
+			copyout_append(&out_buffer,
+				       &ktr_reg_infop->custom_flags[i],
+				       sizeof(j_trc_flag_descriptor_t),
+				       &total_bytes,
+				       &out_buf_remainder);
 		}
 	}
 
 	/* Always set required size */
-	if (total_bytes_copied > out_buf_remainder) {
-		rc = -ENOMEM;
-		cmd_req->data_size = total_bytes_copied;
+	if (total_bytes != cmd_req->data_size) {
+		cmd_req->data_size = total_bytes;
 	}
+
+	if (req_size == 0)
+		printk("j_trc_get_all_trc_info: calculated size=%d\n",
+		       total_bytes);
+	else
+		printk("j_trc_get_all_trc_info: req=%d copied=%d\n",
+		       cmd_req->data_size, total_bytes);
 
 	return (rc);
 }
@@ -239,15 +280,23 @@ static int j_trc_snarf(j_trc_cmd_req_t * cmd_req)
  *
  * @cmd_req - j_trc_cmd_req_t struct, describing what the caller wants
  */
-int j_trc_cmd(j_trc_cmd_req_t * cmd_req)
+int j_trc_cmd(j_trc_cmd_req_t * cmd_req, void *uaddr)
 {
 	int rc = 0;
 	j_trc_register_trc_info_t *ktr_infop = NULL;
 
 	/* KTRCTL_GET_ALL_TRC_INFO does not require valid ktr_infop */
 	if (cmd_req->cmd == KTRCTL_GET_ALL_TRC_INFO) {
+		printk("KTRCTL_GET_ALL_TRC_INFO\n");
 		rc = j_trc_get_all_trc_info(cmd_req);
 		cmd_req->status = rc;
+		if (rc == 0) {
+			printk("copying out cmd_req including size\n");
+			rc = copy_to_user(uaddr, cmd_req, sizeof(*cmd_req));
+		}
+		else {
+			printk("get_all returned %d\n", rc);
+		}
 		return (rc);
 	}
 
@@ -354,7 +403,7 @@ static char buf[J_TRC_KPRINT_BUF_SIZE];
 static int idx = 0;
 
 /**
- * j_trc_print_element
+ * j_trc_print_element()
  *
  * @tp - the trace element to print
  *
@@ -368,7 +417,7 @@ void j_trc_print_element(j_trc_element_t * tp)
 	switch (tp->elem_fmt) {
 	case KTRC_FORMAT_REGULAR:
 
-        prefix_len = snprintf(buf, J_TRC_KPRINT_BUF_SIZE,
+	prefix_len = snprintf(buf, J_TRC_KPRINT_BUF_SIZE,
                               "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",
                               tp->reg.tv_sec, tp->reg.tv_nsec / 10000,
                               tp->reg.cpu, tp->reg.tid,
@@ -499,7 +548,7 @@ void j_trc_print_element(j_trc_element_t * tp)
 
 
 /**
- * j_trc_print_last_elems
+ * j_trc_print_last_elems()
  *
  * @ktr_infop - the jtrace context
  * @num_elems - the number of elements to print, at the tail of the trace
@@ -507,52 +556,52 @@ void j_trc_print_element(j_trc_element_t * tp)
 void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
                             int num_elems)
 {
-    /* Back up the index num_elems slots */
-    int32_t temp_index =
-        ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
-    register j_trc_element_t *tp = NULL;
-    int i = 0;
+	/* Back up the index num_elems slots */
+	int32_t temp_index =
+		ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+	register j_trc_element_t *tp = NULL;
+	int i = 0;
 
-    if (temp_index < 0) {
-        temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
-    }
+	if (temp_index < 0) {
+		temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+	}
 
-    tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
 
-    /* 
-     * If we are in the middle of a hex dump or string,
-     * go back to BEGIN so we can get the context.
-     */
-    while ((tp->elem_fmt == KTRC_HEX_DATA_END) ||
-           (tp->elem_fmt == KTRC_HEX_DATA_CONTINUE) ||
-           (tp->elem_fmt == KTRC_PREFORMATTED_STR_CONTINUE) ||
-           (tp->elem_fmt == KTRC_PREFORMATTED_STR_END)) {
-        num_elems++;
+	/*
+	 * If we are in the middle of a hex dump or string,
+	 * go back to BEGIN so we can get the context.
+	 */
+	while ((tp->elem_fmt == KTRC_HEX_DATA_END) ||
+	       (tp->elem_fmt == KTRC_HEX_DATA_CONTINUE) ||
+	       (tp->elem_fmt == KTRC_PREFORMATTED_STR_CONTINUE) ||
+	       (tp->elem_fmt == KTRC_PREFORMATTED_STR_END)) {
+		num_elems++;
 
-        temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
-        if (temp_index < 0) {
-            temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
-        }
+		temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+		if (temp_index < 0) {
+			temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+		}
 
-        tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
-    }
+		tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+	}
 
-    temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+	temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
 
-    if (temp_index < 0) {
-        temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
-    }
+	if (temp_index < 0) {
+		temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+	}
 
-    for (i = 0; i < num_elems; i++) {
-        tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
-        j_trc_print_element(tp);
+	for (i = 0; i < num_elems; i++) {
+		tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+		j_trc_print_element(tp);
 
-        temp_index++;
-        if (temp_index > ktr_infop->mod_trc_info.j_trc_num_entries - 1) {
-            temp_index = 0;
-        }
-    }
-    return;
+		temp_index++;
+		if (temp_index > ktr_infop->mod_trc_info.j_trc_num_entries - 1) {
+			temp_index = 0;
+		}
+	}
+	return;
 }
 
 /**
@@ -905,18 +954,18 @@ static int j_trc_has_paniced = 0;
 static int j_trc_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
 {
-    j_trc_register_trc_info_t *ktr_infop;
+	j_trc_register_trc_info_t *ktr_infop;
 
-    if (j_trc_has_paniced) {
-        return NOTIFY_DONE;
-    }
-    j_trc_has_paniced = 1;
+	if (j_trc_has_paniced) {
+		return NOTIFY_DONE;
+	}
+	j_trc_has_paniced = 1;
 
-    list_for_each_entry(ktr_infop, &j_trc_registered_mods, j_trc_list) {
-        j_trc_print_last_elems(ktr_infop, 500);
-    }
+	list_for_each_entry(ktr_infop, &j_trc_registered_mods, j_trc_list) {
+		j_trc_print_last_elems(ktr_infop, 500);
+	}
 
-    return NOTIFY_DONE;
+	return NOTIFY_DONE;
 }
 #endif
 
@@ -1018,6 +1067,8 @@ int j_trc_init(void)
 
 	//notifier_chain_register(&panic_notifier_list, &j_trc_panic_block);
 
+	/* We automatically init a trace buffer with DEFAULT_BUF_NAME
+	 * at module init time. */
 	strncpy(j_trc_default_info.mod_trc_info.j_trc_name,
 		DEFAULT_BUF_NAME,
 		sizeof(j_trc_default_info.mod_trc_info.j_trc_name));
@@ -1059,69 +1110,68 @@ void j_trc_exit(void)
 
 static void j_trc_test(void)
 {
-    char *id = 0;
-    int value1 = 1;
-    //int value2 = 2;
-    char hex_dump_data[512];
-    int i = 0;
+	char *id = 0;
+	int value1 = 1;
+	//int value2 = 2;
+	char hex_dump_data[512];
+	int i = 0;
 
-    for (i = 0; i < 512; i++) {
-        hex_dump_data[i] = (char) (i & 0xff);
-    }
+	for (i = 0; i < 512; i++) {
+		hex_dump_data[i] = (char) (i & 0xff);
+	}
 
-    kTrcPrintkSet(1);
+	kTrcPrintkSet(1);
 
-    kTrc(KTR_CONF, id, "First Entry");
+	kTrc(KTR_CONF, id, "First Entry");
 
-    kTrc(KTR_CONF, id, "sizeof(j_trc_element_t)=%d",
-         sizeof(j_trc_element_t));
-    kTrc(KTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
-         sizeof(j_trc_regular_element_t));
-    kTrc(KTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
-         sizeof(j_trc_hex_begin_element_t));
-    kTrc(KTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
-         sizeof(j_trc_hex_element_t));
-    kTrc(KTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
-         sizeof(j_trc_element_fmt_t));
-    kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
-         offsetof(j_trc_element_t, elem_fmt));
-    kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
-         offsetof(j_trc_element_t, hex.length));
-    kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
-         offsetof(j_trc_element_t, hex.data_start));
-    kTrc(KTR_CONF, id,
-         "offsetof(j_trc_element_t, hex_begin.total_length)=%d",
-         offsetof(j_trc_element_t, hex_begin.total_length));
-    kTrc(KTR_CONF, id,
-         "offsetof(j_trc_element_t, hex_begin.data_start)=%d",
-         offsetof(j_trc_element_t, hex_begin.data_start));
-    kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
-         J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
-    kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
-         J_TRC_MAX_HEX_DATA_PER_ELEM);
+	kTrc(KTR_CONF, id, "sizeof(j_trc_element_t)=%d",
+	     sizeof(j_trc_element_t));
+	kTrc(KTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
+	     sizeof(j_trc_regular_element_t));
+	kTrc(KTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
+	     sizeof(j_trc_hex_begin_element_t));
+	kTrc(KTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
+	     sizeof(j_trc_hex_element_t));
+	kTrc(KTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
+	     sizeof(j_trc_element_fmt_t));
+	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
+	     offsetof(j_trc_element_t, elem_fmt));
+	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
+	     offsetof(j_trc_element_t, hex.length));
+	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
+	     offsetof(j_trc_element_t, hex.data_start));
+	kTrc(KTR_CONF, id,
+	     "offsetof(j_trc_element_t, hex_begin.total_length)=%d",
+	     offsetof(j_trc_element_t, hex_begin.total_length));
+	kTrc(KTR_CONF, id,
+	     "offsetof(j_trc_element_t, hex_begin.data_start)=%d",
+	     offsetof(j_trc_element_t, hex_begin.data_start));
+	kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
+	     J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
+	kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
+	     J_TRC_MAX_HEX_DATA_PER_ELEM);
 
-    kTrcPFS(KTR_CONF, id, "preformatted_data, value1=%d", value1);
+	kTrcPFS(KTR_CONF, id, "preformatted_data, value1=%d", value1);
 
-    kTrcPFS(KTR_CONF, id,
-            "preformatted_data, lots of args %d %d %d %d %d %d %d", value1,
-            value1, value1, value1, value1, value1, value1);
+	kTrcPFS(KTR_CONF, id,
+		"preformatted_data, lots of args %d %d %d %d %d %d %d", value1,
+		value1, value1, value1, value1, value1, value1);
 
-    kTrc(KTR_CONF, id, "value1=%d", value1);
+	kTrc(KTR_CONF, id, "value1=%d", value1);
 
-    kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
+	kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
 
-    kTrcHexDump(KTR_CONF, id, "hex_dump_data",
-                hex_dump_data, J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
+	kTrcHexDump(KTR_CONF, id, "hex_dump_data",
+		    hex_dump_data, J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 
-    kTrc(KTR_CONF, id, "value1=%d", value1);
+	kTrc(KTR_CONF, id, "value1=%d", value1);
 
-    kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
+	kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
 
+	kTrc(KTR_CONF, id, "Last Entry");
 
-    kTrc(KTR_CONF, id, "Last Entry");
+	j_trc_print_last_elems(j_trc_reg_infop, 3);
 
-    j_trc_print_last_elems(j_trc_reg_infop, 3);
-
-    kTrcPrintkSet(0);
+	kTrcPrintkSet(0);
 }
 #endif

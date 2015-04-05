@@ -5,8 +5,8 @@
 #ifndef __JTRACE_H
 #define __JTRACE_H
 
-#define JTRACE_DEV_SPECIAL_FILE_NAME "jtrace"
-#define JTRACE_DEV_SPECIAL_FILE "/dev/jtrace"
+#define JTRACE_DEV_SPECIAL_FILE_NAME "j_trc"
+#define JTRACE_DEV_SPECIAL_FILE "/dev/j_trc"
 
 #ifndef KTRC_ENABLE
 #define KTRC_ENABLE

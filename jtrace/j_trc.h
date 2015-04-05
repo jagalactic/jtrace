@@ -1,4 +1,5 @@
 
+
 /**
  * @file j_trc.h 
  */
@@ -21,7 +22,11 @@ typedef enum {
 } j_trc_element_fmt_t;
 
 
+/* Members of the jtrace element union: *****************************/
+
 /**
+ * @j_trc_regular_element_t
+ *
  * Regular format trace buffer element
  */
 typedef struct _j_trc_regular_element {
@@ -41,6 +46,8 @@ typedef struct _j_trc_regular_element {
 } j_trc_regular_element_t;
 
 /**
+ * @j_trc_hex_begin_element_t
+ *
  * Hex dump begin format trace buffer element
  */
 typedef struct _j_trc_hex_begin_element {
@@ -58,6 +65,8 @@ typedef struct _j_trc_hex_begin_element {
 
 
 /**
+ * @j_trc_hex_element_t
+ *
  * Hex dump format trace buffer element
  */
 typedef struct _j_trc_hex_element {
@@ -67,6 +76,8 @@ typedef struct _j_trc_hex_element {
 
 
 /**
+ * @j_trc_prefmtstr_begin_element_t
+ *
  * Preformatted str trace buffer element begin
  */
 typedef struct _j_trc_prefmtstr_begin_element {
@@ -83,6 +94,8 @@ typedef struct _j_trc_prefmtstr_begin_element {
 
 
 /**
+ * @j_trc_prefmtstr_element_t
+ *
  * Preformatted str trace buffer element continue
  */
 typedef struct _j_trc_prefmtstr_element {
@@ -90,8 +103,10 @@ typedef struct _j_trc_prefmtstr_element {
     char data_start;            /* First byte of str data in this element */
 } j_trc_prefmtstr_element_t;
 
-
+/* The jtrace element union: *******************************************/
 /**
+ * @j_trc_element_t
+ *
  * Trace buffer element
  */
 typedef struct _j_trc_element {
@@ -119,6 +134,8 @@ typedef struct _j_trc_element {
     (sizeof(j_trc_element_t)-offsetof(j_trc_element_t, pfs_continue.data_start)-1)
 
 /**
+ * @j_trc_module_trc_info_t
+ *
  * Trace module information common between user and kernel 
  * space.
  *
@@ -163,14 +180,13 @@ typedef struct _j_trc_module_trc_info {
 	 * Mask of valid custom flags.
 	 */
 	uint32_t j_trc_custom_flags_mask;
-
 } j_trc_module_trc_info_t;
 
 #define J_TRC_FLAG_CMD_LINE_SIZE 32
 #define J_TRC_FLAG_DESCRIPTION_SIZE 128
 typedef struct _j_trc_flag_descriptor {
-    char j_trc_flag_cmd_line_name[J_TRC_FLAG_CMD_LINE_SIZE];
-    char j_trc_flag_description[J_TRC_FLAG_DESCRIPTION_SIZE];
+	char j_trc_flag_cmd_line_name[J_TRC_FLAG_CMD_LINE_SIZE];
+	char j_trc_flag_description[J_TRC_FLAG_DESCRIPTION_SIZE];
 } j_trc_flag_descriptor_t;
 
 #define KTR_COMMON_FLAG( ktr_flag_num ) ( 1 << (ktr_flag_num) )
@@ -183,15 +199,14 @@ typedef struct _j_trc_flag_descriptor {
 #define KTR_MEM     KTR_COMMON_FLAG(5)  /* Trace memory alloc/free */
 #define KTR_DEBUG   KTR_COMMON_FLAG(6)  /* General debug */
 
-#define KTR_ARB     KTR_COMMON_FLAG(7)  /* Arbiter */
-#define KTR_REQ     KTR_COMMON_FLAG(8)  /* Requester */
-#define KTR_RESP    KTR_COMMON_FLAG(9)  /* Responder */
-#define KTR_COMP    KTR_COMMON_FLAG(10) /* Completer */
+/* This must be the number of flags above */
+#define KTR_NUM_FLAGS 7
 
-#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_ARB|KTR_DEBUG|KTR_REQ|KTR_RESP|KTR_COMP)
+#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_DEBUG)
 
-/* The first "custom flag" starts at 6 */
-#define KTR_CUSTOM_FLAG( ktr_flag_num ) ( 1 << ((ktr_flag_num) + 6))
+/* The first "custom flag" starts at KTR_NUM_FLAGS
+ * NOTE: if you add standard flags, you gotta update KTR_NUM_FLAGS */
+#define KTR_CUSTOM_FLAG( ktr_flag_num ) ( 1 << ((ktr_flag_num) + KTR_NUM_FLAGS))
 
 /* Sub-commands for J_TRC_CMD_IOCTL */
 typedef enum {
@@ -202,11 +217,12 @@ typedef enum {
     KTRCTL_SNARF
 } j_trc_cmd_t;
 
-
 #ifdef __KERNEL__
 #include <linux/list.h>
 
 /**
+ * @j_trc_register_trc_info_t
+ *
  * Contains the per-module trace information, plus
  * extra fields for kernel use. 
  * Each kernel module which uses trace facility should
@@ -222,7 +238,7 @@ typedef struct _j_trc_register_trc_info {
 
 extern int j_trc_init(void);
 extern void j_trc_exit(void);
-extern int j_trc_cmd(struct _j_trc_cmd_req *cmd_req);
+extern int j_trc_cmd(struct _j_trc_cmd_req *cmd_req, void *uaddr);
 extern j_trc_register_trc_info_t *j_trc_reg_infop;
 extern void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
 		     uint32_t tflags, struct timespec *tm,
@@ -278,7 +294,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 
 
 /**
- * kTrcPFS
+ * kTrcPFS()
  *
  * Macro to send a formatted trace string to the trace buffer.
  *
@@ -297,7 +313,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
- * kTrcFuncLine
+ * kTrcFuncLine()
  *
  * Macro to send a trace statement to the buffer, also specifying
  * function name and line number.  This is useful for trace statements 
@@ -319,7 +335,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
- * kTrcHexDump
+ * kTrcHexDump()
  *
  * Dump hex data to the trace buffer.
  * WARNING: Slow, don't use in performance path.

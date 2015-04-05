@@ -56,19 +56,23 @@ j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int rc = EINVAL;
 
 	switch (cmd) {
-	case J_TRC_CMD_IOCTL:
+	case J_TRC_CMD_IOCTL: {
+		j_trc_cmd_req_t cmd_req;
 		if (!arg) {
 			printk("arg must be non-zero\n");
-			return (-EINVAL);
+			return (EINVAL);
 		}
-		rc = j_trc_cmd((j_trc_cmd_req_t *) arg);
+		rc = copy_from_user(&cmd_req, (void *)arg, sizeof(cmd_req));
+		if (rc) break;
+		rc = j_trc_cmd(&cmd_req, (void *)arg);
 		break;
+	}
 
 	default:
 		rc = EINVAL;
 	}
 
-	return (-rc);
+	return (rc);
 }
 
 extern void j_trc_print_element(j_trc_element_t * tp);

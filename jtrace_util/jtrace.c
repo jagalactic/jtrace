@@ -17,7 +17,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#include "../jtrace/j_trc.h"
+#include "../kmod/j_trc.h"
 
 char *namel = "/stand/vmunix";
 /*

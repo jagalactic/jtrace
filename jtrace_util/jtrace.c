@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include "../jtrace/j_trc.h"
-//#include "../jtrace/j_trc_mod.h"
 
 char *namel = "/stand/vmunix";
 /*
@@ -220,7 +219,7 @@ int clear_trace_buf(char *buf_name)
 
 	cmd_req.cmd = KTRCTL_CLEAR;
 	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
-		printf("Failed describe errno=%d\n", errno);
+		fprintf(stderr, "KTRCTL_CLEAR Failed errno=%d\n", errno);
 		return 1;
 	}
 
@@ -237,7 +236,7 @@ int snarf_no_kmem(void *addr, void *buf, size_t len)
 
 	cmd_req.cmd = KTRCTL_SNARF;
 	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
-		printf("Failed describe errno=%d\n", errno);
+		fprintf(stderr, "KTRCTL_SNARF Failed errno=%d\n", errno);
 		return 1;
 	}
 
@@ -286,7 +285,9 @@ int set_printk_value(char *buf_name, int value)
 }
 
 
-/*
+/**
+ * get_all_trc_info()
+ *
  * Get all trace info. If trc_buf_name supplied,
  * set pointer to trace buffer with trc_buf_name
  */
@@ -306,13 +307,14 @@ int get_all_trc_info(char *trc_buf_name)
 
 	/* Call once with zero to get required size */
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
-	if (rc && (errno != ENOMEM)) {
-		printf("Failed describe errno=%d\n", errno);
+	if (rc && (rc != ENOMEM)) {
+		fprintf(stderr, "KTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
 		return (rc);
 	}
 	if (verbose) {
 		printf("required_size=%d\n", cmd_req.data_size);
 	}
+	/* all_trc_info is global */
 	all_trc_info = malloc(cmd_req.data_size);
 	if (!all_trc_info) {
 		printf("malloc() failed\n");
@@ -322,7 +324,9 @@ int get_all_trc_info(char *trc_buf_name)
 	cmd_req.data = all_trc_info;
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
-		printf("Failed describe errno=%d\n", errno);
+		fprintf(stderr,
+			"KTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
+			cmd_req.data_size);
 		return (rc);
 	}
 	/* Number of common Flags */
@@ -536,7 +540,7 @@ int main(int argc, char **argv)
 
 	kutil_dev_fd = open(j_trc_dev, O_RDWR);
 	if (kutil_dev_fd < 0) {
-		printf("Device open failed %d\n", errno);
+		printf("%s: Device open failed %d\n", j_trc_dev, errno);
 		exit(-1);
 	}
 
@@ -1095,7 +1099,7 @@ int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
     printf(":");
     {
 	    int len = strlen(tp->fmt);
-	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = NULL;
+	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = 0;
     }
     printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
 

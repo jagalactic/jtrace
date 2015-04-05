@@ -53,7 +53,7 @@ indent:
 indent_clean:
 	@rm -f *.$(INDENT_BACKUP_SUFFIX)	
 
-clean-files += jtrace
+clean-files += jtrace jtrace.o
 clean:
 	rm -rf $(clean-files)
 	rm -f $(INSTDIR)/jtrace

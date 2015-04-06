@@ -1120,58 +1120,58 @@ static void j_trc_test(void)
 		hex_dump_data[i] = (char) (i & 0xff);
 	}
 
-	kTrcPrintkSet(1);
+	jtrc_setprint(1);
 
-	kTrc(KTR_CONF, id, "First Entry");
+	jtrc(KTR_CONF, id, "First Entry");
 
-	kTrc(KTR_CONF, id, "sizeof(j_trc_element_t)=%d",
+	jtrc(KTR_CONF, id, "sizeof(j_trc_element_t)=%d",
 	     sizeof(j_trc_element_t));
-	kTrc(KTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
+	jtrc(KTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
 	     sizeof(j_trc_regular_element_t));
-	kTrc(KTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
+	jtrc(KTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
 	     sizeof(j_trc_hex_begin_element_t));
-	kTrc(KTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
+	jtrc(KTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
 	     sizeof(j_trc_hex_element_t));
-	kTrc(KTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
+	jtrc(KTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
 	     sizeof(j_trc_element_fmt_t));
-	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
+	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
 	     offsetof(j_trc_element_t, elem_fmt));
-	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
+	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
 	     offsetof(j_trc_element_t, hex.length));
-	kTrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
+	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
 	     offsetof(j_trc_element_t, hex.data_start));
-	kTrc(KTR_CONF, id,
+	jtrc(KTR_CONF, id,
 	     "offsetof(j_trc_element_t, hex_begin.total_length)=%d",
 	     offsetof(j_trc_element_t, hex_begin.total_length));
-	kTrc(KTR_CONF, id,
+	jtrc(KTR_CONF, id,
 	     "offsetof(j_trc_element_t, hex_begin.data_start)=%d",
 	     offsetof(j_trc_element_t, hex_begin.data_start));
-	kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
+	jtrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
 	     J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
-	kTrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
+	jtrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
 	     J_TRC_MAX_HEX_DATA_PER_ELEM);
 
-	kTrcPFS(KTR_CONF, id, "preformatted_data, value1=%d", value1);
+	jtrcPFS(KTR_CONF, id, "preformatted_data, value1=%d", value1);
 
-	kTrcPFS(KTR_CONF, id,
+	jtrcPFS(KTR_CONF, id,
 		"preformatted_data, lots of args %d %d %d %d %d %d %d", value1,
 		value1, value1, value1, value1, value1, value1);
 
-	kTrc(KTR_CONF, id, "value1=%d", value1);
+	jtrc(KTR_CONF, id, "value1=%d", value1);
 
-	kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
+	jtrc_hexdump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
 
-	kTrcHexDump(KTR_CONF, id, "hex_dump_data",
+	jtrc_hexdump(KTR_CONF, id, "hex_dump_data",
 		    hex_dump_data, J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 
-	kTrc(KTR_CONF, id, "value1=%d", value1);
+	jtrc(KTR_CONF, id, "value1=%d", value1);
 
-	kTrcHexDump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
+	jtrc_hexdump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
 
-	kTrc(KTR_CONF, id, "Last Entry");
+	jtrc(KTR_CONF, id, "Last Entry");
 
 	j_trc_print_last_elems(j_trc_reg_infop, 3);
 
-	kTrcPrintkSet(0);
+	jtrc_setprint(0);
 }
 #endif

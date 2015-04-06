@@ -132,13 +132,13 @@ static int __init j_trc_cdev_init(void)
 #if 0
 		j_trc_register_trc_info(&jtr);
 
-		kTrcPrintkSet(1);
+		kTrc_setprint(1);
 		kTrc(&jtr, 0, "jtrace module loaded");
 		kTrc(&jtr, 0, "jtrace module loaded");
 		kTrc(KTR_ERR, 0, "jtrace module loaded");
 		kTrc(KTR_ENTX, 0, "jtrace module loaded");
 		kTrc(KTR_MEM, 0, "jtrace module loaded");
-		kTrcPrintkSet(0);
+		kTrc_setprint(0);
 
 		for (i=jtr.mod_trc_info.j_trc_buf_index;
 		     (i+1) != jtr.mod_trc_info.j_trc_num_entries;

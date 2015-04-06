@@ -264,10 +264,10 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
                                       ktr_infop);
 
 #ifdef KTRC_ENABLE
-#define kTrc_setmask(mask) do{			\
+#define jtrc_setmask(mask) do{			\
 		j_trc_reg_infop->mod_trc_info.j_trc_flags = mask;	\
 	} while (0)
-#define kTrc_off() kTrc_setmask(0)
+#define jtrc_off() jtrc_setmask(0)
 
 /**
  * Macro to send a trace statement to the buffer.
@@ -277,15 +277,16 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  * @fmt  - The trace format strings.
  * @...  - Up to 5 arguments for the trace format string.
  */
-#define kTrc(mask, id, fmt, ...)  do {		     \
+#define jtrc(mask, id, fmt, ...)  do {		     \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	    _j_trace( j_trc_reg_infop, (void *)(id), mask,		\
 		      (struct timespec *)NULL,				\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
+
 /* Same thing, but caller provides timespec... */
-#define kTrc_tm(mask, id, tm, fmt, ...)  do {		     \
+#define jtrc_tm(mask, id, tm, fmt, ...)  do {		     \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	    _j_trace( j_trc_reg_infop, (void *)(id), mask, tm,		\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
@@ -294,7 +295,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 
 
 /**
- * kTrcPFS()
+ * jtrcPFS()
  *
  * Macro to send a formatted trace string to the trace buffer.
  *
@@ -305,7 +306,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  *
  * WARNING: Slow, don't use in performance path.
  */
-#define kTrcPFS(mask, id, fmt, ...)  do { \
+#define jtrcPFS(mask, id, fmt, ...)  do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	    _j_trace_preformated_str( j_trc_reg_infop, (void *)(id), mask,\
 		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
@@ -313,7 +314,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
- * kTrcFuncLine()
+ * jtrc_funcline()
  *
  * Macro to send a trace statement to the buffer, also specifying
  * function name and line number.  This is useful for trace statements 
@@ -327,7 +328,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  * @param fmt - The trace format strings.
  * @param ... - Up to 5 arguments for the trace format string.
  */
-#define kTrcFuncLine(mask, id, func, line, fmt, ...)  do { \
+#define jtrc_funcline(mask, id, func, line, fmt, ...)  do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	    _j_trace(j_trc_reg_infop, (void *)(id), mask,	\
 		     (func), (line), (fmt) , ## __VA_ARGS__);	\
@@ -335,7 +336,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while (0)
 
 /**
- * kTrcHexDump()
+ * jtrc_hexdump()
  *
  * Dump hex data to the trace buffer.
  * WARNING: Slow, don't use in performance path.
@@ -346,50 +347,50 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  * @param p    - Pointer to data to dump.
  * @param len  - Length of data to dump.
  */
-#define kTrcHexDump(mask, id, msg, p, len) do { \
+#define jtrc_hexdump(mask, id, msg, p, len) do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	_j_trc_hex_dump(j_trc_reg_infop, __FUNCTION__, __LINE__, (void *)(id),\
 			mask, (msg), (p), (len));			\
     }\
 } while (0)
 
-#define kTrcPrintkSet(enabled) do { \
+#define jtrc_setprint(enabled) do { \
     j_trc_reg_infop->mod_trc_info.j_trc_kprint_enabled = (enabled);\
 } while (0)
 
-#define kTrcPrintLastElems(num_elems) do { \
+#define jtrc_print_tail(num_elems) do { \
     j_trc_print_last_elems(j_trc_reg_infop, (num_elems)); \
 } while(0);
 
-#define kTrcEntry(flags, id, fmt, ...) do { \
-    kTrc(((flags)|KTR_ENTX), (id), ("Entry [ " fmt), ## __VA_ARGS__); \
+#define jtrc_entry(flags, id, fmt, ...) do { \
+    jtrc(((flags)|KTR_ENTX), (id), ("Entry [ " fmt), ## __VA_ARGS__); \
 } while (0)
 
-#define kTrcExit(flags, id, fmt, ...) do { \
-    kTrc(((flags)|KTR_ENTX), (id), ("Exit ] " fmt), ## __VA_ARGS__); \
+#define jtrc_exit(flags, id, fmt, ...) do { \
+    jtrc(((flags)|KTR_ENTX), (id), ("Exit ] " fmt), ## __VA_ARGS__); \
 } while (0)
 
-#define kTrcErr(flags, id, fmt, ...) do { \
-    kTrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
+#define jtrc_err(flags, id, fmt, ...) do { \
+    jtrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
 } while (0)
 
-#define kTrcErrExit(flags, id, fmt, ...) do { \
-    kTrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
-    kTrc(((flags)|KTR_ENTX), (id), "Exit ]"); \
+#define jtrc_errexit(flags, id, fmt, ...) do { \
+    jtrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
+    jtrc(((flags)|KTR_ENTX), (id), "Exit ]"); \
 } while (0)
 
 #else
 
-#define kTrc(mask, id, fmt, ...)
-#define kTrcPFS(mask, id, fmt, ...)
-#define kTrcFuncLine(mask, id, func, line, fmt, ...)
-#define kTrcHexDump(mask, id, msg, p, len)
-#define kTrcPrintkSet(enabled)
-#define kTrcPrintLastElems(num_elems)
-#define kTrcEntry(flags, id, fmt, ...)
-#define kTrcExit(flags, id, fmt, ...)
-#define kTrcErr(flags, id, fmt, ...)
-#define kTrcErrExit(flags, id, fmt, ...)
+#define jtrc(mask, id, fmt, ...)
+#define jtrcPFS(mask, id, fmt, ...)
+#define jtrc_funcline(mask, id, func, line, fmt, ...)
+#define jtrc_hexdump(mask, id, msg, p, len)
+#define jtrc_setprint(enabled)
+#define jtrc_print_tail(num_elems)
+#define jtrc_entry(flags, id, fmt, ...)
+#define jtrc_exit(flags, id, fmt, ...)
+#define jtrc_err(flags, id, fmt, ...)
+#define jtrc_errexit(flags, id, fmt, ...)
 
 #endif                          /* KTRC_ENABLE */
 

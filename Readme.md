@@ -41,28 +41,36 @@ masking out the rest).
 The following macros and functions are available in both user space and
 kernel space.
 
+## Naming Conventions
+
+    jtrc_*        - Macros to put entries in the trace.  The macros only reference "Porcelain" functions from the API.
+    jtrace_*      - "Porcelain" API functions (should mostly just be called by the macros)
+    __jtrace_*    - "Plumbing" API functions.  These are prototyped in one place, but must be instantiated in both user processes (via libjtrace) and
+
+
 ## Control Macros
 
-    kTrc_setmask  - Set the mask controlling which entries are stored in the
+    jtrc_setmask  - Set the mask controlling which entries are stored in the
                     trace buffer and which are not.
-    kTrc_off      - Turn off all tracing
-    kTrcPrintkSet - Enable printing all un-masked trace entries in real time
-                    via printk (when in the kernel)
+    jtrc_off      - Turn off all tracing
+    jtrc_setprint - Control whether trace entries are printed out to the log (or printk in the kernel)
 
 ## Trace Macros
+The jtrace macros are used to put entries in the trace.  They are defined
+in the jtrace.h include file, and they are the same in both user and kernel
+space.
 
-    kTrc         - Put an entry in the trace, with post-expansion
-    kTrc_tm      - Put an entry in the trace, with caller-supplied time
-    kTrcFuncLine - Put an entry in the trace, overriding the function name
-                   and line number with caller-supplied values
-    kTrcHexDump  - Put a hex dump into the trace buffer.  This may span
-                   trace buffer entries
-    kTrcPrintLastElems - Print the last N elements from the trace, via
-                   printf or printk depending on context
-    kTrcEntry    - Trace entry to a function
-    kTrcExit     - Trace exit from a function
-    kTrcErr      - Trace an error
-    kTrcErrExit  - Trace error exit from a function
+These macros only call "Porcelain" API functions.
+
+    jtrc            - Put an entry in the trace, with post-expansion
+    jtrc_tm         - Put an entry in the trace, with caller-supplied time
+    jtrc_funcline   - Put an entry in the trace, overriding the function name and line number with caller-supplied values
+    jtrc_hexdump    - Put a hex dump into the trace buffer.  This may span trace buffer entries
+    jtrc_print_tail - Print the last N elements from the trace, via printf or printk depending on context
+    jtrc_entry      - Trace entry to a function
+    jtrc_exit       - Trace exit from a function
+    jtrc_err        - Trace an error
+    jtrc_errexit    - Trace error exit from a function
 
 ## Porcelain Functions
 
@@ -77,9 +85,9 @@ kernel space.
 
     j_trc_find_trc_info_by_addr - locate the trace context
     j_trc_find_trc_info_by_name - locate the trace context by name
-    _j_trace         - Put an entry a trace buffer (called by the kTrc* macros)
-    _j_trc_hex_dump  - Put a hex dump in a trace buffer (called by kTrc*)
-    _j_trace_preformated_str - Put a pre-formatted string into a trace buffer (called by kTrc* macros)
+    _j_trace         - Put an entry a trace buffer (called by the jtrc* macros)
+    _j_trc_hex_dump  - Put a hex dump in a trace buffer (called by jtrc*)
+    _j_trace_preformated_str - Put a pre-formatted string into a trace buffer (called by jtrc* macros)
     _j_trc_print_last_elems
 
 

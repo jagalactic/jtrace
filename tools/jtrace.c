@@ -33,26 +33,26 @@ char *trc_buf_name = NULL;
 
 char *snarf_str(void *addr);
 int debugLvl = 0;
-char j_trc_dev[] = JTRACE_DEV_SPECIAL_FILE;
+char jtrc_dev[] = JTRACE_DEV_SPECIAL_FILE;
 int kutil_dev_fd = -1;
 
 void *all_trc_info = NULL;
-int j_trc_num_common_flags = 0;
-j_trc_flag_descriptor_t *j_trc_common_flag_array = 0;
-int j_trc_num_registered_mods = 0;
-j_trc_module_trc_info_t *j_trc_first_trace_infop = NULL;
-j_trc_module_trc_info_t *j_trc_trace_infop = NULL;
+int jtrc_num_common_flags = 0;
+jtrc_flag_descriptor_t *jtrc_common_flag_array = 0;
+int jtrc_num_registered_mods = 0;
+jtrc_module_trc_info_t *jtrc_first_trace_infop = NULL;
+jtrc_module_trc_info_t *jtrc_trace_infop = NULL;
 
-int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
+int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
                          char *end_buf);
-int printd(char *fmt, j_trc_arg_t a0, j_trc_arg_t a1, j_trc_arg_t a2,
-           j_trc_arg_t a3, j_trc_arg_t a4);
+int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
+           jtrc_arg_t a3, jtrc_arg_t a4);
 
-int display_hex_begin_trc_elem(j_trc_element_t * tp);
-int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp);
+int display_hex_begin_trc_elem(jtrc_element_t * tp);
+int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp);
 
 int show_trc_flags(uint32_t trc_flags);
-int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask);
+int dump_trace(jtrc_module_trc_info_t * trace_infop, uint32_t dump_mask);
 int set_printk_value(char *buf_name, int value);
 
 int snarf_no_kmem(void *addr, void *buf, size_t len);
@@ -82,13 +82,13 @@ void usage(rc)
             "\n    Clear Trace buffer (requires -n|-D first):\n"
             "    [-c]        clear the trace buffer\n"
             "\n    ACPI/Config helpers :\n"
-            "    [-A]        Dump ACPI info to j_trc_default.\n"
-            "    [-L]        Dump physical location info to j_trc_default.\n");
+            "    [-A]        Dump ACPI info to jtrc_default.\n"
+            "    [-L]        Dump physical location info to jtrc_default.\n");
 
     printf("\nValid trace flags:\n\n");
     show_trc_flags(0xffffffff);
 
-    printf("num_common_flags=%d\n", j_trc_num_common_flags);
+    printf("num_common_flags=%d\n", jtrc_num_common_flags);
 
     exit(rc);
 }
@@ -204,14 +204,14 @@ void setup(char *namelist, char *corefile, int flag)
 
 int clear_trace_buf(char *buf_name)
 {
-	j_trc_cmd_req_t cmd_req;
+	jtrc_cmd_req_t cmd_req;
 
-	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
 	cmd_req.cmd = JTRCTL_CLEAR;
-	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
+	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
 		fprintf(stderr, "JTRCTL_CLEAR Failed errno=%d\n", errno);
 		return 1;
 	}
@@ -221,14 +221,14 @@ int clear_trace_buf(char *buf_name)
 
 int snarf_no_kmem(void *addr, void *buf, size_t len)
 {
-	j_trc_cmd_req_t cmd_req;
+	jtrc_cmd_req_t cmd_req;
 
 	cmd_req.snarf_addr = addr;
 	cmd_req.data = buf;
 	cmd_req.data_size = len;
 
 	cmd_req.cmd = JTRCTL_SNARF;
-	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
+	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
 		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
 		return 1;
 	}
@@ -239,14 +239,14 @@ int snarf_no_kmem(void *addr, void *buf, size_t len)
 int set_trc_flags(char *buf_name, int trc_flags)
 {
 	int rc = 0;
-	j_trc_cmd_req_t cmd_req;
+	jtrc_cmd_req_t cmd_req;
 
-	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
 	cmd_req.cmd = JTRCTL_SET_TRC_FLAGS;
 	cmd_req.data = &trc_flags;
-	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		printf("ioctl JTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
 		       rc, errno);
@@ -259,15 +259,15 @@ int set_trc_flags(char *buf_name, int trc_flags)
 int set_printk_value(char *buf_name, int value)
 {
 	int rc = 0;
-	j_trc_cmd_req_t cmd_req;
+	jtrc_cmd_req_t cmd_req;
 
-	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
 	cmd_req.cmd = JTRCTL_SET_PRINTK;
 	cmd_req.data = &value;
-	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		printf("ioctl JTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
 		       rc, errno);
@@ -286,20 +286,20 @@ int set_printk_value(char *buf_name, int value)
  */
 int get_all_trc_info(char *trc_buf_name)
 {
-	j_trc_module_trc_info_t *trace_infop = NULL;
-	j_trc_cmd_req_t cmd_req;
+	jtrc_module_trc_info_t *trace_infop = NULL;
+	jtrc_cmd_req_t cmd_req;
 	int i = 0;
 	char *out_bufp = 0;
 	int rc = 0;
 
-	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
+	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
 
 	cmd_req.cmd = JTRCTL_GET_ALL_TRC_INFO;
 	cmd_req.data = 0;
 	cmd_req.data_size = 0;
 
 	/* Call once with zero to get required size */
-	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc && (rc != ENOMEM)) {
 		fprintf(stderr, "JTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
 		return (rc);
@@ -315,7 +315,7 @@ int get_all_trc_info(char *trc_buf_name)
 	}
 
 	cmd_req.data = all_trc_info;
-	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		fprintf(stderr,
 			"JTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
@@ -324,50 +324,50 @@ int get_all_trc_info(char *trc_buf_name)
 	}
 	/* Number of common Flags */
 	out_bufp = all_trc_info;
-	memcpy(&j_trc_num_common_flags, out_bufp,
-	       sizeof(j_trc_num_common_flags));
-	out_bufp += sizeof(j_trc_num_common_flags);
+	memcpy(&jtrc_num_common_flags, out_bufp,
+	       sizeof(jtrc_num_common_flags));
+	out_bufp += sizeof(jtrc_num_common_flags);
 
 	/* Array of common flag descriptors */
-	j_trc_common_flag_array = (j_trc_flag_descriptor_t *) out_bufp;
-	out_bufp += (j_trc_num_common_flags * sizeof(j_trc_flag_descriptor_t));
+	jtrc_common_flag_array = (jtrc_flag_descriptor_t *) out_bufp;
+	out_bufp += (jtrc_num_common_flags * sizeof(jtrc_flag_descriptor_t));
 
 	/* Number of registered modules */
-	memcpy(&j_trc_num_registered_mods, out_bufp,
-	       sizeof(j_trc_num_registered_mods));
-	out_bufp += sizeof(j_trc_num_registered_mods);
+	memcpy(&jtrc_num_registered_mods, out_bufp,
+	       sizeof(jtrc_num_registered_mods));
+	out_bufp += sizeof(jtrc_num_registered_mods);
 
 	if (verbose) {
-		printf("j_trc_num_common_flags=%d "
-		       "j_trc_num_registered_mods=%d\n",
-		       j_trc_num_common_flags, j_trc_num_registered_mods);
+		printf("jtrc_num_common_flags=%d "
+		       "jtrc_num_registered_mods=%d\n",
+		       jtrc_num_common_flags, jtrc_num_registered_mods);
 	}
 
 	/* Array of registered modules, each followed
 	 * by optional custom flags */
-	if (j_trc_num_registered_mods) {
-		j_trc_first_trace_infop = (j_trc_module_trc_info_t *) out_bufp;
-		trace_infop = j_trc_first_trace_infop;
+	if (jtrc_num_registered_mods) {
+		jtrc_first_trace_infop = (jtrc_module_trc_info_t *) out_bufp;
+		trace_infop = jtrc_first_trace_infop;
 	}
 
 	/* If trc_buf_name supplied, find that trace module information */
 	if (trc_buf_name) {
-		for (i = 0; i < j_trc_num_registered_mods; i++) {
-			if (strcmp(trace_infop->j_trc_name,
+		for (i = 0; i < jtrc_num_registered_mods; i++) {
+			if (strcmp(trace_infop->jtrc_name,
 				   trc_buf_name) == 0) {
 				/* Found a match */
-				j_trc_trace_infop = trace_infop;
+				jtrc_trace_infop = trace_infop;
 				break;
 			}
 			/* Get next trace information */
 			out_bufp = (char *) trace_infop;
 			/* Skip past this trace information */
-			out_bufp += sizeof(j_trc_module_trc_info_t);
+			out_bufp += sizeof(jtrc_module_trc_info_t);
 			/* Also, skip past any custom flag descriptions */
 			out_bufp +=
-				(trace_infop->j_trc_num_custom_flags *
-				 sizeof(j_trc_flag_descriptor_t));
-			trace_infop = (j_trc_module_trc_info_t *) out_bufp;
+				(trace_infop->jtrc_num_custom_flags *
+				 sizeof(jtrc_flag_descriptor_t));
+			trace_infop = (jtrc_module_trc_info_t *) out_bufp;
 		}
 	}
 
@@ -380,49 +380,49 @@ int show_trc_flags(uint32_t trc_flags)
 	int i = 0;
 	int j = 0;
 	char *ptr = NULL;
-	j_trc_flag_descriptor_t *flag_descp = NULL;
-	j_trc_module_trc_info_t *trace_infop = NULL;
+	jtrc_flag_descriptor_t *flag_descp = NULL;
+	jtrc_module_trc_info_t *trace_infop = NULL;
 
 	printf("\nCommon trace flags:\n");
-	for (i = 0; i < j_trc_num_common_flags; i++) {
-		flag_descp = &j_trc_common_flag_array[i];
+	for (i = 0; i < jtrc_num_common_flags; i++) {
+		flag_descp = &jtrc_common_flag_array[i];
 		if ((JTR_COMMON_FLAG(i)) & trc_flags) {
 			printf("%12s (0x%08x) - %s\n",
-			       flag_descp->j_trc_flag_cmd_line_name,
+			       flag_descp->jtrc_flag_cmd_line_name,
 			       JTR_COMMON_FLAG(i),
-			       flag_descp->j_trc_flag_description);
+			       flag_descp->jtrc_flag_description);
 		}
 	}
 
 	/* Specific trace module requested */
-	if (j_trc_trace_infop) {
-		if (j_trc_trace_infop->j_trc_num_custom_flags) {
+	if (jtrc_trace_infop) {
+		if (jtrc_trace_infop->jtrc_num_custom_flags) {
 			printf("\nCustom trace flags for module %s:\n",
-			       j_trc_trace_infop->j_trc_name);
+			       jtrc_trace_infop->jtrc_name);
 			/* Custom flags start after the module trc info */
-			ptr = (char *) j_trc_trace_infop;
-			ptr += sizeof(j_trc_module_trc_info_t);
-			flag_descp = (j_trc_flag_descriptor_t *) ptr;
+			ptr = (char *) jtrc_trace_infop;
+			ptr += sizeof(jtrc_module_trc_info_t);
+			flag_descp = (jtrc_flag_descriptor_t *) ptr;
 			for (i = 0;
-			     i < (j_trc_trace_infop->j_trc_num_custom_flags);
+			     i < (jtrc_trace_infop->jtrc_num_custom_flags);
 			     i++) {
 				if ((JTR_CUSTOM_FLAG(i)) & trc_flags) {
 					printf("%12s (0x%08x) - %s\n",
-					       flag_descp->j_trc_flag_cmd_line_name,
+					       flag_descp->jtrc_flag_cmd_line_name,
 					       JTR_CUSTOM_FLAG(i),
-					       flag_descp->j_trc_flag_description);
+					       flag_descp->jtrc_flag_description);
 				}
 				flag_descp++;
 			}
 		} else {
 			printf("\nNo custom trace flags for module %s:\n",
-			       j_trc_trace_infop->j_trc_name);
+			       jtrc_trace_infop->jtrc_name);
 		}
 		printf("\n\n");
 		return (0);
 	}
 
-	trace_infop = j_trc_first_trace_infop;
+	trace_infop = jtrc_first_trace_infop;
 	if (!trace_infop) {
 		/* No registered trace modules */
 		printf("\n\n");
@@ -433,40 +433,40 @@ int show_trc_flags(uint32_t trc_flags)
 	 * No specific trace module requested.
 	 * Check all registered modules
 	 */
-	for (i = 0; i < j_trc_num_registered_mods; i++) {
+	for (i = 0; i < jtrc_num_registered_mods; i++) {
 
-		if (trace_infop->j_trc_num_custom_flags) {
+		if (trace_infop->jtrc_num_custom_flags) {
 			printf("\nCustom trace flags for module %s:\n",
-			       trace_infop->j_trc_name);
+			       trace_infop->jtrc_name);
 
 			/* Custom flags start after the module trc info */
 			ptr = (char *) trace_infop;
-			ptr += sizeof(j_trc_module_trc_info_t);
-			flag_descp = (j_trc_flag_descriptor_t *) ptr;
+			ptr += sizeof(jtrc_module_trc_info_t);
+			flag_descp = (jtrc_flag_descriptor_t *) ptr;
 			for (j = 0;
-			     j < (trace_infop->j_trc_num_custom_flags); j++) {
+			     j < (trace_infop->jtrc_num_custom_flags); j++) {
 				if ((JTR_CUSTOM_FLAG(j)) & trc_flags) {
 					printf("%12s (0x%08x) - %s\n",
-					       flag_descp->j_trc_flag_cmd_line_name,
+					       flag_descp->jtrc_flag_cmd_line_name,
 					       JTR_CUSTOM_FLAG(j),
-					       flag_descp->j_trc_flag_description);
+					       flag_descp->jtrc_flag_description);
 				}
 				flag_descp++;
 			}
 		} else {
 			printf("\nNo custom trace flags for module %s:\n",
-			       trace_infop->j_trc_name);
+			       trace_infop->jtrc_name);
 		}
 
 		/* Get next trace information */
 		ptr = (char *) trace_infop;
 		/* Skip past this trace information */
-		ptr += sizeof(j_trc_module_trc_info_t);
+		ptr += sizeof(jtrc_module_trc_info_t);
 		/* Also, skip past any custom flag descriptions */
 		ptr +=
-			(trace_infop->j_trc_num_custom_flags *
-			 sizeof(j_trc_flag_descriptor_t));
-		trace_infop = (j_trc_module_trc_info_t *) ptr;
+			(trace_infop->jtrc_num_custom_flags *
+			 sizeof(jtrc_flag_descriptor_t));
+		trace_infop = (jtrc_module_trc_info_t *) ptr;
 	}
 
 	printf("\n\n");
@@ -477,11 +477,11 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 {
 	int i = 0;
 	char *ptr = NULL;
-	j_trc_flag_descriptor_t *flag_descp = NULL;
+	jtrc_flag_descriptor_t *flag_descp = NULL;
 
-	for (i = 0; i < j_trc_num_common_flags; i++) {
-		flag_descp = &j_trc_common_flag_array[i];
-		if (strcmp(flag_descp->j_trc_flag_cmd_line_name,
+	for (i = 0; i < jtrc_num_common_flags; i++) {
+		flag_descp = &jtrc_common_flag_array[i];
+		if (strcmp(flag_descp->jtrc_flag_cmd_line_name,
 			   trc_flag_str) ==
 		    0) {
 			/* Found a match */
@@ -490,18 +490,18 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 		}
 	}
 
-	if (j_trc_trace_infop && j_trc_trace_infop->j_trc_num_custom_flags) {
+	if (jtrc_trace_infop && jtrc_trace_infop->jtrc_num_custom_flags) {
 		if (verbose) {
 			printf("Checking custom flags for %s\n",
-			       j_trc_trace_infop->j_trc_name);
+			       jtrc_trace_infop->jtrc_name);
 		}
 		/* Custom flags start after the module trc info */
-		ptr = (char *) j_trc_trace_infop;
-		ptr += sizeof(j_trc_module_trc_info_t);
-		flag_descp = (j_trc_flag_descriptor_t *) ptr;
+		ptr = (char *) jtrc_trace_infop;
+		ptr += sizeof(jtrc_module_trc_info_t);
+		flag_descp = (jtrc_flag_descriptor_t *) ptr;
 		for (i = 0;
-		     i < (j_trc_trace_infop->j_trc_num_custom_flags); i++) {
-			if (strcmp(flag_descp->j_trc_flag_cmd_line_name,
+		     i < (jtrc_trace_infop->jtrc_num_custom_flags); i++) {
+			if (strcmp(flag_descp->jtrc_flag_cmd_line_name,
 				   trc_flag_str) == 0) {
 				/* Found a match */
 				*trc_flag = JTR_CUSTOM_FLAG(i);
@@ -529,9 +529,9 @@ int main(int argc, char **argv)
 
 	trace = 0;
 
-	kutil_dev_fd = open(j_trc_dev, O_RDWR);
+	kutil_dev_fd = open(jtrc_dev, O_RDWR);
 	if (kutil_dev_fd < 0) {
-		printf("%s: Device open failed %d\n", j_trc_dev, errno);
+		printf("%s: Device open failed %d\n", jtrc_dev, errno);
 		exit(-1);
 	}
 
@@ -551,7 +551,7 @@ int main(int argc, char **argv)
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
 			printk_value = strtol(optarg, NULL, 16);
@@ -560,11 +560,11 @@ int main(int argc, char **argv)
 				printf("Could not set trace flags to 0x%x\n",
 				       trc_flags);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\nPrintk set to (%d):\n\n", printk_value);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 			break;
 
 		case 'n':
@@ -574,33 +574,33 @@ int main(int argc, char **argv)
 			} else {
 				usage(1);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
 			rc = get_all_trc_info(trc_buf_name);
 			if (rc) {
 				printf("get_trc_info failed errno=%d\n", rc);
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			break;
 
 		case 'D':
 			n_flag++;
-#define DEFAULT_BUF_NAME "j_trc_default"
+#define DEFAULT_BUF_NAME "jtrc_default"
 			if (!trc_buf_name) {
 				trc_buf_name = DEFAULT_BUF_NAME;
 			} else {
 				usage(1);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
 			rc = get_all_trc_info(trc_buf_name);
 			if (rc) {
 				printf("get_trc_info failed errno=%d\n", rc);
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			break;
 
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
 			trc_flags = strtol(optarg, NULL, 16);
@@ -624,13 +624,13 @@ int main(int argc, char **argv)
 				printf("Could not set trace flags to 0x%x\n",
 				       trc_flags);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\nTrace flags set to (0x%08x):\n\n",
 			       trc_flags);
 			show_trc_flags(trc_flags);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 			break;
 
 		case 'g':
@@ -638,22 +638,22 @@ int main(int argc, char **argv)
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
 			printf("\nCurrent set trace flags(0x%08x) for %s:\n\n",
-			       j_trc_trace_infop->j_trc_flags,
-			       j_trc_trace_infop->j_trc_name);
-			show_trc_flags(j_trc_trace_infop->j_trc_flags);
+			       jtrc_trace_infop->jtrc_flags,
+			       jtrc_trace_infop->jtrc_name);
+			show_trc_flags(jtrc_trace_infop->jtrc_flags);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 
 		case 'f':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
 			trc_flags = 0;
@@ -663,7 +663,7 @@ int main(int argc, char **argv)
 				printf("Invalid flag %s\n", optarg);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			/* trc_flag was valid */
 			trc_flags |= trc_flag;
@@ -675,7 +675,7 @@ int main(int argc, char **argv)
 					       argv[optind]);
 					usage(rc);
 					rc = -1;
-					goto j_trc_util_exit;
+					goto jtrc_util_exit;
 				}
 				/* trc_flag was valid */
 				trc_flags |= trc_flag;
@@ -686,23 +686,23 @@ int main(int argc, char **argv)
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\nTrace flags set to (0x%08x):\n\n",
 			       trc_flags);
 			show_trc_flags(trc_flags);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 
 		case 's':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
-			trc_flags = j_trc_trace_infop->j_trc_flags;
+			trc_flags = jtrc_trace_infop->jtrc_flags;
 
 			/* Get first flag string */
 			rc = flag_str_to_flag(optarg, &trc_flag);
@@ -710,7 +710,7 @@ int main(int argc, char **argv)
 				printf("Invalid flag %s\n", optarg);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			/* trc_flag was valid */
 			trc_flags |= trc_flag;
@@ -722,7 +722,7 @@ int main(int argc, char **argv)
 					       argv[optind]);
 					usage(rc);
 					rc = -1;
-					goto j_trc_util_exit;
+					goto jtrc_util_exit;
 				}
 				/* trc_flag was valid */
 				trc_flags |= trc_flag;
@@ -733,23 +733,23 @@ int main(int argc, char **argv)
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\nCurrent set trace flags (0x%08x):\n\n",
 			       trc_flags);
 			show_trc_flags(trc_flags);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 
 		case 'u':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 
-			trc_flags = j_trc_trace_infop->j_trc_flags;
+			trc_flags = jtrc_trace_infop->jtrc_flags;
 
 			/* Get first flag string */
 			rc = flag_str_to_flag(optarg, &trc_flag);
@@ -757,7 +757,7 @@ int main(int argc, char **argv)
 				printf("Invalid flag %s\n", optarg);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			/* trc_flag was valid */
 			trc_flags &= ~(trc_flag);
@@ -769,7 +769,7 @@ int main(int argc, char **argv)
 					       argv[optind]);
 					usage(rc);
 					rc = -1;
-					goto j_trc_util_exit;
+					goto jtrc_util_exit;
 				}
 				/* trc_flag was valid */
 				trc_flags &= ~(trc_flag);
@@ -780,14 +780,14 @@ int main(int argc, char **argv)
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			printf("\nCurrent set trace flags (0x%08x):\n\n",
 			       trc_flags);
 
 			show_trc_flags(trc_flags);
 			rc = -1;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 			break;
 
 #if 0
@@ -797,10 +797,10 @@ int main(int argc, char **argv)
 			coref = optarg;
 			++isDumpFile;
 			setup(namel, coref, O_RDONLY);
-			dump_trace(j_trc_trace_infop);
+			dump_trace(jtrc_trace_infop);
 			/* XXX not yet supported */
 			rc = -1;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 #endif
 
 		case 'c':
@@ -808,33 +808,33 @@ int main(int argc, char **argv)
 				printf(TRC_BUF_NAME_REQUIRED);
 				usage(rc);
 				rc = -1;
-				goto j_trc_util_exit;
+				goto jtrc_util_exit;
 			}
 			clear_trace_buf(trc_buf_name);
 			printf("Trace buffer cleared\n");
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 
 		case '?':
 			/* Try to get all info for flag information */
 			get_all_trc_info(trc_buf_name);
 			usage(0);
 			rc = 0;
-			goto j_trc_util_exit;
+			goto jtrc_util_exit;
 
 		default:
 			usage(1);
 		}
 	}
 
-	if (!j_trc_trace_infop) {
+	if (!jtrc_trace_infop) {
 		printf("Error: Could not find trc_buf_name=%s\n",
 		       trc_buf_name);
 		/* Try to get all info for module and flag information */
 		get_all_trc_info(trc_buf_name);
 		usage(1);
 		rc = -1;
-		goto j_trc_util_exit;
+		goto jtrc_util_exit;
 	}
 
 	if (optind < argc) {
@@ -846,14 +846,14 @@ int main(int argc, char **argv)
 
 	setup(namel, coref, O_RDONLY);
 
-	dump_trace(j_trc_trace_infop, dump_mask);
+	dump_trace(jtrc_trace_infop, dump_mask);
 
 	if (verbose) {
 		printf("cache stats: fastHits %d hits %d misses %d\n",
 		       cStats.fastHits, cStats.hits, cStats.misses);
 	}
 
-j_trc_util_exit:
+jtrc_util_exit:
 	if (all_trc_info) {
 		free(all_trc_info);
 	}
@@ -889,15 +889,15 @@ char *save_str(char *fmt, ...)
 
 static uint32_t slot;
 static uint32_t num_slots;
-static j_trc_element_t *ldTbuf;
+static jtrc_element_t *ldTbuf;
 
 static int was_nl;
 
-int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
+int dump_trace(jtrc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 {
 	size_t ldTbufSz;
 	uint32_t slot_idx, mark_slot;
-	j_trc_element_t *tp;
+	jtrc_element_t *tp;
 	char *beg_buf = NULL;
 	char *end_buf = NULL;
 	void *p = NULL;
@@ -912,11 +912,11 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 #ifdef J_LATER
 		osDumpInit(coref, &trace_info_addr);
 		/* get trace_info from dump file */
-		snarf(trace_info_addr, &trace_info, sizeof(j_trc_info));
+		snarf(trace_info_addr, &trace_info, sizeof(jtrc_info));
 #endif
 	} else {
-		strncpy(trace_info.j_trc_name, buf_name,
-			sizeof(trace_info.j_trc_name));
+		strncpy(trace_info.jtrc_name, buf_name,
+			sizeof(trace_info.jtrc_name));
 
 #if 0
 		/* get trace_info from running kernel */
@@ -930,45 +930,45 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 #endif
 
 	if (verbose) {
-		printf("j_trc_info.j_trc_buf_size=0x%x,"
-		       " j_trc_info.j_trc_buf_index=0x%x\n",
-		       trace_infop->j_trc_buf_size,
-		       trace_infop->j_trc_buf_index);
+		printf("jtrc_info.jtrc_buf_size=0x%x,"
+		       " jtrc_info.jtrc_buf_index=0x%x\n",
+		       trace_infop->jtrc_buf_size,
+		       trace_infop->jtrc_buf_index);
 	}
 
-	ldTbufSz = trace_infop->j_trc_buf_size;
-	slot_idx = trace_infop->j_trc_buf_index;
+	ldTbufSz = trace_infop->jtrc_buf_size;
+	slot_idx = trace_infop->jtrc_buf_index;
 
 	if (verbose) {
 		printf("trace_infop->ldTbuf=%p, trace_infop->ldTbufSz=0x%x, "
 		       "trace_infop->slotidx=0x%x "
 		       "trace_infop->num_slots=0x%x\n",
-		       trace_infop->j_trc_buf_ptr,
-		       trace_infop->j_trc_buf_size,
-		       trace_infop->j_trc_buf_index,
-		       trace_infop->j_trc_num_entries);
+		       trace_infop->jtrc_buf_ptr,
+		       trace_infop->jtrc_buf_size,
+		       trace_infop->jtrc_buf_index,
+		       trace_infop->jtrc_num_entries);
 	}
 
 	p = malloc(ldTbufSz);
-	ldTbuf = (j_trc_element_t *) p;
+	ldTbuf = (jtrc_element_t *) p;
 
 	if (ldTbuf == NULL) {
 		printf("malloc failed");
 		return 1;
 	}
 
-	snarf(trace_infop->j_trc_buf_ptr, (void *) ldTbuf, ldTbufSz);
+	snarf(trace_infop->jtrc_buf_ptr, (void *) ldTbuf, ldTbufSz);
 
 	if (verbose) {
 		printf("ldTbuf = %p, ldTbufSz=%lx slot_idx=0x%x\n",
 		       ldTbuf, (long) ldTbufSz, slot_idx);
-		printf("sizeof(j_trc_arg_t)=%ld\n",
-		       (long) sizeof(j_trc_arg_t));
-		printf("sizeof(j_trc_element_t)=%ld\n",
-		       (long) sizeof(j_trc_element_t));
+		printf("sizeof(jtrc_arg_t)=%ld\n",
+		       (long) sizeof(jtrc_arg_t));
+		printf("sizeof(jtrc_element_t)=%ld\n",
+		       (long) sizeof(jtrc_element_t));
 	}
 
-	num_slots = trace_infop->j_trc_num_entries;
+	num_slots = trace_infop->jtrc_num_entries;
 	beg_buf = (char *) ldTbuf;
 	end_buf = beg_buf + ldTbufSz;
 
@@ -1049,7 +1049,7 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 	return (0);
 }
 
-int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
+int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
                          char *end_buf)
 {
     register char *p;
@@ -1104,7 +1104,7 @@ int display_reg_trc_elem(j_trc_regular_element_t * tp, char *beg_buf,
     return (0);
 }
 
-int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp)
+int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
 {
     time_t time_stamp_secs;
     struct tm time_stamp_formated;
@@ -1142,7 +1142,7 @@ int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp)
     /* The string data starts at the data_start location */
     string_data = (char *) &tp->pfs_begin.data_start;
 
-    end_buf = string_data + J_TRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
+    end_buf = string_data + JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
     printf("%s:", header);
     while (string_length > 0) {
         int length2 = 0;
@@ -1166,7 +1166,7 @@ int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp)
             tp = &ldTbuf[slot];
 
             string_data = (char *) &tp->pfs_continue.data_start;
-            end_buf = string_data + J_TRC_MAX_PREFMT_STR_PER_ELEM;
+            end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
         }
     }
     printf("\n");
@@ -1175,7 +1175,7 @@ int display_preformatted_str_begin_trc_elem(j_trc_element_t * tp)
 }
 
 
-int display_hex_begin_trc_elem(j_trc_element_t * tp)
+int display_hex_begin_trc_elem(jtrc_element_t * tp)
 {
     time_t time_stamp_secs;
     struct tm time_stamp_formated;
@@ -1220,7 +1220,7 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
         ("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   -----ASCII------   -----EBCDIC-----\n",
          header);
 
-    end_buf = binary_data + J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM;
+    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
     char line_buf[DUMP_HEX_BYTES_PER_LINE];
     /* Dump in increments of hex line size */
     while (binary_length > 0) {
@@ -1249,7 +1249,7 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
                 tp = &ldTbuf[slot];
 
                 binary_data = (char *) &tp->hex.data_start;
-                end_buf = binary_data + J_TRC_MAX_HEX_DATA_PER_ELEM;
+                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
             }
         }
         dump_hex_line(line_buf, length2);
@@ -1261,12 +1261,12 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
 }
 
 int
-printd(char *fmt, j_trc_arg_t a0, j_trc_arg_t a1, j_trc_arg_t a2,
-       j_trc_arg_t a3, j_trc_arg_t a4)
+printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
+       jtrc_arg_t a3, jtrc_arg_t a4)
 {
-    j_trc_arg_t abuf[5];
+    jtrc_arg_t abuf[5];
     register char *p;
-    j_trc_arg_t *ap = &abuf[0];
+    jtrc_arg_t *ap = &abuf[0];
     register int i;
 
     abuf[0] = a0;
@@ -1296,7 +1296,7 @@ printd(char *fmt, j_trc_arg_t a0, j_trc_arg_t a1, j_trc_arg_t a2,
 
                 case 's':
                     if (!debugLvl) {
-                        *ap = (j_trc_arg_t) snarf_str((void *) *ap);
+                        *ap = (jtrc_arg_t) snarf_str((void *) *ap);
                     }
                     break;
 

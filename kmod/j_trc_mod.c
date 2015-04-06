@@ -1,7 +1,7 @@
 /*
- * j_trc_mod.c
+ * jtrc_mod.c
  *
- * Module wrapper for the j_trc code
+ * Module wrapper for the jtrc code
  */
 
 #include <linux/types.h>
@@ -22,37 +22,37 @@
 #include "j_trc.h"
 
 /* A chrdev is used for ioctl interface */
-long j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+long jtrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
-static struct file_operations j_trc_fops = {
+static struct file_operations jtrc_fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = j_trc_ioctl,
+	.unlocked_ioctl = jtrc_ioctl,
 };
 
-#define J_TRC_NAME "j_trc"
+#define JTRC_NAME "jtrc"
 
 static struct miscdevice jtr_mdev = {
 	.minor = 0,
-	.name = J_TRC_NAME,
-	.fops = &j_trc_fops,
+	.name = JTRC_NAME,
+	.fops = &jtrc_fops,
 };
 
 
 long
-j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int rc = EINVAL;
 
 	switch (cmd) {
-	case J_TRC_CMD_IOCTL: {
-		j_trc_cmd_req_t cmd_req;
+	case JTRC_CMD_IOCTL: {
+		jtrc_cmd_req_t cmd_req;
 		if (!arg) {
 			printk("arg must be non-zero\n");
 			return (EINVAL);
 		}
 		rc = copy_from_user(&cmd_req, (void *)arg, sizeof(cmd_req));
 		if (rc) break;
-		rc = j_trc_cmd(&cmd_req, (void *)arg);
+		rc = jtrace_cmd(&cmd_req, (void *)arg);
 		break;
 	}
 
@@ -63,10 +63,10 @@ j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return (rc);
 }
 
-extern void j_trc_print_element(j_trc_element_t * tp);
-static j_trc_register_trc_info_t jtr;
+extern void jtrc_print_element(jtrc_element_t * tp);
+static jtrace_register_trc_info_t jtr;
 
-static int __init j_trc_cdev_init(void)
+static int __init jtrace_cdev_init(void)
 {
 
 	int rc;
@@ -78,7 +78,7 @@ static int __init j_trc_cdev_init(void)
 		goto errexit;
 	}
 
-	rc = j_trc_init();
+	rc = jtrace_init();
 	if (rc) {
 		goto errexit;
 	}
@@ -92,33 +92,33 @@ static int __init j_trc_cdev_init(void)
 	{
 #define NUM_ELEM 1048576
 //#define NUM_ELEM 32
-		int elem_size = sizeof(j_trc_element_t);
+		int elem_size = sizeof(jtrc_element_t);
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
 
 		memset(&jtr, 0, sizeof(jtr));
-		jtr.mod_trc_info.j_trc_num_entries = NUM_ELEM;
-		jtr.mod_trc_info.j_trc_buf_size = bufsize;
-		jtr.mod_trc_info.j_trc_flags = JTR_COMMON_FLAGS_MASK;
+		jtr.mod_trc_info.jtrc_num_entries = NUM_ELEM;
+		jtr.mod_trc_info.jtrc_buf_size = bufsize;
+		jtr.mod_trc_info.jtrc_flags = JTR_COMMON_FLAGS_MASK;
 
-		strcpy(jtr.mod_trc_info.j_trc_name, "master");
+		strcpy(jtr.mod_trc_info.jtrc_name, "master");
 
 		buf = vmalloc_user(bufsize);
 		
-		jtr.mod_trc_info.j_trc_buf_ptr = (j_trc_element_t *)buf;
+		jtr.mod_trc_info.jtrc_buf_ptr = (jtrc_element_t *)buf;
 		if (!buf) {
 			printk("jtrace: unable to vmalloc master buffer\n");
 			goto errexit;
 		}
 
-		strcpy(jtr.mod_trc_info.j_trc_name, "master");
+		strcpy(jtr.mod_trc_info.jtrc_name, "master");
 
 
 		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
 		       MISC_MAJOR, jtr_mdev.minor, elem_size);
 
 #if 0
-		j_trc_register_trc_info(&jtr);
+		jtrace_register_trc_info(&jtr);
 
 		jtrc_setprint(1);
 		jtrc(&jtr, 0, "jtrace module loaded");
@@ -128,20 +128,20 @@ static int __init j_trc_cdev_init(void)
 		jtrc(JTR_MEM, 0, "jtrace module loaded");
 		jtrc_setprint(0);
 
-		for (i=jtr.mod_trc_info.j_trc_buf_index;
-		     (i+1) != jtr.mod_trc_info.j_trc_num_entries;
+		for (i=jtr.mod_trc_info.jtrc_buf_index;
+		     (i+1) != jtr.mod_trc_info.jtrc_num_entries;
 		     i++) {
-			j_trc_element_t *tp;
-			if (i > jtr.mod_trc_info.j_trc_num_entries)
+			jtrc_element_t *tp;
+			if (i > jtr.mod_trc_info.jtrc_num_entries)
 				i = 0;
 
-			tp = (j_trc_element_t *)
-				&jtr.mod_trc_info.j_trc_buf_ptr[i];
+			tp = (jtrc_element_t *)
+				&jtr.mod_trc_info.jtrc_buf_ptr[i];
 			printk("slot %d addr %p fmt %d (%s)\n",
 			       i, tp, tp->elem_fmt,
 			       (tp->elem_fmt) ? "used" : "empty");
 
-			j_trc_print_element(tp);
+			jtrc_print_element(tp);
 		}
 #endif
 
@@ -157,32 +157,32 @@ static int __init j_trc_cdev_init(void)
 	return (-rc);
 }
 
-static void __exit j_trc_cdev_exit(void)
+static void __exit jtrace_cdev_exit(void)
 {
 	printk("jtrace unloading\n");
 
-	//j_trc_unregister_trc_info(&jtr);
+	//jtrace_unregister_trc_info(&jtr);
 
-	j_trc_exit();
+	jtrace_exit();
 
 	misc_deregister(&jtr_mdev);
 
 	return;
 }
 
-module_init(j_trc_cdev_init);
-module_exit(j_trc_cdev_exit);
+module_init(jtrace_cdev_init);
+module_exit(jtrace_cdev_exit);
 
 MODULE_DESCRIPTION("John's kernel trace facility");
 MODULE_AUTHOR("Groves Technology Corporation");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(j_trc_reg_infop);
-EXPORT_SYMBOL(j_trc_register_trc_info);
-EXPORT_SYMBOL(j_trc_use_registered_trc_info);
-EXPORT_SYMBOL(j_trc_unregister_trc_info);
-EXPORT_SYMBOL(_j_trace);
-EXPORT_SYMBOL(_j_trc_hex_dump);
-EXPORT_SYMBOL(j_trc_print_last_elems);
+EXPORT_SYMBOL(jtrace_reg_infop);
+EXPORT_SYMBOL(jtrace_register_trc_info);
+EXPORT_SYMBOL(jtrace_use_registered_trc_info);
+EXPORT_SYMBOL(jtrace_unregister_trc_info);
+EXPORT_SYMBOL(_jtrace);
+EXPORT_SYMBOL(jtrace_hex_dump);
+EXPORT_SYMBOL(jtrace_print_last_elems);
 
 

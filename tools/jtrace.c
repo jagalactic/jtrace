@@ -1,5 +1,5 @@
 /*
- * 
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,27 +153,23 @@ char *snarf_str(void *addr)
 	} cache[512], *last, *hiwat = &cache[0];
 	static uint lru;
 	struct StrCache *ent, *old;
-	
+
 	if (last && last->addr == addr) {
 		++cStats.fastHits;
-		
 		return last->str;
 	}
-	
+
 	for (old = ent = cache; ent < hiwat; ++ent) {
 		if (ent->addr == addr) {
 			++cStats.hits;
-			
 			ent->lru = ++lru;
-			
 			last = ent;
-			
 			return ent->str;
 		}
 		if (old->lru > ent->lru)
 			old = ent;
 	}
-	
+
 	/*
 	 * cache miss - either use a new entry, or the oldest
 	 */
@@ -181,16 +177,14 @@ char *snarf_str(void *addr)
 		ent = hiwat++;
 	else
 		ent = old;
-	
+
 	ent->addr = addr;
 	ent->lru = ++lru;
-	
+
 	snarf(addr, ent->str, (size_t) sizeof(ent->str));
-	
 	ent->str[sizeof(ent->str) - 1] = 0;
-	
 	++cStats.misses;
-	
+
 	return (last = ent)->str;
 }
 
@@ -200,14 +194,13 @@ void setup(char *namelist, char *corefile, int flag)
 #if APP_KREL < 26
 	/* /dev/kmem currently broken in 2.6, just skip */
 	kfd = open(corefile, flag);
-	
+
 	if (kfd < 0) {
 		printf("Corefile open error, %s, errno=%d\n", corefile, errno);
 	}
 #endif
 	return;
 }
-
 
 int clear_trace_buf(char *buf_name)
 {
@@ -437,15 +430,15 @@ int show_trc_flags(uint32_t trc_flags)
 	}
 
 	/*
-	 * No specific trace module requested. 
-	 * Check all registered modules 
+	 * No specific trace module requested.
+	 * Check all registered modules
 	 */
 	for (i = 0; i < j_trc_num_registered_mods; i++) {
 
 		if (trace_infop->j_trc_num_custom_flags) {
 			printf("\nCustom trace flags for module %s:\n",
 			       trace_infop->j_trc_name);
-			
+
 			/* Custom flags start after the module trc info */
 			ptr = (char *) trace_infop;
 			ptr += sizeof(j_trc_module_trc_info_t);
@@ -501,7 +494,6 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 		if (verbose) {
 			printf("Checking custom flags for %s\n",
 			       j_trc_trace_infop->j_trc_name);
-			
 		}
 		/* Custom flags start after the module trc info */
 		ptr = (char *) j_trc_trace_infop;
@@ -509,7 +501,6 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 		flag_descp = (j_trc_flag_descriptor_t *) ptr;
 		for (i = 0;
 		     i < (j_trc_trace_infop->j_trc_num_custom_flags); i++) {
-			
 			if (strcmp(flag_descp->j_trc_flag_cmd_line_name,
 				   trc_flag_str) == 0) {
 				/* Found a match */
@@ -603,8 +594,7 @@ int main(int argc, char **argv)
 				usage(1);
 				rc = -1;
 				goto j_trc_util_exit;
-				
- 			}
+			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
 			rc = get_all_trc_info(trc_buf_name);
@@ -831,7 +821,7 @@ int main(int argc, char **argv)
 			usage(0);
 			rc = 0;
 			goto j_trc_util_exit;
-			
+
 		default:
 			usage(1);
 		}
@@ -998,7 +988,6 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			       "elem_fmt=%d zero_slots=0x%x\n",
 			       num_slots, mark_slot, slot,
 			       tp->elem_fmt, zero_slots);
-			
 		}
 
 		if (tp->flag & dump_mask)
@@ -1018,7 +1007,7 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			zero_slots = 0;
 			break;
 
-			/* 
+			/*
 			 * If we hit these here, we've lost the BEGIN
 			 * slot context, so just skip
 			 */
@@ -1241,9 +1230,9 @@ int display_hex_begin_trc_elem(j_trc_element_t * tp)
 
         binary_length -= length2;
 
-        /* 
+        /*
          * The binary hex information is not contiguous, so
-         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size 
+         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
          */
         for (i = 0; i < length2; i++) {
             line_buf[i] = *binary_data;

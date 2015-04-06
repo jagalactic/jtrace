@@ -19,18 +19,18 @@ USER_CFLAGS += -DAPP_KREL=$(APP_KREL)
 
 INCLUDE_FLAGS=-I ../include
 
-jtrace-objs := jtrace.o 
+jtrace-objs := jtrace.o
 
 all: jtrace
 
-# Default rule to compile .c files into .o files for source files in 
+# Default rule to compile .c files into .o files for source files in
 # local directory
 %.o : %.c Makefile
 	@echo $@
 	$(CC) $(INCLUDE_FLAGS) $(USER_CFLAGS) -o $@ -c $<
 
 jtrace: $(jtrace-objs)
-	@echo $@ 
+	@echo $@
 	$(CC) -o $@ $(jtrace-objs)
 
 $(INSTDIR)/jtrace: jtrace
@@ -41,7 +41,7 @@ install: $(INSTDIR)/jtrace
 
 uninstall:
 	@echo "Uninstall"
-	@rm -f $(UTIL_INST_DIR)/jtrace 
+	@rm -f $(UTIL_INST_DIR)/jtrace
 
 modload:
 
@@ -51,7 +51,7 @@ indent:
 	@$(INDENT)
 
 indent_clean:
-	@rm -f *.$(INDENT_BACKUP_SUFFIX)	
+	@rm -f *.$(INDENT_BACKUP_SUFFIX)
 
 clean-files += jtrace jtrace.o
 clean:

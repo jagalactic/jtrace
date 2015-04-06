@@ -66,11 +66,13 @@ These macros only call "Porcelain" API functions.
     jtrc_tm         - Put an entry in the trace, with caller-supplied time
     jtrc_funcline   - Put an entry in the trace, overriding the function name and line number with caller-supplied values
     jtrc_hexdump    - Put a hex dump into the trace buffer.  This may span trace buffer entries
-    jtrc_print_tail - Print the last N elements from the trace, via printf or printk depending on context
+    jtrc_pfs        - Print pre-formatted string to the trace.  Use this for
+		      extra args, or for strings that are not statically defined
     jtrc_entry      - Trace entry to a function
     jtrc_exit       - Trace exit from a function
     jtrc_err        - Trace an error
     jtrc_errexit    - Trace error exit from a function
+    jtrc_print_tail - Print the last N elements from the trace, via printf or printk depending on context
 
 ## Porcelain Functions
 

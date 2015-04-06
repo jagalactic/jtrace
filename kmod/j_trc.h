@@ -11,14 +11,14 @@
 typedef void *j_trc_arg_t;
 
 typedef enum {
-	KTRC_FORMAT_INVALID = 0,
-	KTRC_FORMAT_REGULAR,
-	KTRC_HEX_DATA_BEGIN,
-	KTRC_HEX_DATA_CONTINUE,
-	KTRC_HEX_DATA_END,
-	KTRC_PREFORMATTED_STR_BEGIN,
-	KTRC_PREFORMATTED_STR_CONTINUE,
-	KTRC_PREFORMATTED_STR_END
+	JTRC_FORMAT_INVALID = 0,
+	JTRC_FORMAT_REGULAR,
+	JTRC_HEX_DATA_BEGIN,
+	JTRC_HEX_DATA_CONTINUE,
+	JTRC_HEX_DATA_END,
+	JTRC_PREFORMATTED_STR_BEGIN,
+	JTRC_PREFORMATTED_STR_CONTINUE,
+	JTRC_PREFORMATTED_STR_END
 } j_trc_element_fmt_t;
 
 
@@ -143,9 +143,9 @@ typedef struct _j_trc_element {
  * and number of entries in the trace buffer, flag values, etc.
  */
 typedef struct _j_trc_module_trc_info {
-#define KTRC_MOD_NAME_SIZE 32
+#define JTRC_MOD_NAME_SIZE 32
 	/** Module trace info name */
-	char j_trc_name[KTRC_MOD_NAME_SIZE];
+	char j_trc_name[JTRC_MOD_NAME_SIZE];
 
 	/** Number of trace entries in the buffer. */
 	uint32_t j_trc_num_entries;
@@ -189,32 +189,32 @@ typedef struct _j_trc_flag_descriptor {
 	char j_trc_flag_description[J_TRC_FLAG_DESCRIPTION_SIZE];
 } j_trc_flag_descriptor_t;
 
-#define KTR_COMMON_FLAG( ktr_flag_num ) ( 1 << (ktr_flag_num) )
+#define JTR_COMMON_FLAG( jtr_flag_num ) ( 1 << (jtr_flag_num) )
 
-#define KTR_ERR     KTR_COMMON_FLAG(0)  /* Trace error conditions */
-#define KTR_WARN    KTR_COMMON_FLAG(1)  /* Trace warning conditions */
-#define KTR_CONF    KTR_COMMON_FLAG(2)  /* Trace configuration routines */
-#define KTR_ENTX    KTR_COMMON_FLAG(3)  /* Trace all routine entry and exit points." */
-#define KTR_IOCTL   KTR_COMMON_FLAG(4)  /* Trace ioctl() calls */
-#define KTR_MEM     KTR_COMMON_FLAG(5)  /* Trace memory alloc/free */
-#define KTR_DEBUG   KTR_COMMON_FLAG(6)  /* General debug */
+#define JTR_ERR     JTR_COMMON_FLAG(0)  /* Trace error conditions */
+#define JTR_WARN    JTR_COMMON_FLAG(1)  /* Trace warning conditions */
+#define JTR_CONF    JTR_COMMON_FLAG(2)  /* Trace configuration routines */
+#define JTR_ENTX    JTR_COMMON_FLAG(3)  /* Trace all routine entry and exit points." */
+#define JTR_IOCTL   JTR_COMMON_FLAG(4)  /* Trace ioctl() calls */
+#define JTR_MEM     JTR_COMMON_FLAG(5)  /* Trace memory alloc/free */
+#define JTR_DEBUG   JTR_COMMON_FLAG(6)  /* General debug */
 
 /* This must be the number of flags above */
-#define KTR_NUM_FLAGS 7
+#define JTR_NUM_FLAGS 7
 
-#define KTR_COMMON_FLAGS_MASK (KTR_ERR|KTR_WARN|KTR_CONF|KTR_ENTX|KTR_IOCTL|KTR_MEM|KTR_DEBUG)
+#define JTR_COMMON_FLAGS_MASK (JTR_ERR|JTR_WARN|JTR_CONF|JTR_ENTX|JTR_IOCTL|JTR_MEM|JTR_DEBUG)
 
-/* The first "custom flag" starts at KTR_NUM_FLAGS
- * NOTE: if you add standard flags, you gotta update KTR_NUM_FLAGS */
-#define KTR_CUSTOM_FLAG( ktr_flag_num ) ( 1 << ((ktr_flag_num) + KTR_NUM_FLAGS))
+/* The first "custom flag" starts at JTR_NUM_FLAGS
+ * NOTE: if you add standard flags, you gotta update JTR_NUM_FLAGS */
+#define JTR_CUSTOM_FLAG( jtr_flag_num ) ( 1 << ((jtr_flag_num) + JTR_NUM_FLAGS))
 
 /* Sub-commands for J_TRC_CMD_IOCTL */
 typedef enum {
-    KTRCTL_SET_TRC_FLAGS,
-    KTRCTL_SET_PRINTK,
-    KTRCTL_CLEAR,
-    KTRCTL_GET_ALL_TRC_INFO,
-    KTRCTL_SNARF
+    JTRCTL_SET_TRC_FLAGS,
+    JTRCTL_SET_PRINTK,
+    JTRCTL_CLEAR,
+    JTRCTL_GET_ALL_TRC_INFO,
+    JTRCTL_SNARF
 } j_trc_cmd_t;
 
 #ifdef __KERNEL__
@@ -240,30 +240,30 @@ extern int j_trc_init(void);
 extern void j_trc_exit(void);
 extern int j_trc_cmd(struct _j_trc_cmd_req *cmd_req, void *uaddr);
 extern j_trc_register_trc_info_t *j_trc_reg_infop;
-extern void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
+extern void _j_trace(j_trc_register_trc_info_t * jtr_infop, void *id,
 		     uint32_t tflags, struct timespec *tm,
                      const char *func, int line, char *fmt, ...);
-extern void _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop,
+extern void _j_trc_hex_dump(j_trc_register_trc_info_t * jtr_infop,
                             const char *func, uint line,
 			    void *id, uint32_t tflags,
                             char *msg, void *p, uint len);
-extern void _j_trace_preformated_str(j_trc_register_trc_info_t * ktr_infop,
+extern void _j_trace_preformated_str(j_trc_register_trc_info_t * jtr_infop,
                                      void *id, uint32_t tflags,
 				     const char *func, int line,
                                      char *fmt, ...);
-extern void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
+extern void j_trc_print_last_elems(j_trc_register_trc_info_t * jtr_infop,
                                    int num_elems);
 
 /* Register new module trace information */
-extern int j_trc_register_trc_info(j_trc_register_trc_info_t * ktr_infop);
+extern int j_trc_register_trc_info(j_trc_register_trc_info_t * jtr_infop);
 /* Use existing module trace information */
 extern j_trc_register_trc_info_t *j_trc_use_registered_trc_info(char
                                                                 *name);
 /* Unregister module trace information */
 extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
-                                      ktr_infop);
+                                      jtr_infop);
 
-#ifdef KTRC_ENABLE
+#ifdef JTRC_ENABLE
 #define jtrc_setmask(mask) do{			\
 		j_trc_reg_infop->mod_trc_info.j_trc_flags = mask;	\
 	} while (0)
@@ -295,7 +295,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 
 
 /**
- * jtrcPFS()
+ * jtrc_pfs()
  *
  * Macro to send a formatted trace string to the trace buffer.
  *
@@ -306,7 +306,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
  *
  * WARNING: Slow, don't use in performance path.
  */
-#define jtrcPFS(mask, id, fmt, ...)  do { \
+#define jtrc_pfs(mask, id, fmt, ...)  do { \
     if (j_trc_reg_infop->mod_trc_info.j_trc_flags & (mask)){ \
 	    _j_trace_preformated_str( j_trc_reg_infop, (void *)(id), mask,\
 		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
@@ -363,26 +363,26 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 } while(0);
 
 #define jtrc_entry(flags, id, fmt, ...) do { \
-    jtrc(((flags)|KTR_ENTX), (id), ("Entry [ " fmt), ## __VA_ARGS__); \
+    jtrc(((flags)|JTR_ENTX), (id), ("Entry [ " fmt), ## __VA_ARGS__); \
 } while (0)
 
 #define jtrc_exit(flags, id, fmt, ...) do { \
-    jtrc(((flags)|KTR_ENTX), (id), ("Exit ] " fmt), ## __VA_ARGS__); \
+    jtrc(((flags)|JTR_ENTX), (id), ("Exit ] " fmt), ## __VA_ARGS__); \
 } while (0)
 
 #define jtrc_err(flags, id, fmt, ...) do { \
-    jtrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
+    jtrc(((flags)|JTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
 } while (0)
 
 #define jtrc_errexit(flags, id, fmt, ...) do { \
-    jtrc(((flags)|KTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
-    jtrc(((flags)|KTR_ENTX), (id), "Exit ]"); \
+    jtrc(((flags)|JTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
+    jtrc(((flags)|JTR_ENTX), (id), "Exit ]"); \
 } while (0)
 
 #else
 
 #define jtrc(mask, id, fmt, ...)
-#define jtrcPFS(mask, id, fmt, ...)
+#define jtrc_pfs(mask, id, fmt, ...)
 #define jtrc_funcline(mask, id, func, line, fmt, ...)
 #define jtrc_hexdump(mask, id, msg, p, len)
 #define jtrc_setprint(enabled)
@@ -392,7 +392,7 @@ extern void j_trc_unregister_trc_info(j_trc_register_trc_info_t *
 #define jtrc_err(flags, id, fmt, ...)
 #define jtrc_errexit(flags, id, fmt, ...)
 
-#endif                          /* KTRC_ENABLE */
+#endif                          /* JTRC_ENABLE */
 
 #endif                          /* __KERNEL__ */
 

@@ -210,9 +210,9 @@ int clear_trace_buf(char *buf_name)
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-	cmd_req.cmd = KTRCTL_CLEAR;
+	cmd_req.cmd = JTRCTL_CLEAR;
 	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
-		fprintf(stderr, "KTRCTL_CLEAR Failed errno=%d\n", errno);
+		fprintf(stderr, "JTRCTL_CLEAR Failed errno=%d\n", errno);
 		return 1;
 	}
 
@@ -227,9 +227,9 @@ int snarf_no_kmem(void *addr, void *buf, size_t len)
 	cmd_req.data = buf;
 	cmd_req.data_size = len;
 
-	cmd_req.cmd = KTRCTL_SNARF;
+	cmd_req.cmd = JTRCTL_SNARF;
 	if (ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req)) {
-		fprintf(stderr, "KTRCTL_SNARF Failed errno=%d\n", errno);
+		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
 		return 1;
 	}
 
@@ -244,11 +244,11 @@ int set_trc_flags(char *buf_name, int trc_flags)
 	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-	cmd_req.cmd = KTRCTL_SET_TRC_FLAGS;
+	cmd_req.cmd = JTRCTL_SET_TRC_FLAGS;
 	cmd_req.data = &trc_flags;
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
-		printf("ioctl KTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
+		printf("ioctl JTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
 		       rc, errno);
 		return (rc);
 	}
@@ -265,11 +265,11 @@ int set_printk_value(char *buf_name, int value)
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
-	cmd_req.cmd = KTRCTL_SET_PRINTK;
+	cmd_req.cmd = JTRCTL_SET_PRINTK;
 	cmd_req.data = &value;
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
-		printf("ioctl KTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
+		printf("ioctl JTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
 		       rc, errno);
 		return (rc);
 	}
@@ -294,14 +294,14 @@ int get_all_trc_info(char *trc_buf_name)
 
 	bzero(&cmd_req, sizeof(j_trc_cmd_req_t));
 
-	cmd_req.cmd = KTRCTL_GET_ALL_TRC_INFO;
+	cmd_req.cmd = JTRCTL_GET_ALL_TRC_INFO;
 	cmd_req.data = 0;
 	cmd_req.data_size = 0;
 
 	/* Call once with zero to get required size */
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
 	if (rc && (rc != ENOMEM)) {
-		fprintf(stderr, "KTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
+		fprintf(stderr, "JTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
 		return (rc);
 	}
 	if (verbose) {
@@ -318,7 +318,7 @@ int get_all_trc_info(char *trc_buf_name)
 	rc = ioctl(kutil_dev_fd, J_TRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		fprintf(stderr,
-			"KTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
+			"JTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
 			cmd_req.data_size);
 		return (rc);
 	}
@@ -386,10 +386,10 @@ int show_trc_flags(uint32_t trc_flags)
 	printf("\nCommon trace flags:\n");
 	for (i = 0; i < j_trc_num_common_flags; i++) {
 		flag_descp = &j_trc_common_flag_array[i];
-		if ((KTR_COMMON_FLAG(i)) & trc_flags) {
+		if ((JTR_COMMON_FLAG(i)) & trc_flags) {
 			printf("%12s (0x%08x) - %s\n",
 			       flag_descp->j_trc_flag_cmd_line_name,
-			       KTR_COMMON_FLAG(i),
+			       JTR_COMMON_FLAG(i),
 			       flag_descp->j_trc_flag_description);
 		}
 	}
@@ -406,10 +406,10 @@ int show_trc_flags(uint32_t trc_flags)
 			for (i = 0;
 			     i < (j_trc_trace_infop->j_trc_num_custom_flags);
 			     i++) {
-				if ((KTR_CUSTOM_FLAG(i)) & trc_flags) {
+				if ((JTR_CUSTOM_FLAG(i)) & trc_flags) {
 					printf("%12s (0x%08x) - %s\n",
 					       flag_descp->j_trc_flag_cmd_line_name,
-					       KTR_CUSTOM_FLAG(i),
+					       JTR_CUSTOM_FLAG(i),
 					       flag_descp->j_trc_flag_description);
 				}
 				flag_descp++;
@@ -445,10 +445,10 @@ int show_trc_flags(uint32_t trc_flags)
 			flag_descp = (j_trc_flag_descriptor_t *) ptr;
 			for (j = 0;
 			     j < (trace_infop->j_trc_num_custom_flags); j++) {
-				if ((KTR_CUSTOM_FLAG(j)) & trc_flags) {
+				if ((JTR_CUSTOM_FLAG(j)) & trc_flags) {
 					printf("%12s (0x%08x) - %s\n",
 					       flag_descp->j_trc_flag_cmd_line_name,
-					       KTR_CUSTOM_FLAG(j),
+					       JTR_CUSTOM_FLAG(j),
 					       flag_descp->j_trc_flag_description);
 				}
 				flag_descp++;
@@ -485,7 +485,7 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 			   trc_flag_str) ==
 		    0) {
 			/* Found a match */
-			*trc_flag = KTR_COMMON_FLAG(i);
+			*trc_flag = JTR_COMMON_FLAG(i);
 			return (0);
 		}
 	}
@@ -504,7 +504,7 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 			if (strcmp(flag_descp->j_trc_flag_cmd_line_name,
 				   trc_flag_str) == 0) {
 				/* Found a match */
-				*trc_flag = KTR_CUSTOM_FLAG(i);
+				*trc_flag = JTR_CUSTOM_FLAG(i);
 				return (0);
 			}
 			flag_descp++;
@@ -992,7 +992,7 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 
 		if (tp->flag & dump_mask)
 		switch (tp->elem_fmt) {
-		case KTRC_FORMAT_REGULAR:
+		case JTRC_FORMAT_REGULAR:
 			if (tp->reg.fmt == 0) {
 				continue;
 			}
@@ -1001,8 +1001,8 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			zero_slots = 0;
 			break;
 
-			/* This dumps hex data slots until KTRC_HEX_DATA_END */
-		case KTRC_HEX_DATA_BEGIN:
+			/* This dumps hex data slots until JTRC_HEX_DATA_END */
+		case JTRC_HEX_DATA_BEGIN:
 			display_hex_begin_trc_elem(tp);
 			zero_slots = 0;
 			break;
@@ -1011,12 +1011,12 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			 * If we hit these here, we've lost the BEGIN
 			 * slot context, so just skip
 			 */
-		case KTRC_HEX_DATA_CONTINUE:
-		case KTRC_HEX_DATA_END:
+		case JTRC_HEX_DATA_CONTINUE:
+		case JTRC_HEX_DATA_END:
 			zero_slots = 0;
 			break;
 
-		case KTRC_PREFORMATTED_STR_BEGIN:
+		case JTRC_PREFORMATTED_STR_BEGIN:
 			display_preformatted_str_begin_trc_elem(tp);
 			zero_slots = 0;
 			break;
@@ -1025,8 +1025,8 @@ int dump_trace(j_trc_module_trc_info_t * trace_infop, uint32_t dump_mask)
 			 * If we hit these here, we've lost the BEGIN slot
 			 * context, so just skip
 			 */
-		case KTRC_PREFORMATTED_STR_CONTINUE:
-		case KTRC_PREFORMATTED_STR_END:
+		case JTRC_PREFORMATTED_STR_CONTINUE:
+		case JTRC_PREFORMATTED_STR_END:
 			zero_slots = 0;
 			break;
 

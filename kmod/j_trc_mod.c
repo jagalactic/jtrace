@@ -4,20 +4,10 @@
  * Module wrapper for the j_trc code
  */
 
-
-/* This is to export entry points */
-#if 0
-#ifndef EXPORT_SYMTAB
-#define EXPORT_SYMTAB
-#endif
-#endif
-
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
-// #include <linux/notifier.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/version.h>
@@ -28,10 +18,8 @@
 #include <asm/uaccess.h>
 #include <asm/current.h>
 #include <asm/smp.h>
-//#include "j_trc_mod.h"
+
 #include "j_trc.h"
-//#include "j_trc_devfile.h"
-//#include "../include/k_trc.h"
 
 /* A chrdev is used for ioctl interface */
 long j_trc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
@@ -111,7 +99,7 @@ static int __init j_trc_cdev_init(void)
 		memset(&jtr, 0, sizeof(jtr));
 		jtr.mod_trc_info.j_trc_num_entries = NUM_ELEM;
 		jtr.mod_trc_info.j_trc_buf_size = bufsize;
-		jtr.mod_trc_info.j_trc_flags = KTR_COMMON_FLAGS_MASK;
+		jtr.mod_trc_info.j_trc_flags = JTR_COMMON_FLAGS_MASK;
 
 		strcpy(jtr.mod_trc_info.j_trc_name, "master");
 
@@ -132,13 +120,13 @@ static int __init j_trc_cdev_init(void)
 #if 0
 		j_trc_register_trc_info(&jtr);
 
-		kTrc_setprint(1);
-		kTrc(&jtr, 0, "jtrace module loaded");
-		kTrc(&jtr, 0, "jtrace module loaded");
-		kTrc(KTR_ERR, 0, "jtrace module loaded");
-		kTrc(KTR_ENTX, 0, "jtrace module loaded");
-		kTrc(KTR_MEM, 0, "jtrace module loaded");
-		kTrc_setprint(0);
+		jtrc_setprint(1);
+		jtrc(&jtr, 0, "jtrace module loaded");
+		jtrc(&jtr, 0, "jtrace module loaded");
+		jtrc(JTR_ERR, 0, "jtrace module loaded");
+		jtrc(JTR_ENTX, 0, "jtrace module loaded");
+		jtrc(JTR_MEM, 0, "jtrace module loaded");
+		jtrc_setprint(0);
 
 		for (i=jtr.mod_trc_info.j_trc_buf_index;
 		     (i+1) != jtr.mod_trc_info.j_trc_num_entries;

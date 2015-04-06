@@ -47,7 +47,7 @@ static int j_trc_num_registered_mods;
 /*
  * local fuctions
  */
-static void j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
+static void j_trc_v(j_trc_register_trc_info_t * jtr_infop, void *id,
 		    uint32_t flags, struct timespec *tm,
                     const char *func, int line, char *fmt, va_list vap);
 
@@ -56,7 +56,7 @@ static void j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 static void dump_hex_line(char *buf_ptr, int buf_len);
 
 void j_trc_print_element(j_trc_element_t * tp);
-void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
+void j_trc_print_last_elems(j_trc_register_trc_info_t * jtr_infop,
                             int num_elems);
 
 #if 0
@@ -74,17 +74,17 @@ static void j_trc_test(void);
 #endif
 
 /*
- * Find ktr_infop in j_trc_registered_mods list by address 
+ * Find jtr_infop in j_trc_registered_mods list by address
  */
 static j_trc_register_trc_info_t
-    * j_trc_find_trc_info_by_addr(j_trc_register_trc_info_t * ktr_infop)
+    * j_trc_find_trc_info_by_addr(j_trc_register_trc_info_t * jtr_infop)
 {
 	j_trc_register_trc_info_t *tmp_reg_infop = NULL;
 	int found = 0;
 
 	list_for_each_entry(tmp_reg_infop,
 			    &j_trc_registered_mods, j_trc_list) {
-		if (tmp_reg_infop == ktr_infop) {
+		if (tmp_reg_infop == jtr_infop) {
 			found = 1;
 			break;
 		}
@@ -103,11 +103,11 @@ static j_trc_register_trc_info_t *
 j_trc_find_trc_info_by_name(char *trc_name)
 {
 	int found = 0;
-	j_trc_register_trc_info_t *ktr_infop = NULL;
+	j_trc_register_trc_info_t *jtr_infop = NULL;
 
-	list_for_each_entry(ktr_infop, &j_trc_registered_mods, j_trc_list) {
-		if (strncmp(ktr_infop->mod_trc_info.j_trc_name, trc_name,
-			    sizeof(ktr_infop->mod_trc_info.j_trc_name)) == 0) {
+	list_for_each_entry(jtr_infop, &j_trc_registered_mods, j_trc_list) {
+		if (strncmp(jtr_infop->mod_trc_info.j_trc_name, trc_name,
+			    sizeof(jtr_infop->mod_trc_info.j_trc_name)) == 0) {
 			found = 1;
 			break;
 		}
@@ -116,7 +116,7 @@ j_trc_find_trc_info_by_name(char *trc_name)
 	if (!found) {
 		return (NULL);
 	}
-	return (ktr_infop);
+	return (jtr_infop);
 }
 
 /**
@@ -181,7 +181,7 @@ static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
 	int total_bytes = 0;
-	j_trc_register_trc_info_t *ktr_reg_infop = NULL;
+	j_trc_register_trc_info_t *jtr_reg_infop = NULL;
 	int i = 0;
 	int rc = 0;
 	int req_size;
@@ -222,20 +222,20 @@ static int j_trc_get_all_trc_info(j_trc_cmd_req_t * cmd_req)
 		       &out_buf_remainder);
 
 	/* Output each registered module's info */
-	list_for_each_entry(ktr_reg_infop,
+	list_for_each_entry(jtr_reg_infop,
 			    &j_trc_registered_mods, j_trc_list) {
 		copyout_append(&out_buffer,
-			       (char *) &ktr_reg_infop->mod_trc_info,
+			       (char *) &jtr_reg_infop->mod_trc_info,
 			       sizeof(j_trc_module_trc_info_t),
 			       &total_bytes,
 			       &out_buf_remainder);
 
 		/* Output each registered module's custom flags */
 		for (i = 0;
-		     i < ktr_reg_infop->mod_trc_info.j_trc_num_custom_flags;
+		     i < jtr_reg_infop->mod_trc_info.j_trc_num_custom_flags;
 		     i++) {
 			copyout_append(&out_buffer,
-				       &ktr_reg_infop->custom_flags[i],
+				       &jtr_reg_infop->custom_flags[i],
 				       sizeof(j_trc_flag_descriptor_t),
 				       &total_bytes,
 				       &out_buf_remainder);
@@ -283,11 +283,11 @@ static int j_trc_snarf(j_trc_cmd_req_t * cmd_req)
 int j_trc_cmd(j_trc_cmd_req_t * cmd_req, void *uaddr)
 {
 	int rc = 0;
-	j_trc_register_trc_info_t *ktr_infop = NULL;
+	j_trc_register_trc_info_t *jtr_infop = NULL;
 
-	/* KTRCTL_GET_ALL_TRC_INFO does not require valid ktr_infop */
-	if (cmd_req->cmd == KTRCTL_GET_ALL_TRC_INFO) {
-		printk("KTRCTL_GET_ALL_TRC_INFO\n");
+	/* JTRCTL_GET_ALL_TRC_INFO does not require valid jtr_infop */
+	if (cmd_req->cmd == JTRCTL_GET_ALL_TRC_INFO) {
+		printk("JTRCTL_GET_ALL_TRC_INFO\n");
 		rc = j_trc_get_all_trc_info(cmd_req);
 		cmd_req->status = rc;
 		if (rc == 0) {
@@ -300,27 +300,27 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req, void *uaddr)
 		return (rc);
 	}
 
-	/* KTRCTL_SNARF does not require valid ktr_infop */
-	if (cmd_req->cmd == KTRCTL_SNARF) {
+	/* JTRCTL_SNARF does not require valid jtr_infop */
+	if (cmd_req->cmd == JTRCTL_SNARF) {
 		rc = j_trc_snarf(cmd_req);
 		cmd_req->status = rc;
 		return (rc);
 	}
 
 	/* All others require valid trc_name info */
-	printk("ktr: find_info_by_name (%s)\n",
+	printk("jtr: find_info_by_name (%s)\n",
 	       (cmd_req->trc_name) ? cmd_req->trc_name : "NULL");
-	ktr_infop = j_trc_find_trc_info_by_name(cmd_req->trc_name);
-	if (!ktr_infop) {
+	jtr_infop = j_trc_find_trc_info_by_name(cmd_req->trc_name);
+	if (!jtr_infop) {
 		cmd_req->status = ENODEV;
 		return (ENODEV);
 	}
 
 	switch (cmd_req->cmd) {
-	case KTRCTL_SET_PRINTK:
+	case JTRCTL_SET_PRINTK:
         {
 		int value;
-		printk("KTRCTL_SET_PRINTK\n");
+		printk("JTRCTL_SET_PRINTK\n");
 		rc = copy_from_user((caddr_t) & value,
 				    (caddr_t) cmd_req->data, sizeof(value));
 		if (!((value == 0) || (value == 1))) {
@@ -328,25 +328,25 @@ int j_trc_cmd(j_trc_cmd_req_t * cmd_req, void *uaddr)
 			rc = EINVAL;
 			break;
 		}
-		ktr_infop->mod_trc_info.j_trc_kprint_enabled = value;
+		jtr_infop->mod_trc_info.j_trc_kprint_enabled = value;
 		cmd_req->status = 0;
 		rc = 0;
         }
         break;
 
-	case KTRCTL_SET_TRC_FLAGS:
+	case JTRCTL_SET_TRC_FLAGS:
 		rc = copy_from_user((caddr_t) 
-			    &ktr_infop->mod_trc_info.j_trc_flags,
+			    &jtr_infop->mod_trc_info.j_trc_flags,
 			    (caddr_t) cmd_req->data,
-			    sizeof(ktr_infop->mod_trc_info.j_trc_flags));
+			    sizeof(jtr_infop->mod_trc_info.j_trc_flags));
 		cmd_req->status = 0;
 		rc = 0;
 		break;
 
-	case KTRCTL_CLEAR:
-		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
-		memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
-		       ktr_infop->mod_trc_info.j_trc_buf_size);
+	case JTRCTL_CLEAR:
+		jtr_infop->mod_trc_info.j_trc_buf_index = 0;
+		memset((caddr_t) jtr_infop->mod_trc_info.j_trc_buf_ptr, 0,
+		       jtr_infop->mod_trc_info.j_trc_buf_size);
 		rc = 0;
 		break;
 
@@ -415,7 +415,7 @@ void j_trc_print_element(j_trc_element_t * tp)
 	int prefix_len = 0;
 
 	switch (tp->elem_fmt) {
-	case KTRC_FORMAT_REGULAR:
+	case JTRC_FORMAT_REGULAR:
 
 	prefix_len = snprintf(buf, J_TRC_KPRINT_BUF_SIZE,
                               "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",
@@ -433,7 +433,7 @@ void j_trc_print_element(j_trc_element_t * tp)
 
         break;
 
-    case KTRC_HEX_DATA_BEGIN:
+    case JTRC_HEX_DATA_BEGIN:
         {
             size_t binary_length = 0;
             char *binary_data = NULL;
@@ -473,8 +473,8 @@ void j_trc_print_element(j_trc_element_t * tp)
         }
         break;
 
-    case KTRC_HEX_DATA_CONTINUE:
-    case KTRC_HEX_DATA_END:
+    case JTRC_HEX_DATA_CONTINUE:
+    case JTRC_HEX_DATA_END:
         {
             size_t binary_length = 0;
             char *binary_data = NULL;
@@ -497,14 +497,14 @@ void j_trc_print_element(j_trc_element_t * tp)
             }
         }
 
-        if (tp->elem_fmt == KTRC_HEX_DATA_END) {
+        if (tp->elem_fmt == JTRC_HEX_DATA_END) {
             buf[0] = 0;
             idx = 0;
         }
 
         break;
 
-    case KTRC_PREFORMATTED_STR_BEGIN:
+    case JTRC_PREFORMATTED_STR_BEGIN:
         {
             idx = 0;
 
@@ -525,12 +525,12 @@ void j_trc_print_element(j_trc_element_t * tp)
         }
         break;
 
-    case KTRC_PREFORMATTED_STR_CONTINUE:
-    case KTRC_PREFORMATTED_STR_END:
+    case JTRC_PREFORMATTED_STR_CONTINUE:
+    case JTRC_PREFORMATTED_STR_END:
         {
             printk("%s\n", (char *) &tp->pfs_continue.data_start);
 
-            if (tp->elem_fmt == KTRC_PREFORMATTED_STR_END) {
+            if (tp->elem_fmt == JTRC_PREFORMATTED_STR_END) {
                 buf[0] = 0;
                 idx = 0;
             }
@@ -550,54 +550,54 @@ void j_trc_print_element(j_trc_element_t * tp)
 /**
  * j_trc_print_last_elems()
  *
- * @ktr_infop - the jtrace context
+ * @jtr_infop - the jtrace context
  * @num_elems - the number of elements to print, at the tail of the trace
  */
-void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
+void j_trc_print_last_elems(j_trc_register_trc_info_t * jtr_infop,
                             int num_elems)
 {
 	/* Back up the index num_elems slots */
 	int32_t temp_index =
-		ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+		jtr_infop->mod_trc_info.j_trc_buf_index - num_elems;
 	register j_trc_element_t *tp = NULL;
 	int i = 0;
 
 	if (temp_index < 0) {
-		temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+		temp_index += jtr_infop->mod_trc_info.j_trc_num_entries;
 	}
 
-	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+	tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
 
 	/*
 	 * If we are in the middle of a hex dump or string,
 	 * go back to BEGIN so we can get the context.
 	 */
-	while ((tp->elem_fmt == KTRC_HEX_DATA_END) ||
-	       (tp->elem_fmt == KTRC_HEX_DATA_CONTINUE) ||
-	       (tp->elem_fmt == KTRC_PREFORMATTED_STR_CONTINUE) ||
-	       (tp->elem_fmt == KTRC_PREFORMATTED_STR_END)) {
+	while ((tp->elem_fmt == JTRC_HEX_DATA_END) ||
+	       (tp->elem_fmt == JTRC_HEX_DATA_CONTINUE) ||
+	       (tp->elem_fmt == JTRC_PREFORMATTED_STR_CONTINUE) ||
+	       (tp->elem_fmt == JTRC_PREFORMATTED_STR_END)) {
 		num_elems++;
 
-		temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+		temp_index = jtr_infop->mod_trc_info.j_trc_buf_index - num_elems;
 		if (temp_index < 0) {
-			temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+			temp_index += jtr_infop->mod_trc_info.j_trc_num_entries;
 		}
 
-		tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+		tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
 	}
 
-	temp_index = ktr_infop->mod_trc_info.j_trc_buf_index - num_elems;
+	temp_index = jtr_infop->mod_trc_info.j_trc_buf_index - num_elems;
 
 	if (temp_index < 0) {
-		temp_index += ktr_infop->mod_trc_info.j_trc_num_entries;
+		temp_index += jtr_infop->mod_trc_info.j_trc_num_entries;
 	}
 
 	for (i = 0; i < num_elems; i++) {
-		tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
+		tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[temp_index];
 		j_trc_print_element(tp);
 
 		temp_index++;
-		if (temp_index > ktr_infop->mod_trc_info.j_trc_num_entries - 1) {
+		if (temp_index > jtr_infop->mod_trc_info.j_trc_num_entries - 1) {
 			temp_index = 0;
 		}
 	}
@@ -608,7 +608,7 @@ void j_trc_print_last_elems(j_trc_register_trc_info_t * ktr_infop,
  * j_trc_v - add trace entries to buffer
  */
 static void
-j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
+j_trc_v(j_trc_register_trc_info_t * jtr_infop, void *id,
 	uint32_t tflags, struct timespec *tm,
         const char *func_name, int line_num, char *fmt, va_list vap)
 {
@@ -616,7 +616,7 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	struct timespec time;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_lock_irqsave(&jtr_infop->j_trc_buf_mutex, flags);
 
 	if (!tm) {
 		tm = &time;
@@ -625,16 +625,16 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	}
 
 	/* Increment index and handle wrap */
-	ktr_infop->mod_trc_info.j_trc_buf_index++;
-	if (ktr_infop->mod_trc_info.j_trc_buf_index >
-	    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
-		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+	jtr_infop->mod_trc_info.j_trc_buf_index++;
+	if (jtr_infop->mod_trc_info.j_trc_buf_index >
+	    (jtr_infop->mod_trc_info.j_trc_num_entries - 1)) {
+		jtr_infop->mod_trc_info.j_trc_buf_index = 0;
 	}
 
-	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->mod_trc_info.
+	tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[jtr_infop->mod_trc_info.
 						    j_trc_buf_index];
 
-	tp->elem_fmt = KTRC_FORMAT_REGULAR;
+	tp->elem_fmt = JTRC_FORMAT_REGULAR;
 	tp->flag = tflags;
 	tp->reg.tv_sec = tm->tv_sec;
 	tp->reg.tv_nsec = tm->tv_nsec;
@@ -654,17 +654,17 @@ j_trc_v(j_trc_register_trc_info_t * ktr_infop, void *id,
 	 * If things are really crashing, enable j_trc_kprint_enabled = 1
 	 * for output to the console.
 	 */
-	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
+	if (jtr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
-	spin_unlock_irqrestore(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_unlock_irqrestore(&jtr_infop->j_trc_buf_mutex, flags);
 }
 
 
 /**
  * _j_trace -    add trace entries to buffer
  */
-void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
+void _j_trace(j_trc_register_trc_info_t * jtr_infop, void *id,
 	      uint32_t flags, struct timespec *tm,
               const char *func, int line, char *fmt, ...)
 {
@@ -672,7 +672,7 @@ void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
 
     va_start(vap, fmt);
 
-    j_trc_v(ktr_infop, id, flags, tm, func, line, fmt, vap);
+    j_trc_v(jtr_infop, id, flags, tm, func, line, fmt, vap);
 
     va_end(vap);
 }
@@ -681,7 +681,7 @@ void _j_trace(j_trc_register_trc_info_t * ktr_infop, void *id,
  * j_trc_preformatted_str_v - add trace entries to buffer
  */
 static void
-j_trc_preformatted_str(j_trc_register_trc_info_t * ktr_infop, void *id,
+j_trc_preformatted_str(j_trc_register_trc_info_t * jtr_infop, void *id,
 		       uint32_t flags,
                        const char *func_name, int line_num, char *buf,
                        int str_len)
@@ -707,16 +707,16 @@ j_trc_preformatted_str(j_trc_register_trc_info_t * ktr_infop, void *id,
 
 	getnstimeofday(&time);
 
-	ktr_infop->mod_trc_info.j_trc_buf_index++;
-	if (ktr_infop->mod_trc_info.j_trc_buf_index >
-	    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
-		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+	jtr_infop->mod_trc_info.j_trc_buf_index++;
+	if (jtr_infop->mod_trc_info.j_trc_buf_index >
+	    (jtr_infop->mod_trc_info.j_trc_num_entries - 1)) {
+		jtr_infop->mod_trc_info.j_trc_buf_index = 0;
 	}
 
-	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->mod_trc_info.
+	tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[jtr_infop->mod_trc_info.
 						    j_trc_buf_index];
 
-	tp->elem_fmt = KTRC_PREFORMATTED_STR_BEGIN;
+	tp->elem_fmt = JTRC_PREFORMATTED_STR_BEGIN;
 	tp->flag = flags;
 	tp->pfs_begin.tv_sec = time.tv_sec;
 	tp->pfs_begin.tv_nsec = time.tv_nsec;
@@ -736,7 +736,7 @@ j_trc_preformatted_str(j_trc_register_trc_info_t * ktr_infop, void *id,
 	/* Terminate string */
 	*out_buf = 0;
 
-	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
+	if (jtr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
 
@@ -744,18 +744,18 @@ j_trc_preformatted_str(j_trc_register_trc_info_t * ktr_infop, void *id,
 
 	/* Fill in remaining elements */
 	if (in_buf < in_buf_end) {
-		elem_fmt = KTRC_PREFORMATTED_STR_CONTINUE;
+		elem_fmt = JTRC_PREFORMATTED_STR_CONTINUE;
 		while (in_buf < in_buf_end) {
 			length2 =
 				MIN((in_buf_end - in_buf),
 				    J_TRC_MAX_PREFMT_STR_PER_ELEM);
 
-			ktr_infop->mod_trc_info.j_trc_buf_index++;
-			if (ktr_infop->mod_trc_info.j_trc_buf_index >
-			    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
-				ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+			jtr_infop->mod_trc_info.j_trc_buf_index++;
+			if (jtr_infop->mod_trc_info.j_trc_buf_index >
+			    (jtr_infop->mod_trc_info.j_trc_num_entries - 1)) {
+				jtr_infop->mod_trc_info.j_trc_buf_index = 0;
 			}
-			tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->
+			tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[jtr_infop->
 							    mod_trc_info.
 							    j_trc_buf_index];
 
@@ -769,20 +769,20 @@ j_trc_preformatted_str(j_trc_register_trc_info_t * ktr_infop, void *id,
 			/* Terminate string */
 			*out_buf = 0;
 
-			if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
+			if (jtr_infop->mod_trc_info.j_trc_kprint_enabled) {
 				j_trc_print_element(tp);
 			}
 
 			in_buf += length2;
-			elem_fmt = KTRC_PREFORMATTED_STR_CONTINUE;
+			elem_fmt = JTRC_PREFORMATTED_STR_CONTINUE;
 		}
-		tp->elem_fmt = KTRC_PREFORMATTED_STR_END;
+		tp->elem_fmt = JTRC_PREFORMATTED_STR_END;
 	}
 }
 
 #define MAX_PREFORMATTED_STR_LEN 256
 static char pre_fmt_buf[MAX_PREFORMATTED_STR_LEN];
-void _j_trace_preformated_str(j_trc_register_trc_info_t * ktr_infop,
+void _j_trace_preformated_str(j_trc_register_trc_info_t * jtr_infop,
                               void *id, uint32_t tflags,
 			      const char *func, int line,
                               char *fmt, ...)
@@ -791,14 +791,14 @@ void _j_trace_preformated_str(j_trc_register_trc_info_t * ktr_infop,
 	va_list vap;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_lock_irqsave(&jtr_infop->j_trc_buf_mutex, flags);
 	va_start(vap, fmt);
 	str_len = vsnprintf(pre_fmt_buf, MAX_PREFORMATTED_STR_LEN, fmt, vap);
 	va_end(vap);
 
-	j_trc_preformatted_str(ktr_infop, id, tflags, func, line, pre_fmt_buf,
+	j_trc_preformatted_str(jtr_infop, id, tflags, func, line, pre_fmt_buf,
 			       str_len);
-	spin_unlock_irqrestore(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_unlock_irqrestore(&jtr_infop->j_trc_buf_mutex, flags);
 }
 
 #define MAX_HEX_BUF 1024
@@ -806,7 +806,7 @@ void _j_trace_preformated_str(j_trc_register_trc_info_t * ktr_infop,
  * _j_trc_hex_dump - add a HEX dump to the trace
  */
 void
-_j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
+_j_trc_hex_dump(j_trc_register_trc_info_t * jtr_infop, const char *func,
                 uint line, void *id, uint32_t tflags,
 		char *msg, void *p, uint len)
 {
@@ -827,20 +827,20 @@ _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
 	max_len = MIN(len, MAX_HEX_BUF);
 	in_buf_end = in_buf + max_len;
 
-	spin_lock_irqsave(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_lock_irqsave(&jtr_infop->j_trc_buf_mutex, flags);
 
 	getnstimeofday(&time);
 
-	ktr_infop->mod_trc_info.j_trc_buf_index++;
-	if (ktr_infop->mod_trc_info.j_trc_buf_index >
-	    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
-		ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+	jtr_infop->mod_trc_info.j_trc_buf_index++;
+	if (jtr_infop->mod_trc_info.j_trc_buf_index >
+	    (jtr_infop->mod_trc_info.j_trc_num_entries - 1)) {
+		jtr_infop->mod_trc_info.j_trc_buf_index = 0;
 	}
 
-	tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->mod_trc_info.
+	tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[jtr_infop->mod_trc_info.
 						    j_trc_buf_index];
 
-	tp->elem_fmt = KTRC_HEX_DATA_BEGIN;
+	tp->elem_fmt = JTRC_HEX_DATA_BEGIN;
 	tp->flag = tflags;
 	tp->hex_begin.tv_sec = time.tv_sec;
 	tp->hex_begin.tv_nsec = time.tv_nsec;
@@ -857,7 +857,7 @@ _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
 	out_buf = (char *) &tp->hex_begin.data_start;
 	memcpy(out_buf, in_buf, length2);
 
-	if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
+	if (jtr_infop->mod_trc_info.j_trc_kprint_enabled) {
 		j_trc_print_element(tp);
 	}
 
@@ -865,18 +865,18 @@ _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
 
 	/* Fill in remaining elements */
 	if (in_buf < in_buf_end) {
-		elem_fmt = KTRC_HEX_DATA_CONTINUE;
+		elem_fmt = JTRC_HEX_DATA_CONTINUE;
 		while (in_buf < in_buf_end) {
 			length2 = MIN((in_buf_end - in_buf),
 				      J_TRC_MAX_HEX_DATA_PER_ELEM);
 
-			ktr_infop->mod_trc_info.j_trc_buf_index++;
-			if (ktr_infop->mod_trc_info.j_trc_buf_index >
-			    (ktr_infop->mod_trc_info.j_trc_num_entries - 1)) {
-				ktr_infop->mod_trc_info.j_trc_buf_index = 0;
+			jtr_infop->mod_trc_info.j_trc_buf_index++;
+			if (jtr_infop->mod_trc_info.j_trc_buf_index >
+			    (jtr_infop->mod_trc_info.j_trc_num_entries - 1)) {
+				jtr_infop->mod_trc_info.j_trc_buf_index = 0;
 			}
 
-			tp = &ktr_infop->mod_trc_info.j_trc_buf_ptr[ktr_infop->
+			tp = &jtr_infop->mod_trc_info.j_trc_buf_ptr[jtr_infop->
 							    mod_trc_info.
 							    j_trc_buf_index];
 			tp->elem_fmt = elem_fmt;
@@ -886,17 +886,17 @@ _j_trc_hex_dump(j_trc_register_trc_info_t * ktr_infop, const char *func,
 
 			memcpy(out_buf, in_buf, length2);
 
-			if (ktr_infop->mod_trc_info.j_trc_kprint_enabled) {
+			if (jtr_infop->mod_trc_info.j_trc_kprint_enabled) {
 				j_trc_print_element(tp);
 			}
 
 			in_buf += length2;
-			elem_fmt = KTRC_HEX_DATA_CONTINUE;
+			elem_fmt = JTRC_HEX_DATA_CONTINUE;
 		}
-		tp->elem_fmt = KTRC_HEX_DATA_END;
+		tp->elem_fmt = JTRC_HEX_DATA_END;
 	}
 
-	spin_unlock_irqrestore(&ktr_infop->j_trc_buf_mutex, flags);
+	spin_unlock_irqrestore(&jtr_infop->j_trc_buf_mutex, flags);
 
 }
 
@@ -954,15 +954,15 @@ static int j_trc_has_paniced = 0;
 static int j_trc_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
 {
-	j_trc_register_trc_info_t *ktr_infop;
+	j_trc_register_trc_info_t *jtr_infop;
 
 	if (j_trc_has_paniced) {
 		return NOTIFY_DONE;
 	}
 	j_trc_has_paniced = 1;
 
-	list_for_each_entry(ktr_infop, &j_trc_registered_mods, j_trc_list) {
-		j_trc_print_last_elems(ktr_infop, 500);
+	list_for_each_entry(jtr_infop, &j_trc_registered_mods, j_trc_list) {
+		j_trc_print_last_elems(jtr_infop, 500);
 	}
 
 	return NOTIFY_DONE;
@@ -972,40 +972,40 @@ static int j_trc_panic_event(struct notifier_block *this,
 /* 
  * Register new trace buffer information 
  */
-int j_trc_register_trc_info(j_trc_register_trc_info_t * ktr_infop)
+int j_trc_register_trc_info(j_trc_register_trc_info_t * jtr_infop)
 {
 	unsigned long flags;
 
-	if (strnlen(ktr_infop->mod_trc_info.j_trc_name,
-		    sizeof(ktr_infop->mod_trc_info.j_trc_name)) == 0) {
+	if (strnlen(jtr_infop->mod_trc_info.j_trc_name,
+		    sizeof(jtr_infop->mod_trc_info.j_trc_name)) == 0) {
 		printk("ERROR: j_trc_register_trc_info: "
 		       "j_trc_name must be non-NULL\n");
 		return (EINVAL);
 	}
 
-	if (ktr_infop->mod_trc_info.
-	    j_trc_custom_flags_mask & KTR_COMMON_FLAGS_MASK) {
+	if (jtr_infop->mod_trc_info.
+	    j_trc_custom_flags_mask & JTR_COMMON_FLAGS_MASK) {
 		printk("ERROR: j_trc_register_trc_info: Custom flag values "
-		       "contain reserved KTR_COMMON_FLAGS_MASK\n");
+		       "contain reserved JTR_COMMON_FLAGS_MASK\n");
 		return (EINVAL);
 	}
 
 	spin_lock_irqsave(&j_trc_mutex, flags);
 
-	if (j_trc_find_trc_info_by_addr(ktr_infop) ||
-	    j_trc_find_trc_info_by_name(ktr_infop->mod_trc_info.j_trc_name)) {
+	if (j_trc_find_trc_info_by_addr(jtr_infop) ||
+	    j_trc_find_trc_info_by_name(jtr_infop->mod_trc_info.j_trc_name)) {
 		printk("j_trc_register_trc_info: EALREADY\n");
 		spin_unlock_irqrestore(&j_trc_mutex, flags);
 		return (EALREADY);
 	}
 
-	spin_lock_init(&ktr_infop->j_trc_buf_mutex);
-	ktr_infop->mod_trc_info.j_trc_buf_index = 0;
-	memset((caddr_t) ktr_infop->mod_trc_info.j_trc_buf_ptr, 0,
-	       ktr_infop->mod_trc_info.j_trc_buf_size);
-	list_add_tail(&ktr_infop->j_trc_list, &j_trc_registered_mods);
+	spin_lock_init(&jtr_infop->j_trc_buf_mutex);
+	jtr_infop->mod_trc_info.j_trc_buf_index = 0;
+	memset((caddr_t) jtr_infop->mod_trc_info.j_trc_buf_ptr, 0,
+	       jtr_infop->mod_trc_info.j_trc_buf_size);
+	list_add_tail(&jtr_infop->j_trc_list, &j_trc_registered_mods);
 	j_trc_num_registered_mods++;
-	ktr_infop->use_count++;
+	jtr_infop->use_count++;
 
 	spin_unlock_irqrestore(&j_trc_mutex, flags);
 
@@ -1034,19 +1034,19 @@ j_trc_register_trc_info_t *j_trc_use_registered_trc_info(char *name)
 }
 
 /* Unregister module trace information */
-void j_trc_unregister_trc_info(j_trc_register_trc_info_t * ktr_infop)
+void j_trc_unregister_trc_info(j_trc_register_trc_info_t * jtr_infop)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&j_trc_mutex, flags);
-	if (!j_trc_find_trc_info_by_addr(ktr_infop)) {
+	if (!j_trc_find_trc_info_by_addr(jtr_infop)) {
 		spin_unlock_irqrestore(&j_trc_mutex, flags);
 		return;
 	}
 
-	ktr_infop->use_count--;
-	if (ktr_infop->use_count == 0) {
-		list_del(&ktr_infop->j_trc_list);
+	jtr_infop->use_count--;
+	if (jtr_infop->use_count == 0) {
+		list_del(&jtr_infop->j_trc_list);
 		j_trc_num_registered_mods--;
 	}
 
@@ -1079,7 +1079,7 @@ int j_trc_init(void)
 		sizeof(j_trc_default_buf);
 	j_trc_default_info.mod_trc_info.j_trc_buf_index = 0;
 	j_trc_default_info.mod_trc_info.j_trc_kprint_enabled = 0;
-	j_trc_default_info.mod_trc_info.j_trc_flags = KTR_COMMON_FLAGS_MASK;
+	j_trc_default_info.mod_trc_info.j_trc_flags = JTR_COMMON_FLAGS_MASK;
 
 	result = j_trc_register_trc_info(&j_trc_default_info);
 	if (result) {
@@ -1122,53 +1122,53 @@ static void j_trc_test(void)
 
 	jtrc_setprint(1);
 
-	jtrc(KTR_CONF, id, "First Entry");
+	jtrc(JTR_CONF, id, "First Entry");
 
-	jtrc(KTR_CONF, id, "sizeof(j_trc_element_t)=%d",
+	jtrc(JTR_CONF, id, "sizeof(j_trc_element_t)=%d",
 	     sizeof(j_trc_element_t));
-	jtrc(KTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
+	jtrc(JTR_CONF, id, "sizeof(j_trc_regular_element_t)=%d",
 	     sizeof(j_trc_regular_element_t));
-	jtrc(KTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
+	jtrc(JTR_CONF, id, "sizeof(j_trc_hex_begin_element_t)=%d",
 	     sizeof(j_trc_hex_begin_element_t));
-	jtrc(KTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
+	jtrc(JTR_CONF, id, "sizeof(j_trc_hex_element_t)=%d",
 	     sizeof(j_trc_hex_element_t));
-	jtrc(KTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
+	jtrc(JTR_CONF, id, "sizeof(j_trc_element_fmt_t)=%d",
 	     sizeof(j_trc_element_fmt_t));
-	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
+	jtrc(JTR_CONF, id, "offsetof(j_trc_element_t, elem_fmt)=%d",
 	     offsetof(j_trc_element_t, elem_fmt));
-	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
+	jtrc(JTR_CONF, id, "offsetof(j_trc_element_t, hex.length)=%d",
 	     offsetof(j_trc_element_t, hex.length));
-	jtrc(KTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
+	jtrc(JTR_CONF, id, "offsetof(j_trc_element_t, hex.data_start)=%d",
 	     offsetof(j_trc_element_t, hex.data_start));
-	jtrc(KTR_CONF, id,
+	jtrc(JTR_CONF, id,
 	     "offsetof(j_trc_element_t, hex_begin.total_length)=%d",
 	     offsetof(j_trc_element_t, hex_begin.total_length));
-	jtrc(KTR_CONF, id,
+	jtrc(JTR_CONF, id,
 	     "offsetof(j_trc_element_t, hex_begin.data_start)=%d",
 	     offsetof(j_trc_element_t, hex_begin.data_start));
-	jtrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
+	jtrc(JTR_CONF, id, "J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
 	     J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
-	jtrc(KTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
+	jtrc(JTR_CONF, id, "J_TRC_MAX_HEX_DATA_PER_ELEM=%d",
 	     J_TRC_MAX_HEX_DATA_PER_ELEM);
 
-	jtrcPFS(KTR_CONF, id, "preformatted_data, value1=%d", value1);
+	jtrc_pfs(JTR_CONF, id, "preformatted_data, value1=%d", value1);
 
-	jtrcPFS(KTR_CONF, id,
+	jtrc_pfs(JTR_CONF, id,
 		"preformatted_data, lots of args %d %d %d %d %d %d %d", value1,
 		value1, value1, value1, value1, value1, value1);
 
-	jtrc(KTR_CONF, id, "value1=%d", value1);
+	jtrc(JTR_CONF, id, "value1=%d", value1);
 
-	jtrc_hexdump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
+	jtrc_hexdump(JTR_CONF, id, "hex_dump_data", hex_dump_data, 27);
 
-	jtrc_hexdump(KTR_CONF, id, "hex_dump_data",
+	jtrc_hexdump(JTR_CONF, id, "hex_dump_data",
 		    hex_dump_data, J_TRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 
-	jtrc(KTR_CONF, id, "value1=%d", value1);
+	jtrc(JTR_CONF, id, "value1=%d", value1);
 
-	jtrc_hexdump(KTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
+	jtrc_hexdump(JTR_CONF, id, "hex_dump_data", hex_dump_data, 256);
 
-	jtrc(KTR_CONF, id, "Last Entry");
+	jtrc(JTR_CONF, id, "Last Entry");
 
 	j_trc_print_last_elems(j_trc_reg_infop, 3);
 

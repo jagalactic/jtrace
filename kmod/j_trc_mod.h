@@ -8,8 +8,8 @@
 #define JTRACE_DEV_SPECIAL_FILE_NAME "j_trc"
 #define JTRACE_DEV_SPECIAL_FILE "/dev/j_trc"
 
-#ifndef KTRC_ENABLE
-#define KTRC_ENABLE
+#ifndef JTRC_ENABLE
+#define JTRC_ENABLE
 #endif
 
 #define JTRACE_IOCTL_BASE 0xCC
@@ -27,9 +27,9 @@ typedef struct _j_trc_cmd_req {
 } j_trc_cmd_req_t;
 
 #define J_TRC_CMD_IOCTL _IOWR(JTRACE_IOCTL_BASE, 0x1, j_trc_cmd_req_t)
-/* Dump all ACPI information to ktrc buffer. */
+/* Dump all ACPI information to jtrc buffer. */
 //#define K_UTIL_ACPI_DUMP _IO(JTRACE_IOCTL_BASE,  0x2)
-/* Dump physloc info to ktrc buffer */
+/* Dump physloc info to jtrc buffer */
 //#define K_UTIL_PHYSLOC_DUMP _IO(JTRACE_IOCTL_BASE,  0x3)
 
 #endif                          /* __JTRACE_H */

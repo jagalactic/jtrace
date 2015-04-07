@@ -19,17 +19,17 @@
 #include <asm/current.h>
 #include <asm/smp.h>
 
-#include "j_trc.h"
+#include "jtrace.h"
 
 /* A chrdev is used for ioctl interface */
-long jtrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+long jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 static struct file_operations jtrc_fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = jtrc_ioctl,
+	.unlocked_ioctl = jtrace_ioctl,
 };
 
-#define JTRC_NAME "jtrc"
+#define JTRC_NAME "jtrace"
 
 static struct miscdevice jtr_mdev = {
 	.minor = 0,
@@ -64,7 +64,7 @@ jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 extern void jtrc_print_element(jtrc_element_t * tp);
-static jtrace_register_trc_info_t jtr;
+static jtrace_instance_t jtr;
 
 static int __init jtrace_cdev_init(void)
 {
@@ -82,8 +82,6 @@ static int __init jtrace_cdev_init(void)
 	if (rc) {
 		goto errexit;
 	}
-
-#define JTR_SPFILE "jtrace"
 
 	/* 
 	 * Register and put something in the "master" trace buffer
@@ -113,12 +111,11 @@ static int __init jtrace_cdev_init(void)
 
 		strcpy(jtr.mod_trc_info.jtrc_name, "master");
 
-
 		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
 		       MISC_MAJOR, jtr_mdev.minor, elem_size);
 
 #if 0
-		jtrace_register_trc_info(&jtr);
+		jtrace_register_instance(&jtr);
 
 		jtrc_setprint(1);
 		jtrc(&jtr, 0, "jtrace module loaded");
@@ -161,7 +158,7 @@ static void __exit jtrace_cdev_exit(void)
 {
 	printk("jtrace unloading\n");
 
-	//jtrace_unregister_trc_info(&jtr);
+	//jtrace_put_instance(&jtr);
 
 	jtrace_exit();
 
@@ -178,11 +175,11 @@ MODULE_AUTHOR("Groves Technology Corporation");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(jtrace_reg_infop);
-EXPORT_SYMBOL(jtrace_register_trc_info);
-EXPORT_SYMBOL(jtrace_use_registered_trc_info);
-EXPORT_SYMBOL(jtrace_unregister_trc_info);
+EXPORT_SYMBOL(jtrace_register_instance);
+EXPORT_SYMBOL(jtrace_put_instance);
+EXPORT_SYMBOL(jtrace_get_instance);
 EXPORT_SYMBOL(_jtrace);
 EXPORT_SYMBOL(jtrace_hex_dump);
-EXPORT_SYMBOL(jtrace_print_last_elems);
+EXPORT_SYMBOL(jtrace_print_tail);
 
 

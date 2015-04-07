@@ -6,7 +6,7 @@
 #ifndef __JTRC_H
 #define __JTRC_H
 
-#include "j_trc_mod.h"
+#include "jtrace_mod.h"
 
 typedef void *jtrc_arg_t;
 
@@ -171,6 +171,7 @@ typedef struct _jtrc_module_trc_info {
 	 */
 	uint32_t jtrc_flags;
 
+	/*NOTE: we don't currently have code to set and clear custom flags */
 	/**
 	 * Custom defined flags for this module.
 	 */
@@ -221,46 +222,45 @@ typedef enum {
 #include <linux/list.h>
 
 /**
- * @jtrace_register_trc_info_t
+ * @jtrace_instance_t
  *
  * Contains the per-module trace information, plus
  * extra fields for kernel use. 
  * Each kernel module which uses trace facility should
  * register this structure.
  */
-typedef struct _jtrace_register_trc_info {
+typedef struct _jtrace_instance {
 	jtrc_module_trc_info_t mod_trc_info;
 	struct _jtrc_flag_descriptor *custom_flags;
 	spinlock_t jtrc_buf_mutex;
 	struct list_head jtrc_list;
 	int use_count;
-} jtrace_register_trc_info_t;
+} jtrace_instance_t;
 
 extern int jtrace_init(void);
 extern void jtrace_exit(void);
 extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
-extern jtrace_register_trc_info_t *jtrace_reg_infop;
-extern void _jtrace(jtrace_register_trc_info_t * jtr_infop, void *id,
+extern jtrace_instance_t *jtrace_reg_infop;
+extern void _jtrace(jtrace_instance_t * jtr_instance, void *id,
 		    uint32_t tflags, struct timespec *tm,
 		    const char *func, int line, char *fmt, ...);
-extern void jtrace_hex_dump(jtrace_register_trc_info_t * jtr_infop,
-			     const char *func, uint line,
-			     void *id, uint32_t tflags,
-			     char *msg, void *p, uint len);
-extern void _jtrace_preformated_str(jtrace_register_trc_info_t * jtr_infop,
+extern void jtrace_hex_dump(jtrace_instance_t * jtr_instance,
+			    const char *func, uint line,
+			    void *id, uint32_t tflags,
+			    char *msg, void *p, uint len);
+extern void jtrace_preformatted_str(jtrace_instance_t * jtr_instance,
 				    void *id, uint32_t tflags,
 				    const char *func, int line,
 				    char *fmt, ...);
-extern void jtrace_print_last_elems(jtrace_register_trc_info_t * jtr_infop,
-				    int num_elems);
+extern void jtrace_print_tail(jtrace_instance_t * jtr_instance,
+			      int num_elems);
 
-/* Register new module trace information */
-extern int jtrace_register_trc_info(jtrace_register_trc_info_t * jtr_infop);
-/* Use existing module trace information */
-extern jtrace_register_trc_info_t *jtrace_use_registered_trc_info(char *name);
-/* Unregister module trace information */
-extern void jtrace_unregister_trc_info(jtrace_register_trc_info_t *
-                                      jtr_infop);
+/* Register new jtrace instance */
+extern int jtrace_register_instance(jtrace_instance_t * jtr_instance);
+/* get pointer to existing instance, and get refcount on it */
+extern jtrace_instance_t *jtrace_get_instance(char *name);
+/* Put refcount on jtrace instance.  Unregister if ref goes to zero */
+extern void jtrace_put_instance(jtrace_instance_t *jtr_instance);
 
 #ifdef JTRC_ENABLE
 #define jtrc_setmask(mask) do{			\
@@ -278,7 +278,7 @@ extern void jtrace_unregister_trc_info(jtrace_register_trc_info_t *
  */
 #define jtrc(mask, id, fmt, ...)  do {		     \
     if (jtrace_reg_infop->mod_trc_info.jtrc_flags & (mask)){ \
-	    _j_trace( jtrace_reg_infop, (void *)(id), mask,		\
+	    _jtrace( jtrace_reg_infop, (void *)(id), mask,		\
 		      (struct timespec *)NULL,				\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
@@ -287,7 +287,7 @@ extern void jtrace_unregister_trc_info(jtrace_register_trc_info_t *
 /* Same thing, but caller provides timespec... */
 #define jtrc_tm(mask, id, tm, fmt, ...)  do {		     \
     if (jtrace_reg_infop->mod_trc_info.jtrc_flags & (mask)){ \
-	    _j_trace( jtrace_reg_infop, (void *)(id), mask, tm,		\
+	    _jtrace( jtrace_reg_infop, (void *)(id), mask, tm,		\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
@@ -307,7 +307,7 @@ extern void jtrace_unregister_trc_info(jtrace_register_trc_info_t *
  */
 #define jtrc_pfs(mask, id, fmt, ...)  do { \
     if (jtrace_reg_infop->mod_trc_info.jtrc_flags & (mask)){ \
-	    _j_trace_preformated_str( jtrace_reg_infop, (void *)(id), mask,\
+	    jtrace_preformatted_str( jtrace_reg_infop, (void *)(id), mask,\
 		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
     }\
 } while (0)
@@ -329,7 +329,7 @@ extern void jtrace_unregister_trc_info(jtrace_register_trc_info_t *
  */
 #define jtrc_funcline(mask, id, func, line, fmt, ...)  do { \
     if (jtrace_reg_infop->mod_trc_info.jtrc_flags & (mask)){ \
-	    _j_trace(jtrace_reg_infop, (void *)(id), mask,	\
+	    _jtrace(jtrace_reg_infop, (void *)(id), mask,	\
 		     (func), (line), (fmt) , ## __VA_ARGS__);	\
     }\
 } while (0)

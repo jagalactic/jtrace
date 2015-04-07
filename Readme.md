@@ -35,6 +35,11 @@ Trace entries have a mask associated with them, and the trace can be enabled
 selectively via the mask (e.g. trace only one of several subsystems, while
 masking out the rest).
 
+# Architectural Concepts
+
+When you initialize the jtrace facility, a default jtrace instance is created.
+Additional jtrace instances can be created, such that unrelated applications
+or kernel modules can be debugged independently.
 
 
 # API
@@ -76,21 +81,22 @@ These macros only call "Porcelain" API functions.
 
 ## Porcelain Functions
 
-    j_trc_init   - Initialize the default-named jtrace facility
-    j_trc_exit   - Uninitialize the default-named jtrace facility
-    j_trc_cmd    -
-    j_trc_register_trc_info - Register new module trace information
-    j_trc_use_registered_trc_info - Use existing module trace information
-    j_trc_unregister_trc_info - Unregister module trace information
+    jtrace_init              - Initialize the jtrace facility, and allocate or
+			       connect to the default-named jtrace instance
+    jtrace_exit              - Uninitialize the default-named jtrace facility
+    jtrace_cmd               -
+    jtrace_register_trc_info - Register new module trace information
+    jtrace_use_registered_trc_info - Use existing module trace information
+    jtrace_unregister_trc_info - Unregister module trace information
+    jtrace_print_tail        - Print the last "n" entries of the trace
 
 ## Plumbing Functions
 
-    j_trc_find_trc_info_by_addr - locate the trace context
-    j_trc_find_trc_info_by_name - locate the trace context by name
+    _jtrace_find_trc_info_by_addr - locate the trace context
+    _jtrace_find_trc_info_by_name - locate the trace context by name
     _j_trace         - Put an entry a trace buffer (called by the jtrc* macros)
-    _j_trc_hex_dump  - Put a hex dump in a trace buffer (called by jtrc*)
+    _jtrace_hex_dump  - Put a hex dump in a trace buffer (called by jtrc*)
     _j_trace_preformated_str - Put a pre-formatted string into a trace buffer (called by jtrc* macros)
-    _j_trc_print_last_elems
 
 
 # Plans

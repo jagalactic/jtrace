@@ -17,7 +17,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#include "../kmod/j_trc.h"
+#include "../kmod/jtrace.h"
 
 char *namel = "/stand/vmunix";
 /*
@@ -298,15 +298,18 @@ int get_all_trc_info(char *trc_buf_name)
 	cmd_req.data = 0;
 	cmd_req.data_size = 0;
 
-	/* Call once with zero to get required size */
+	/* Call once with no output buffer, to get required size */
 	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc && (rc != ENOMEM)) {
 		fprintf(stderr, "JTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
 		return (rc);
 	}
+	/* Upon clean return, the jtrace kernel driver has set
+	 *  cmd_req.data_size to the required size
 	if (verbose) {
 		printf("required_size=%d\n", cmd_req.data_size);
 	}
+
 	/* all_trc_info is global */
 	all_trc_info = malloc(cmd_req.data_size);
 	if (!all_trc_info) {

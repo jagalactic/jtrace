@@ -1,9 +1,9 @@
 
-MODULE_NAME = jtrc
+MODULE_NAME = jtrace
 
 obj-m += $(MODULE_NAME).o
 
-$(MODULE_NAME)-objs = j_trc.o j_trc_mod.o
+$(MODULE_NAME)-objs = jtrace_main.o jtrace_mod.o
 
 KDIR  := /lib/modules/$(shell uname -r)/build
 PWD   := $(shell pwd)
@@ -18,7 +18,7 @@ clean:
 install:
 	mkdir -p /lib/modules/`uname -r`/updates/kernel/drivers/misc
 	cp jtrace.ko /lib/modules/`uname -r`/updates/kernel/drivers/misc
-	cp j_trc.h /usr/include/linux
-	cp j_trc_mod.h /usr/include/linux
+	cp jtrace.h /usr/include/linux
+	cp jtrace_mod.h /usr/include/linux
 	depmod -a
 

@@ -174,7 +174,6 @@ MODULE_DESCRIPTION("John's kernel trace facility");
 MODULE_AUTHOR("Groves Technology Corporation");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(jtrace_reg_infop);
 EXPORT_SYMBOL(jtrace_register_instance);
 EXPORT_SYMBOL(jtrace_put_instance);
 EXPORT_SYMBOL(jtrace_get_instance);

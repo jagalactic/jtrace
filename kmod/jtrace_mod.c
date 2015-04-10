@@ -103,7 +103,7 @@ static int __init jtrace_cdev_init(void)
 
 		buf = vmalloc_user(bufsize);
 		
-		jtr.mod_trc_info.jtrc_buf_ptr = (jtrc_element_t *)buf;
+		jtr.mod_trc_info.jtrc_buf = (jtrc_element_t *)buf;
 		if (!buf) {
 			printk("jtrace: unable to vmalloc master buffer\n");
 			goto errexit;
@@ -133,7 +133,7 @@ static int __init jtrace_cdev_init(void)
 				i = 0;
 
 			tp = (jtrc_element_t *)
-				&jtr.mod_trc_info.jtrc_buf_ptr[i];
+				&jtr.mod_trc_info.jtrc_buf[i];
 			printk("slot %d addr %p fmt %d (%s)\n",
 			       i, tp, tp->elem_fmt,
 			       (tp->elem_fmt) ? "used" : "empty");

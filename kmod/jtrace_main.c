@@ -230,7 +230,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 			    &jtrc_instance_list, jtrc_list) {
 		copyout_append(&out_buffer,
 			       (char *) &jtri->mod_trc_info,
-			       sizeof(jtrc_module_trc_info_t),
+			       sizeof(jtrc_cb_t),
 			       &total_bytes,
 			       &out_buf_remainder);
 
@@ -338,7 +338,7 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 	case JTRCTL_CLEAR:
 		/* Clear the trace buffer(s) */
 		jt->mod_trc_info.jtrc_buf_index = 0;
-		memset((caddr_t) jt->mod_trc_info.jtrc_buf_ptr, 0,
+		memset((caddr_t) jt->mod_trc_info.jtrc_buf, 0,
 		       jt->mod_trc_info.jtrc_buf_size);
 		rc = 0;
 		break;
@@ -559,7 +559,7 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 		temp_index += jt->mod_trc_info.jtrc_num_entries;
 	}
 
-	tp = &jt->mod_trc_info.jtrc_buf_ptr[temp_index];
+	tp = &jt->mod_trc_info.jtrc_buf[temp_index];
 
 	/*
 	 * If we are in the middle of a hex dump or string,
@@ -576,7 +576,7 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 			temp_index += jt->mod_trc_info.jtrc_num_entries;
 		}
 
-		tp = &jt->mod_trc_info.jtrc_buf_ptr[temp_index];
+		tp = &jt->mod_trc_info.jtrc_buf[temp_index];
 	}
 
 	temp_index = jt->mod_trc_info.jtrc_buf_index - num_elems;
@@ -586,7 +586,7 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 	}
 
 	for (i = 0; i < num_elems; i++) {
-		tp = &jt->mod_trc_info.jtrc_buf_ptr[temp_index];
+		tp = &jt->mod_trc_info.jtrc_buf[temp_index];
 		jtrc_print_element(tp);
 
 		temp_index++;
@@ -626,7 +626,7 @@ jtrc_v(jtrace_instance_t * jt, void *id,
 		jt->mod_trc_info.jtrc_buf_index = 0;
 	}
 
-	tp = &jt->mod_trc_info.jtrc_buf_ptr[jt->mod_trc_info.
+	tp = &jt->mod_trc_info.jtrc_buf[jt->mod_trc_info.
 						    jtrc_buf_index];
 
 	tp->elem_fmt = JTRC_FORMAT_REGULAR;
@@ -708,7 +708,7 @@ __jtrace_preformatted_str(jtrace_instance_t * jt, void *id,
 		jt->mod_trc_info.jtrc_buf_index = 0;
 	}
 
-	tp = &jt->mod_trc_info.jtrc_buf_ptr[jt->mod_trc_info.jtrc_buf_index];
+	tp = &jt->mod_trc_info.jtrc_buf[jt->mod_trc_info.jtrc_buf_index];
 
 	tp->elem_fmt = JTRC_PREFORMATTED_STR_BEGIN;
 	tp->flag = flags;
@@ -749,7 +749,7 @@ __jtrace_preformatted_str(jtrace_instance_t * jt, void *id,
 			    (jt->mod_trc_info.jtrc_num_entries - 1)) {
 				jt->mod_trc_info.jtrc_buf_index = 0;
 			}
-			tp = &jt->mod_trc_info.jtrc_buf_ptr[jt->
+			tp = &jt->mod_trc_info.jtrc_buf[jt->
 							    mod_trc_info.
 							    jtrc_buf_index];
 
@@ -831,7 +831,7 @@ jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
 		jt->mod_trc_info.jtrc_buf_index = 0;
 	}
 
-	tp = &jt->mod_trc_info.jtrc_buf_ptr[jt->mod_trc_info.
+	tp = &jt->mod_trc_info.jtrc_buf[jt->mod_trc_info.
 						    jtrc_buf_index];
 
 	tp->elem_fmt = JTRC_HEX_DATA_BEGIN;
@@ -870,7 +870,7 @@ jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
 				jt->mod_trc_info.jtrc_buf_index = 0;
 			}
 
-			tp = &jt->mod_trc_info.jtrc_buf_ptr[jt->
+			tp = &jt->mod_trc_info.jtrc_buf[jt->
 							    mod_trc_info.
 							    jtrc_buf_index];
 			tp->elem_fmt = elem_fmt;
@@ -954,19 +954,19 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 		return (EALREADY);
 	}
 
-	if (!jt->mod_trc_info.jtrc_buf_ptr) {
-		jt->mod_trc_info.jtrc_buf_ptr =
+	if (!jt->mod_trc_info.jtrc_buf) {
+		jt->mod_trc_info.jtrc_buf =
 			vmalloc_user(jt->mod_trc_info.jtrc_buf_size);
-		if (!jt->mod_trc_info.jtrc_buf_ptr)
+		if (!jt->mod_trc_info.jtrc_buf)
 			return ENOMEM;
 	}
 	spin_lock_init(&jt->jtrc_buf_mutex);
 	jt->mod_trc_info.jtrc_buf_index = 0;
-	memset((caddr_t) jt->mod_trc_info.jtrc_buf_ptr, 0,
+	memset((caddr_t) jt->mod_trc_info.jtrc_buf, 0,
 	       jt->mod_trc_info.jtrc_buf_size);
 	list_add_tail(&jt->jtrc_list, &jtrc_instance_list);
 	jtrc_num_instances++;
-	jt->use_count++;
+	jt->refcount++;
 
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
 
@@ -989,7 +989,7 @@ jtrace_instance_t *jtrace_get_instance(char *name)
 		return (0);
 	}
 
-	tmp_jtri->use_count++;
+	tmp_jtri->refcount++;
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
 	return (tmp_jtri);
 }
@@ -1005,8 +1005,8 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 		return;
 	}
 
-	jt->use_count--;
-	if (jt->use_count == 0) {
+	jt->refcount--;
+	if (jt->refcount == 0) {
 		list_del(&jt->jtrc_list);
 		jtrc_num_instances--;
 	}
@@ -1045,7 +1045,7 @@ int jtrace_init(void)
 	strncpy(jtrc_default_info.mod_trc_info.jtrc_name,
 		DEFAULT_BUF_NAME,
 		sizeof(jtrc_default_info.mod_trc_info.jtrc_name));
-	jtrc_default_info.mod_trc_info.jtrc_buf_ptr = NULL;
+	jtrc_default_info.mod_trc_info.jtrc_buf = NULL;
 	jtrc_default_info.mod_trc_info.jtrc_num_entries =
 		num_trc_elements;
 	jtrc_default_info.mod_trc_info.jtrc_buf_size =

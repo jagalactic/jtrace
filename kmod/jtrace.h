@@ -140,15 +140,13 @@ typedef struct _jtrc_element {
     (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, pfs_continue.data_start)-1)
 
 /**
- * @jtrc_module_trc_info_t
+ * @jtrc_cb_t
  *
- * Trace module information common between user and kernel 
- * space.
+ * Trace module control block
  *
- * Contains information describing the location, size
- * and number of entries in the trace buffer, flag values, etc.
+ * Location, size, number of entries in the trace buffer, flag values, etc.
  */
-typedef struct _jtrc_module_trc_info {
+typedef struct _jtrc_cb {
 #define JTRC_MOD_NAME_SIZE 32
 	/** Module trace info name */
 	char jtrc_name[JTRC_MOD_NAME_SIZE];
@@ -163,7 +161,7 @@ typedef struct _jtrc_module_trc_info {
 	uint32_t jtrc_buf_index;
 
 	/** Pointer to the trace buffer */
-	jtrc_element_t *jtrc_buf_ptr;
+	jtrc_element_t *jtrc_buf;
 
 	/** 
 	 * If enabled, then all trace statements are sent to console.
@@ -188,7 +186,7 @@ typedef struct _jtrc_module_trc_info {
 	 * Mask of valid custom flags.
 	 */
 	uint32_t jtrc_custom_flags_mask;
-} jtrc_module_trc_info_t;
+} jtrc_cb_t;
 
 #define JTRC_FLAG_CMD_LINE_SIZE 32
 #define JTRC_FLAG_DESCRIPTION_SIZE 128
@@ -225,8 +223,25 @@ typedef enum {
 	JTRCTL_SNARF
 } jtrc_cmd_t;
 
-#ifdef __KERNEL__
-#include <linux/list.h>
+enum jtrace_context {
+	KERNEL=0,
+	USER,
+};
+
+#ifndef __KERNEL__
+
+/**
+ * For userspace, we need to define a MINIMAL list.h functionality,
+ * and substitute pthread spinlock for kernel spinlock
+ */
+#include <sys/queue.h>
+struct list_head {
+      struct list_head *next, *prev;
+};
+
+#include <pthread.h>
+#define spinlock_t pthread_spinlock_t
+#endif
 
 /**
  * @jtrace_instance_t
@@ -237,33 +252,18 @@ typedef enum {
  * register this structure.
  */
 typedef struct _jtrace_instance {
-	jtrc_module_trc_info_t mod_trc_info;
+	jtrc_cb_t mod_trc_info;
 	struct _jtrc_flag_descriptor *custom_flags;
 	spinlock_t jtrc_buf_mutex;
 	struct list_head jtrc_list;  /* List of jtrace instances */
-	int use_count;
+	int refcount;
 } jtrace_instance_t;
 
-#if 0
-/**
- * @my_jtrace_inst
- *
- * We have the concept of tracing to more than one instance of jtrace.
- * Oversimplified, you can think of that as "which trace buffer am I logging
- * to?", although when we get to per-thread and per-cpu trace buffers, it's
- * more like "which trace buffer *set* am I logging to?"
- *
- * Each caller must define a macro "my_jtrace_inst" which evaluates to the
- * valid name of a "jtrace_instance_t *" prior to including this file.
- *
- * This pointer will not be used by jtrace until you call jtrace_init() or
- * jtrace_register_instance().
- */
-#ifndef my_jtrace_inst
-#error "You must define my_jtrace_inst to evaluate to a valid jtrace_instance_t *"
-#endif
-#endif
+#ifdef __KERNEL__
 
+#include <linux/list.h>
+
+/* Kernel-only prototypes */
 extern int jtrace_init(void);
 extern void jtrace_exit(void);
 extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
@@ -288,6 +288,12 @@ extern jtrace_instance_t *jtrace_get_instance(char *name);
 /* Put refcount on jtrace instance.  Unregister if ref goes to zero */
 extern void jtrace_put_instance(jtrace_instance_t *jtri);
 
+#endif                          /* __KERNEL__ */
+
+
+/************************************************************************
+ * jtrace macros
+ */
 #ifdef JTRC_ENABLE
 #define jtrc_setmask(jtri, mask) do{				\
 		jtri->mod_trc_info.jtrc_flags = mask;	\
@@ -306,14 +312,6 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
     if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
 	    _jtrace( jtri, (void *)(id), mask,		\
 		      (struct timespec *)NULL,				\
-		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
-    }\
-} while (0)
-
-/* Same thing, but caller provides timespec... */
-#define jtrc_tm(jtri, mask, id, tm, fmt, ...)  do {	   \
-    if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
-	    _jtrace(jtri, (void *)(id), mask, tm,		\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)
@@ -417,7 +415,5 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
 #define jtrc_errexit(jtri, flags, id, fmt, ...)
 
 #endif                          /* JTRC_ENABLE */
-
-#endif                          /* __KERNEL__ */
 
 #endif                          /* __JTRC_H */

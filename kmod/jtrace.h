@@ -6,6 +6,12 @@
 #ifndef __JTRC_H
 #define __JTRC_H
 
+#ifndef __KERNEL__
+#include <time.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#endif
+
 #include "jtrace_mod.h"
 
 typedef void *jtrc_arg_t;
@@ -212,11 +218,11 @@ typedef struct _jtrc_flag_descriptor {
 
 /* Sub-commands for JTRC_CMD_IOCTL */
 typedef enum {
-    JTRCTL_SET_TRC_FLAGS,
-    JTRCTL_SET_PRINTK,
-    JTRCTL_CLEAR,
-    JTRCTL_GET_ALL_TRC_INFO,
-    JTRCTL_SNARF
+	JTRCTL_SET_TRC_FLAGS,   /* Set trace flag mask (what will be logged) */
+	JTRCTL_SET_PRINTK,
+	JTRCTL_CLEAR,
+	JTRCTL_GET_ALL_TRC_INFO,
+	JTRCTL_SNARF
 } jtrc_cmd_t;
 
 #ifdef __KERNEL__
@@ -234,7 +240,7 @@ typedef struct _jtrace_instance {
 	jtrc_module_trc_info_t mod_trc_info;
 	struct _jtrc_flag_descriptor *custom_flags;
 	spinlock_t jtrc_buf_mutex;
-	struct list_head jtrc_list;
+	struct list_head jtrc_list;  /* List of jtrace instances */
 	int use_count;
 } jtrace_instance_t;
 

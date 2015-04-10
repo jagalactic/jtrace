@@ -44,10 +44,10 @@ static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
  * This is the kernel-mode list of extant jtrace instances
  */
 DEFINE_SPINLOCK(jtrc_config_lock);
-static struct list_head
-jtrc_registered_mods = LIST_HEAD_INIT(jtrc_registered_mods);
+static struct list_head jtrc_instance_list
+            = LIST_HEAD_INIT(jtrc_instance_list);
 
-static int jtrc_num_registered_mods;
+static int jtrc_num_instances;
 
 /*
  * local fuctions
@@ -78,18 +78,20 @@ static struct notifier_block jtrc_panic_block = {
 static void jtrc_test(void);
 #endif
 
-/*
- * Find instance in jtrc_registered_mods list by address
+/**
+ * jtrc_find_instance_by_addr()
+ *
+ * Find instance in jtrc_instance_list list by address.
  */
 static jtrace_instance_t *
 jtrc_find_instance_by_addr(jtrace_instance_t * jt)
 {
-	jtrace_instance_t *tmp_reg_infop = NULL;
+	jtrace_instance_t *tmp_jtri = NULL;
 	int found = 0;
 
-	list_for_each_entry(tmp_reg_infop,
-			    &jtrc_registered_mods, jtrc_list) {
-		if (tmp_reg_infop == jt) {
+	list_for_each_entry(tmp_jtri,
+			    &jtrc_instance_list, jtrc_list) {
+		if (tmp_jtri == jt) {
 			found = 1;
 			break;
 		}
@@ -98,10 +100,12 @@ jtrc_find_instance_by_addr(jtrace_instance_t * jt)
 	if (!found) {
 		return (NULL);
 	}
-	return (tmp_reg_infop);
+	return (tmp_jtri);
 }
 
-/*
+/**
+ * jtrc_find_instance_by_name()
+ *
  * Find trace info by name.
  */
 static jtrace_instance_t *
@@ -110,7 +114,7 @@ jtrc_find_instance_by_name(char *trc_name)
 	int found = 0;
 	jtrace_instance_t *jt = NULL;
 
-	list_for_each_entry(jt, &jtrc_registered_mods, jtrc_list) {
+	list_for_each_entry(jt, &jtrc_instance_list, jtrc_list) {
 		if (strncmp(jt->mod_trc_info.jtrc_name, trc_name,
 			    sizeof(jt->mod_trc_info.jtrc_name)) == 0) {
 			found = 1;
@@ -173,13 +177,20 @@ copyout_append(char **out_buffer,  /* Where to copy */
  * Get all of the trace elements in the specified trace buffer
  *
  * @cmd_req - the cmd_req struct from user space
+ *
+ * The userspace caller receives the following:
+ *
+ * 1. The number of common flags
+ * 2. The common flags descriptors
+ * 3. The number of registered modules
+ * 4. the (module_trc_info_t, (jtrc_flag_descriptor_t, ...)) set for each module
  */
 static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 {
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
 	int total_bytes = 0;
-	jtrace_instance_t *jtr_reg_infop = NULL;
+	jtrace_instance_t *jtri = NULL;
 	int i = 0;
 	int rc = 0;
 	int req_size;
@@ -209,26 +220,26 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 
 	/* Output number of registered modules */
 	copyout_append(&out_buffer,
-		       (char *) &jtrc_num_registered_mods,
-		       sizeof(jtrc_num_registered_mods),
+		       (char *) &jtrc_num_instances,
+		       sizeof(jtrc_num_instances),
 		       &total_bytes,
 		       &out_buf_remainder);
 
 	/* Output each registered module's info */
-	list_for_each_entry(jtr_reg_infop,
-			    &jtrc_registered_mods, jtrc_list) {
+	list_for_each_entry(jtri,
+			    &jtrc_instance_list, jtrc_list) {
 		copyout_append(&out_buffer,
-			       (char *) &jtr_reg_infop->mod_trc_info,
+			       (char *) &jtri->mod_trc_info,
 			       sizeof(jtrc_module_trc_info_t),
 			       &total_bytes,
 			       &out_buf_remainder);
 
 		/* Output each registered module's custom flags */
 		for (i = 0;
-		     i < jtr_reg_infop->mod_trc_info.jtrc_num_custom_flags;
+		     i < jtri->mod_trc_info.jtrc_num_custom_flags;
 		     i++) {
 			copyout_append(&out_buffer,
-				       &jtr_reg_infop->custom_flags[i],
+				       &jtri->custom_flags[i],
 				       sizeof(jtrc_flag_descriptor_t),
 				       &total_bytes,
 				       &out_buf_remainder);
@@ -271,7 +282,7 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 	int rc = 0;
 	jtrace_instance_t *jt = NULL;
 
-	/* JTRCTL_GET_ALL_TRC_INFO does not require valid jt */
+	/* JTRCTL_GET_ALL_TRC_INFO does not require valid jtrace context */
 	if (cmd_req->cmd == JTRCTL_GET_ALL_TRC_INFO) {
 		rc = jtrc_get_all_trc_info(cmd_req);
 		cmd_req->status = rc;
@@ -298,8 +309,8 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 	switch (cmd_req->cmd) {
 	case JTRCTL_SET_PRINTK:
         {
+		/* Turn printk on & off */
 		int value;
-		printk("JTRCTL_SET_PRINTK\n");
 		rc = copy_from_user((caddr_t) & value,
 				    (caddr_t) cmd_req->data, sizeof(value));
 		if (!((value == 0) || (value == 1))) {
@@ -308,12 +319,14 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 			break;
 		}
 		jt->mod_trc_info.jtrc_kprint_enabled = value;
+		printk("JTRCTL_SET_PRINTK %d\n", value);
 		cmd_req->status = 0;
 		rc = 0;
         }
         break;
 
 	case JTRCTL_SET_TRC_FLAGS:
+		/* Set the flag mask which controls what is traced */
 		rc = copy_from_user((caddr_t) 
 			    &jt->mod_trc_info.jtrc_flags,
 			    (caddr_t) cmd_req->data,
@@ -323,6 +336,7 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 		break;
 
 	case JTRCTL_CLEAR:
+		/* Clear the trace buffer(s) */
 		jt->mod_trc_info.jtrc_buf_index = 0;
 		memset((caddr_t) jt->mod_trc_info.jtrc_buf_ptr, 0,
 		       jt->mod_trc_info.jtrc_buf_size);
@@ -582,6 +596,8 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 	}
 	return;
 }
+
+/* Put stuff in trace buffers *********************************************/
 
 /**
  * jtrc_v() - add trace entries to buffer
@@ -891,13 +907,15 @@ static int jtrc_panic_event(struct notifier_block *this,
 	}
 	jtrc_has_paniced = 1;
 
-	list_for_each_entry(jt, &jtrc_registered_mods, jtrc_list) {
+	list_for_each_entry(jt, &jtrc_instance_list, jtrc_list) {
 		jtrace_print_tail(jt, 500);
 	}
 
 	return NOTIFY_DONE;
 }
 #endif
+
+/***************************************************************************/
 
 /**
  * jtrace_register_instance()
@@ -946,8 +964,8 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 	jt->mod_trc_info.jtrc_buf_index = 0;
 	memset((caddr_t) jt->mod_trc_info.jtrc_buf_ptr, 0,
 	       jt->mod_trc_info.jtrc_buf_size);
-	list_add_tail(&jt->jtrc_list, &jtrc_registered_mods);
-	jtrc_num_registered_mods++;
+	list_add_tail(&jt->jtrc_list, &jtrc_instance_list);
+	jtrc_num_instances++;
 	jt->use_count++;
 
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
@@ -960,20 +978,20 @@ int jtrace_register_instance(jtrace_instance_t * jt)
  */
 jtrace_instance_t *jtrace_get_instance(char *name)
 {
-	jtrace_instance_t *tmp_reg_infop;
+	jtrace_instance_t *tmp_jtri;
 	unsigned long flags;
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
-	tmp_reg_infop = jtrc_find_instance_by_name(name);
+	tmp_jtri = jtrc_find_instance_by_name(name);
 
-	if (!tmp_reg_infop) {
+	if (!tmp_jtri) {
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
 		return (0);
 	}
 
-	tmp_reg_infop->use_count++;
+	tmp_jtri->use_count++;
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-	return (tmp_reg_infop);
+	return (tmp_jtri);
 }
 
 /* Unregister module trace information */
@@ -990,7 +1008,7 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 	jt->use_count--;
 	if (jt->use_count == 0) {
 		list_del(&jt->jtrc_list);
-		jtrc_num_registered_mods--;
+		jtrc_num_instances--;
 	}
 
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);

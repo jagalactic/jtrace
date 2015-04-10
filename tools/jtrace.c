@@ -1,6 +1,8 @@
 /*
  *
  */
+#include "../kmod/jtrace.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,8 +18,6 @@
 #include <linux/version.h>
 #include <inttypes.h>
 #include <unistd.h>
-
-#include "../kmod/jtrace.h"
 
 char *namel = "/stand/vmunix";
 /*

@@ -1221,7 +1221,6 @@ int display_hex_begin_trc_elem(jtrc_element_t * tp)
 
     printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
 	   "-----ASCII------"
-	   "-----EBCDIC-----"
 	   "\n",
 	   header);
 
@@ -1329,28 +1328,6 @@ printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
     return (0);
 }
 
-/* EBCDIC-to-ASCII translation table    */
-static const unsigned char e2a[] =
-    /*   0123456789ABCDEF         */
-    "................"          /* 00 */
-    "................"          /* 10 */
-    "................"          /* 20 */
-    "................"          /* 30 */
-    " ...........<(+|"          /* 40 */
-    "&.........!$*);^"          /* 50 */
-    "-/.........,%_>?"          /* 60 */
-    "..........:#@'=\""         /* 70 */
-    ".abcdefghi.{...."          /* 80 */
-    ".jklmnopqr.}...."          /* 90 */
-    "..stuvwxyz...[.."          /* A0 */
-    ".............].."          /* B0 */
-    "{ABCDEFGHI......"          /* C0 */
-    "}JKLMNOPQR......"          /* D0 */
-    "\\.STUVWXYZ......"         /* E0 */
-    "0123456789......"          /* F0 */
-    ;
-
-
 void dump_hex_line(char *buf_ptr, int buf_len)
 {
     int idx;
@@ -1375,15 +1352,6 @@ void dump_hex_line(char *buf_ptr, int buf_len)
             } else {
                 printf("%c", buf_ptr[idx]);
             }
-        }
-    }
-
-    printf("  ");
-    /* Translate and print hex to EBCDIC values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ebcdic_ch = (((int) buf_ptr[idx]) & 0xff);
-            printf("%c", e2a[ebcdic_ch]);
         }
     }
 }

@@ -78,55 +78,7 @@ static struct notifier_block jtrc_panic_block = {
 static void jtrc_test(void);
 #endif
 
-/**
- * jtrc_find_instance_by_addr()
- *
- * Find instance in jtrc_instance_list list by address.
- */
-static jtrace_instance_t *
-jtrc_find_instance_by_addr(jtrace_instance_t * jt)
-{
-	jtrace_instance_t *tmp_jtri = NULL;
-	int found = 0;
-
-	list_for_each_entry(tmp_jtri,
-			    &jtrc_instance_list, jtrc_list) {
-		if (tmp_jtri == jt) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found) {
-		return (NULL);
-	}
-	return (tmp_jtri);
-}
-
-/**
- * jtrc_find_instance_by_name()
- *
- * Find trace info by name.
- */
-static jtrace_instance_t *
-jtrc_find_instance_by_name(char *trc_name)
-{
-	int found = 0;
-	jtrace_instance_t *jt = NULL;
-
-	list_for_each_entry(jt, &jtrc_instance_list, jtrc_list) {
-		if (strncmp(jt->mod_trc_info.jtrc_name, trc_name,
-			    sizeof(jt->mod_trc_info.jtrc_name)) == 0) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found) {
-		return (NULL);
-	}
-	return (jt);
-}
+#include "../common/jtrace_common.c"
 
 /**
  * copyout_append()
@@ -300,7 +252,8 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 	}
 
 	/* All others require valid trc_name info */
-	jt = jtrc_find_instance_by_name(cmd_req->trc_name);
+	jt = jtrc_find_instance_by_name(&jtrc_instance_list,
+					cmd_req->trc_name);
 	if (!jt) {
 		cmd_req->status = ENODEV;
 		return (ENODEV);
@@ -947,8 +900,9 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 	spin_lock_irqsave(&jtrc_config_lock, flags);
 
 	/* Does this instance already exist? */
-	if (jtrc_find_instance_by_addr(jt) ||
-	    jtrc_find_instance_by_name(jt->mod_trc_info.jtrc_name)) {
+	if (jtrc_find_instance_by_addr(&jtrc_instance_list, jt) ||
+	    jtrc_find_instance_by_name(&jtrc_instance_list,
+				       jt->mod_trc_info.jtrc_name)) {
 		printk("jtrace_register_instance: EALREADY\n");
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
 		return (EALREADY);
@@ -982,7 +936,7 @@ jtrace_instance_t *jtrace_get_instance(char *name)
 	unsigned long flags;
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
-	tmp_jtri = jtrc_find_instance_by_name(name);
+	tmp_jtri = jtrc_find_instance_by_name(&jtrc_instance_list, name);
 
 	if (!tmp_jtri) {
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
@@ -1000,7 +954,7 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 	unsigned long flags;
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
-	if (!jtrc_find_instance_by_addr(jt)) {
+	if (!jtrc_find_instance_by_addr(&jtrc_instance_list, jt)) {
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
 		return;
 	}

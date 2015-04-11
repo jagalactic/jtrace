@@ -1219,9 +1219,11 @@ int display_hex_begin_trc_elem(jtrc_element_t * tp)
     /* The binary data starts at the data_start location */
     binary_data = (char *) &tp->hex_begin.data_start;
 
-    printf
-        ("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   -----ASCII------   -----EBCDIC-----\n",
-         header);
+    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
+	   "-----ASCII------"
+	   "-----EBCDIC-----"
+	   "\n",
+	   header);
 
     end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
     char line_buf[DUMP_HEX_BYTES_PER_LINE];

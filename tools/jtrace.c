@@ -481,8 +481,460 @@ int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
 	return (-1);
 }
 
+
+/****************************************************************************
+ * Functions concerned with expanding and printing trace elements and buffers
+ */
+
+int
+printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
+       jtrc_arg_t a3, jtrc_arg_t a4)
+{
+    jtrc_arg_t abuf[5];
+    register char *p;
+    jtrc_arg_t *ap = &abuf[0];
+    register int i;
+
+    abuf[0] = a0;
+    abuf[1] = a1;
+    abuf[2] = a2;
+    abuf[3] = a3;
+    abuf[4] = a4;
+
+    for (p = fmt, i = 0; *p && i < 5;) {
+        switch (*p++) {
+        case '%':
+            for (; *p;) {
+                switch (*p++) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case '.':
+                case '-':
+                    continue;
+
+                case 's':
+                        *ap = (jtrc_arg_t) snarf_str((void *) *ap);
+                    break;
+
+                default:
+                    break;
+                }
+                break;
+            }
+            ++ap;
+            ++i;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
+	   "", "", "", "", "", "");
+    return (0);
+}
+
+/**
+ * display_reg_trc_elem()
+ */
+int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
+                         char *end_buf)
+{
+    register char *p;
+
+    time_t time_stamp_secs;
+    struct tm time_stamp_formated;
+    char header[256];
+
+    tp->fmt = snarf_str(tp->fmt);
+    tp->func_name = snarf_str((void *) tp->func_name);
+
+    time_stamp_secs = tp->tv_sec;
+
+    localtime_r(&time_stamp_secs, &time_stamp_formated);
+
+    snprintf(header, 256,
+             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d",
+             /* tm_mon is 0-11, add 1 for humans */
+             time_stamp_formated.tm_mon + 1,
+             time_stamp_formated.tm_mday,
+             time_stamp_formated.tm_hour,
+             time_stamp_formated.tm_min,
+             time_stamp_formated.tm_sec,
+             tp->tv_nsec,
+             tp->cpu,
+             tp->tid,
+             ((int) (2 * sizeof(tp->id))),
+             (long) tp->id, tp->func_name, tp->line_num);
+
+    printf("%s", header);
+
+    printf(":");
+    {
+	    int len = strlen(tp->fmt);
+	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = 0;
+    }
+    printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
+
+    /*
+     * Strip any extra "\n"'s in the format strings.
+     */
+    for (p = tp->fmt; *p; ++p);
+
+    printf("\n");
+
+    return (0);
+}
+
+static uint32_t curr_slot;
+static uint32_t num_slots;
+static jtrc_element_t *trc_buf;
+
+int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
+{
+    time_t time_stamp_secs;
+    struct tm time_stamp_formated;
+    char header[256];
+    char *string_data = NULL;
+    size_t string_length = 0;
+    char *end_buf = NULL;
+
+    tp->pfs_begin.func_name = snarf_str((void *) tp->pfs_begin.func_name);
+
+    time_stamp_secs = tp->pfs_begin.tv_sec;
+
+    localtime_r(&time_stamp_secs, &time_stamp_formated);
+
+    snprintf(header, 256,
+             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d",
+             /* tm_mon is 0-11, add 1 for humans */
+             time_stamp_formated.tm_mon + 1,
+             time_stamp_formated.tm_mday,
+             time_stamp_formated.tm_hour,
+             time_stamp_formated.tm_min,
+             time_stamp_formated.tm_sec,
+             tp->pfs_begin.tv_nsec,
+             tp->pfs_begin.cpu,
+             tp->pfs_begin.tid,
+             ((int) (2 * sizeof(tp->pfs_begin.id))),
+             (long) tp->pfs_begin.id, tp->pfs_begin.func_name,
+             tp->pfs_begin.line_num);
+
+    string_length = (size_t) tp->pfs_begin.total_length;
+    if (verbose) {
+        printf("\ntotal_length=%ld\n", string_length);
+    }
+
+    /* The string data starts at the data_start location */
+    string_data = (char *) &tp->pfs_begin.data_start;
+
+    end_buf = string_data + JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
+    printf("%s:", header);
+    while (string_length > 0) {
+        int length2 = 0;
+        length2 = printf("%s", string_data);
+        if (verbose) {
+            printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
+                   string_length, length2, curr_slot);
+        }
+
+        string_data += length2;
+        string_length -= length2;
+
+        /* check for end of element */
+        if (string_length && (string_data >= end_buf)) {
+            /* Move to next element */
+            curr_slot++;
+            if (curr_slot >= num_slots) {
+                curr_slot = 0;
+            }
+
+            tp = &trc_buf[curr_slot];
+
+            string_data = (char *) &tp->pfs_continue.data_start;
+            end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
+        }
+    }
+    printf("\n");
+
+    return (0);
+}
+
+void dump_hex_line(char *buf_ptr, int buf_len)
+{
+    int idx;
+    char ch;
+    int ebcdic_ch;
+
+    /* Print the hexadecimal values */
+    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+        if (idx < buf_len) {
+            printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
+        } else {
+            printf("   ");
+        }
+    }
+    printf("  ");
+    /* Translate and print hex to ASCII values */
+    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+        if (idx < buf_len) {
+            ch = buf_ptr[idx];
+            if ((ch < 0x20) || (ch > 0x7e)) {
+                printf(".");
+            } else {
+                printf("%c", buf_ptr[idx]);
+            }
+        }
+    }
+}
+
+int display_hex_begin_trc_elem(jtrc_element_t * tp)
+{
+    time_t time_stamp_secs;
+    struct tm time_stamp_formated;
+    char *binary_data = NULL;
+    size_t binary_length = 0;
+    char header[256];
+    char *end_buf;
+
+    tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
+    tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
+
+    time_stamp_secs = tp->hex_begin.tv_sec;
+
+    localtime_r(&time_stamp_secs, &time_stamp_formated);
+
+    snprintf(header, 256,
+             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
+             /* tm_mon is 0-11, add 1 for humans */
+             time_stamp_formated.tm_mon + 1,
+             time_stamp_formated.tm_mday,
+             time_stamp_formated.tm_hour,
+             time_stamp_formated.tm_min,
+             time_stamp_formated.tm_sec,
+             tp->hex_begin.tv_nsec,
+             tp->hex_begin.cpu,
+             tp->hex_begin.tid,
+             ((int) (2 * sizeof(tp->hex_begin.id))),
+             (long) tp->hex_begin.id, tp->hex_begin.func_name,
+             tp->hex_begin.line_num, tp->hex_begin.msg,
+             tp->hex_begin.total_length);
+
+    printf("%s", header);
+    printf("\n");
+
+    int idx = 0;
+    binary_length = (size_t) tp->hex_begin.total_length;
+
+    /* The binary data starts at the data_start location */
+    binary_data = (char *) &tp->hex_begin.data_start;
+
+    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
+	   "-----ASCII------"
+	   "\n",
+	   header);
+
+    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
+    char line_buf[DUMP_HEX_BYTES_PER_LINE];
+    /* Dump in increments of hex line size */
+    while (binary_length > 0) {
+        int i = 0;
+        int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
+        printf("%s:%04x:  ", header, idx);
+
+        binary_length -= length2;
+
+        /*
+         * The binary hex information is not contiguous, so
+         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
+         */
+        for (i = 0; i < length2; i++) {
+            line_buf[i] = *binary_data;
+            binary_data++;
+            /* check for end of element */
+            if (binary_length && (binary_data >= end_buf)) {
+                /* Move to next element */
+
+                curr_slot++;
+                if (curr_slot >= num_slots) {
+                    curr_slot = 0;
+                }
+
+                tp = &trc_buf[curr_slot];
+
+                binary_data = (char *) &tp->hex.data_start;
+                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
+            }
+        }
+        dump_hex_line(line_buf, length2);
+        printf("\n");
+        idx += length2;
+    }
+
+    return (0);
+}
+
+/**
+ * print_trace()
+ *
+ * Expand and print entries from the trace buffer
+ *
+ * @cb - The control block for the jtrace instance of interest
+ * @dump_mask - Mask to select which entries should be printed
+ */
+int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
+{
+	size_t trc_buf_size;
+	uint32_t slot_idx, mark_slot;
+	jtrc_element_t *tp;
+	char *beg_buf = NULL;
+	char *end_buf = NULL;
+	void *p = NULL;
+	uint32_t zero_slots = 0;
+
+	if (!cb) {
+		printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
+		return (-1);
+	}
+
+	/* TODO: handle core files and kernel crash dumps */
+
+	if (verbose) {
+		printf("jtrc_info.jtrc_buf_size=0x%x,"
+		       " jtrc_info.jtrc_buf_index=0x%x\n",
+		       cb->jtrc_buf_size,
+		       cb->jtrc_buf_index);
+
+		printf("cb->trc_buf=%p, cb->trc_buf_size=0x%x, "
+		       "cb->slotidx=0x%x "
+		       "cb->num_slots=0x%x\n",
+		       cb->jtrc_buf,
+		       cb->jtrc_buf_size,
+		       cb->jtrc_buf_index,
+		       cb->jtrc_num_entries);
+	}
+
+	trc_buf_size = cb->jtrc_buf_size;
+	slot_idx = cb->jtrc_buf_index;
+
+	p = malloc(trc_buf_size);
+	trc_buf = (jtrc_element_t *) p;
+
+	if (trc_buf == NULL) {
+		printf("malloc failed");
+		return 1;
+	}
+
+	snarf(cb->jtrc_buf, (void *) trc_buf, trc_buf_size);
+
+	if (verbose) {
+		printf("trc_buf = %p, trc_buf_size=%lx slot_idx=0x%x\n",
+		       trc_buf, (long) trc_buf_size, slot_idx);
+		printf("sizeof(jtrc_arg_t)=%ld\n",
+		       (long) sizeof(jtrc_arg_t));
+		printf("sizeof(jtrc_element_t)=%ld\n",
+		       (long) sizeof(jtrc_element_t));
+	}
+
+	num_slots = cb->jtrc_num_entries;
+	beg_buf = (char *) trc_buf;
+	end_buf = beg_buf + trc_buf_size;
+
+	curr_slot = slot_idx % num_slots;
+
+	/*
+	 * Loop through the trace buffer and print each entry
+	 */
+	for (mark_slot = curr_slot; ++curr_slot != mark_slot;) {
+		if (curr_slot >= num_slots) {
+			curr_slot = -1;
+			continue;
+		}
+
+		tp = &trc_buf[curr_slot];
+
+		if (verbose) {
+			printf("num_slots=0x%x mark_slot=0x%x, curr_slot=0x%x, "
+			       "elem_fmt=%d zero_slots=0x%x\n",
+			       num_slots, mark_slot, curr_slot,
+			       tp->elem_fmt, zero_slots);
+		}
+
+		if (tp->flag & dump_mask)
+		switch (tp->elem_fmt) {
+		case JTRC_FORMAT_REGULAR:
+			if (tp->reg.fmt == 0) {
+				continue;
+			}
+			printf("%03x ", tp->flag);
+			display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
+			zero_slots = 0;
+			break;
+
+			/* This dumps hex data slots until JTRC_HEX_DATA_END */
+		case JTRC_HEX_DATA_BEGIN:
+			display_hex_begin_trc_elem(tp);
+			zero_slots = 0;
+			break;
+
+			/*
+			 * If we hit these here, we've lost the BEGIN
+			 * slot context, so just skip
+			 */
+		case JTRC_HEX_DATA_CONTINUE:
+		case JTRC_HEX_DATA_END:
+			zero_slots = 0;
+			break;
+
+		case JTRC_PREFORMATTED_STR_BEGIN:
+			display_preformatted_str_begin_trc_elem(tp);
+			zero_slots = 0;
+			break;
+
+			/*
+			 * If we hit these here, we've lost the BEGIN slot
+			 * context, so just skip
+			 */
+		case JTRC_PREFORMATTED_STR_CONTINUE:
+		case JTRC_PREFORMATTED_STR_END:
+			zero_slots = 0;
+			break;
+
+		default:
+			zero_slots++;
+			break;
+		}
+		/*
+		 * The slot may have been incremented by
+		 * display_hex_begin_trc_elem() or
+		 * display_preformatted_str_begin_trc_elem().
+		 * If so and now equal to marked slot, we are done.
+		 */
+		if (curr_slot == mark_slot) {
+			break;
+		}
+	}
+
+	printf("\n");
+	return (0);
+}
+
+/****************************************************************************/
+
 #define TRC_BUF_NAME_REQUIRED "ERROR: Specify -n <trc_buf_name> first.\n"
 
+/**
+ * main()
+ */
 int main(int argc, char **argv)
 {
 	int ch, trace;
@@ -808,472 +1260,3 @@ jtrc_util_exit:
 
 	exit(0);
 }
-
-
-char *save_str(char *fmt, ...)
-{
-	char buf[512];
-	int len;
-	char *p;
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsprintf(buf, fmt, ap);
-	va_end(ap);
-
-	len = strlen(buf);
-	if (!(p = (char *) malloc(len + 1))) {
-		printf("no mem, err=%d\n", errno);
-	}
-
-	bcopy(buf, p, len + 1);
-
-	return p;
-}
-
-/****************************************************************************
- * Functions concerned with expanding and printing trace elements and buffers
- */
-
-int
-printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
-       jtrc_arg_t a3, jtrc_arg_t a4)
-{
-    jtrc_arg_t abuf[5];
-    register char *p;
-    jtrc_arg_t *ap = &abuf[0];
-    register int i;
-
-    abuf[0] = a0;
-    abuf[1] = a1;
-    abuf[2] = a2;
-    abuf[3] = a3;
-    abuf[4] = a4;
-
-    for (p = fmt, i = 0; *p && i < 5;) {
-        switch (*p++) {
-        case '%':
-            for (; *p;) {
-                switch (*p++) {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                case '.':
-                case '-':
-                    continue;
-
-                case 's':
-                        *ap = (jtrc_arg_t) snarf_str((void *) *ap);
-                    break;
-
-                default:
-                    break;
-                }
-                break;
-            }
-            ++ap;
-            ++i;
-            break;
-
-        default:
-            break;
-        }
-    }
-
-    printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
-	   "", "", "", "", "", "");
-    return (0);
-}
-
-/**
- * display_reg_trc_elem()
- */
-int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
-                         char *end_buf)
-{
-    register char *p;
-
-    time_t time_stamp_secs;
-    struct tm time_stamp_formated;
-    char header[256];
-
-    tp->fmt = snarf_str(tp->fmt);
-    tp->func_name = snarf_str((void *) tp->func_name);
-
-    time_stamp_secs = tp->tv_sec;
-
-    localtime_r(&time_stamp_secs, &time_stamp_formated);
-
-    snprintf(header, 256,
-             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d",
-             /* tm_mon is 0-11, add 1 for humans */
-             time_stamp_formated.tm_mon + 1,
-             time_stamp_formated.tm_mday,
-             time_stamp_formated.tm_hour,
-             time_stamp_formated.tm_min,
-             time_stamp_formated.tm_sec,
-             tp->tv_nsec,
-             tp->cpu,
-             tp->tid,
-             ((int) (2 * sizeof(tp->id))),
-             (long) tp->id, tp->func_name, tp->line_num);
-
-    printf("%s", header);
-
-    printf(":");
-    {
-	    int len = strlen(tp->fmt);
-	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = 0;
-    }
-    printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
-
-    /*
-     * Strip any extra "\n"'s in the format strings.
-     */
-    for (p = tp->fmt; *p; ++p);
-
-    printf("\n");
-
-    return (0);
-}
-
-static uint32_t curr_slot;
-static uint32_t num_slots;
-static jtrc_element_t *ldTbuf;
-
-int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
-{
-    time_t time_stamp_secs;
-    struct tm time_stamp_formated;
-    char header[256];
-    char *string_data = NULL;
-    size_t string_length = 0;
-    char *end_buf = NULL;
-
-    tp->pfs_begin.func_name = snarf_str((void *) tp->pfs_begin.func_name);
-
-    time_stamp_secs = tp->pfs_begin.tv_sec;
-
-    localtime_r(&time_stamp_secs, &time_stamp_formated);
-
-    snprintf(header, 256,
-             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d",
-             /* tm_mon is 0-11, add 1 for humans */
-             time_stamp_formated.tm_mon + 1,
-             time_stamp_formated.tm_mday,
-             time_stamp_formated.tm_hour,
-             time_stamp_formated.tm_min,
-             time_stamp_formated.tm_sec,
-             tp->pfs_begin.tv_nsec,
-             tp->pfs_begin.cpu,
-             tp->pfs_begin.tid,
-             ((int) (2 * sizeof(tp->pfs_begin.id))),
-             (long) tp->pfs_begin.id, tp->pfs_begin.func_name,
-             tp->pfs_begin.line_num);
-
-    string_length = (size_t) tp->pfs_begin.total_length;
-    if (verbose) {
-        printf("\ntotal_length=%ld\n", string_length);
-    }
-
-    /* The string data starts at the data_start location */
-    string_data = (char *) &tp->pfs_begin.data_start;
-
-    end_buf = string_data + JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
-    printf("%s:", header);
-    while (string_length > 0) {
-        int length2 = 0;
-        length2 = printf("%s", string_data);
-        if (verbose) {
-            printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
-                   string_length, length2, curr_slot);
-        }
-
-        string_data += length2;
-        string_length -= length2;
-
-        /* check for end of element */
-        if (string_length && (string_data >= end_buf)) {
-            /* Move to next element */
-            curr_slot++;
-            if (curr_slot >= num_slots) {
-                curr_slot = 0;
-            }
-
-            tp = &ldTbuf[curr_slot];
-
-            string_data = (char *) &tp->pfs_continue.data_start;
-            end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
-        }
-    }
-    printf("\n");
-
-    return (0);
-}
-
-void dump_hex_line(char *buf_ptr, int buf_len)
-{
-    int idx;
-    char ch;
-    int ebcdic_ch;
-
-    /* Print the hexadecimal values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
-        } else {
-            printf("   ");
-        }
-    }
-    printf("  ");
-    /* Translate and print hex to ASCII values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ch = buf_ptr[idx];
-            if ((ch < 0x20) || (ch > 0x7e)) {
-                printf(".");
-            } else {
-                printf("%c", buf_ptr[idx]);
-            }
-        }
-    }
-}
-
-int display_hex_begin_trc_elem(jtrc_element_t * tp)
-{
-    time_t time_stamp_secs;
-    struct tm time_stamp_formated;
-    char *binary_data = NULL;
-    size_t binary_length = 0;
-    char header[256];
-    char *end_buf;
-
-    tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
-    tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
-
-    time_stamp_secs = tp->hex_begin.tv_sec;
-
-    localtime_r(&time_stamp_secs, &time_stamp_formated);
-
-    snprintf(header, 256,
-             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
-             /* tm_mon is 0-11, add 1 for humans */
-             time_stamp_formated.tm_mon + 1,
-             time_stamp_formated.tm_mday,
-             time_stamp_formated.tm_hour,
-             time_stamp_formated.tm_min,
-             time_stamp_formated.tm_sec,
-             tp->hex_begin.tv_nsec,
-             tp->hex_begin.cpu,
-             tp->hex_begin.tid,
-             ((int) (2 * sizeof(tp->hex_begin.id))),
-             (long) tp->hex_begin.id, tp->hex_begin.func_name,
-             tp->hex_begin.line_num, tp->hex_begin.msg,
-             tp->hex_begin.total_length);
-
-    printf("%s", header);
-    printf("\n");
-
-    int idx = 0;
-    binary_length = (size_t) tp->hex_begin.total_length;
-
-    /* The binary data starts at the data_start location */
-    binary_data = (char *) &tp->hex_begin.data_start;
-
-    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
-	   "-----ASCII------"
-	   "\n",
-	   header);
-
-    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
-    char line_buf[DUMP_HEX_BYTES_PER_LINE];
-    /* Dump in increments of hex line size */
-    while (binary_length > 0) {
-        int i = 0;
-        int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
-        printf("%s:%04x:  ", header, idx);
-
-        binary_length -= length2;
-
-        /*
-         * The binary hex information is not contiguous, so
-         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
-         */
-        for (i = 0; i < length2; i++) {
-            line_buf[i] = *binary_data;
-            binary_data++;
-            /* check for end of element */
-            if (binary_length && (binary_data >= end_buf)) {
-                /* Move to next element */
-
-                curr_slot++;
-                if (curr_slot >= num_slots) {
-                    curr_slot = 0;
-                }
-
-                tp = &ldTbuf[curr_slot];
-
-                binary_data = (char *) &tp->hex.data_start;
-                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
-            }
-        }
-        dump_hex_line(line_buf, length2);
-        printf("\n");
-        idx += length2;
-    }
-
-    return (0);
-}
-
-/**
- * print_trace()
- *
- * Expand and print entries from the trace buffer
- *
- * @cb - The control block for the jtrace instance of interest
- * @dump_mask - Mask to select which entries should be printed
- */
-int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
-{
-	size_t ldTbufSz;
-	uint32_t slot_idx, mark_slot;
-	jtrc_element_t *tp;
-	char *beg_buf = NULL;
-	char *end_buf = NULL;
-	void *p = NULL;
-	uint32_t zero_slots = 0;
-
-	if (!cb) {
-		printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
-		return (-1);
-	}
-
-	/* TODO: handle core files and kernel crash dumps */
-
-	if (verbose) {
-		printf("jtrc_info.jtrc_buf_size=0x%x,"
-		       " jtrc_info.jtrc_buf_index=0x%x\n",
-		       cb->jtrc_buf_size,
-		       cb->jtrc_buf_index);
-
-		printf("cb->ldTbuf=%p, cb->ldTbufSz=0x%x, "
-		       "cb->slotidx=0x%x "
-		       "cb->num_slots=0x%x\n",
-		       cb->jtrc_buf,
-		       cb->jtrc_buf_size,
-		       cb->jtrc_buf_index,
-		       cb->jtrc_num_entries);
-	}
-
-	ldTbufSz = cb->jtrc_buf_size;
-	slot_idx = cb->jtrc_buf_index;
-
-	p = malloc(ldTbufSz);
-	ldTbuf = (jtrc_element_t *) p;
-
-	if (ldTbuf == NULL) {
-		printf("malloc failed");
-		return 1;
-	}
-
-	snarf(cb->jtrc_buf, (void *) ldTbuf, ldTbufSz);
-
-	if (verbose) {
-		printf("ldTbuf = %p, ldTbufSz=%lx slot_idx=0x%x\n",
-		       ldTbuf, (long) ldTbufSz, slot_idx);
-		printf("sizeof(jtrc_arg_t)=%ld\n",
-		       (long) sizeof(jtrc_arg_t));
-		printf("sizeof(jtrc_element_t)=%ld\n",
-		       (long) sizeof(jtrc_element_t));
-	}
-
-	num_slots = cb->jtrc_num_entries;
-	beg_buf = (char *) ldTbuf;
-	end_buf = beg_buf + ldTbufSz;
-
-	curr_slot = slot_idx % num_slots;
-
-	/*
-	 * Loop through the trace buffer and print each entry
-	 */
-	for (mark_slot = curr_slot; ++curr_slot != mark_slot;) {
-		if (curr_slot >= num_slots) {
-			curr_slot = -1;
-			continue;
-		}
-
-		tp = &ldTbuf[curr_slot];
-
-		if (verbose) {
-			printf("num_slots=0x%x mark_slot=0x%x, curr_slot=0x%x, "
-			       "elem_fmt=%d zero_slots=0x%x\n",
-			       num_slots, mark_slot, curr_slot,
-			       tp->elem_fmt, zero_slots);
-		}
-
-		if (tp->flag & dump_mask)
-		switch (tp->elem_fmt) {
-		case JTRC_FORMAT_REGULAR:
-			if (tp->reg.fmt == 0) {
-				continue;
-			}
-			printf("%03x ", tp->flag);
-			display_reg_trc_elem(&tp->reg, beg_buf, end_buf);
-			zero_slots = 0;
-			break;
-
-			/* This dumps hex data slots until JTRC_HEX_DATA_END */
-		case JTRC_HEX_DATA_BEGIN:
-			display_hex_begin_trc_elem(tp);
-			zero_slots = 0;
-			break;
-
-			/*
-			 * If we hit these here, we've lost the BEGIN
-			 * slot context, so just skip
-			 */
-		case JTRC_HEX_DATA_CONTINUE:
-		case JTRC_HEX_DATA_END:
-			zero_slots = 0;
-			break;
-
-		case JTRC_PREFORMATTED_STR_BEGIN:
-			display_preformatted_str_begin_trc_elem(tp);
-			zero_slots = 0;
-			break;
-
-			/*
-			 * If we hit these here, we've lost the BEGIN slot
-			 * context, so just skip
-			 */
-		case JTRC_PREFORMATTED_STR_CONTINUE:
-		case JTRC_PREFORMATTED_STR_END:
-			zero_slots = 0;
-			break;
-
-		default:
-			zero_slots++;
-			break;
-		}
-		/*
-		 * The slot may have been incremented by
-		 * display_hex_begin_trc_elem() or
-		 * display_preformatted_str_begin_trc_elem().
-		 * If so and now equal to marked slot, we are done.
-		 */
-		if (curr_slot == mark_slot) {
-			break;
-		}
-	}
-
-	printf("\n");
-	return (0);
-}
-

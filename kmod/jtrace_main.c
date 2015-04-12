@@ -981,8 +981,6 @@ static jtrace_instance_t jtrc_default_info;
 /* Static jtrace reg info for default instance; should probably not be static */
 jtrace_instance_t *jtri = NULL;
 
-#define DEFAULT_BUF_NAME "jtrc_default"
-
 /**
  * jtrace_init()
  *
@@ -994,10 +992,10 @@ int jtrace_init(void)
 
 	//notifier_chain_register(&panic_notifier_list, &jtrc_panic_block);
 
-	/* We automatically init a trace buffer with DEFAULT_BUF_NAME
+	/* We automatically init a trace buffer with JTRC_DEFAULT_NAME
 	 * at module init time. */
 	strncpy(jtrc_default_info.mod_trc_info.jtrc_name,
-		DEFAULT_BUF_NAME,
+		JTRC_DEFAULT_NAME,
 		sizeof(jtrc_default_info.mod_trc_info.jtrc_name));
 	jtrc_default_info.mod_trc_info.jtrc_buf = NULL;
 	jtrc_default_info.mod_trc_info.jtrc_num_entries =

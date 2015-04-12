@@ -18,21 +18,16 @@
 #include <linux/version.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <assert.h>
 
-char *namel = "/stand/vmunix";
 /*
- * Access to /dev/kmem is broken in 2.6
- * Just have jtrace copyout the info we need.
- * Yep, its slower.
+ * Global vars
  */
-char *coref = "/dev/kmem";
-int verbose = 0;                /* flag: verbose or not    */
-int kfd = -1;                   /* kernel memory fd    */
-int isDumpFile = 0;
-char *trc_buf_name = NULL;
+char *namel = "/stand/vmunix";
 
-char *snarf_str(void *addr);
-int debugLvl = 0;
+int verbose = 0;                /* flag: verbose or not    */
+
+//char *snarf_str(void *addr);
 char jtrc_dev[] = JTRACE_DEV_SPECIAL_FILE;
 int kutil_dev_fd = -1;
 
@@ -43,6 +38,8 @@ int jtrc_num_instances = 0;
 jtrc_cb_t *jtrc_first_cb = NULL;
 jtrc_cb_t *jtrc_cb = NULL;
 
+/*******************************************************************/
+
 int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
                          char *end_buf);
 int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
@@ -52,10 +49,10 @@ int display_hex_begin_trc_elem(jtrc_element_t * tp);
 int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp);
 
 int show_trc_flags(uint32_t trc_flags);
-int dump_trace(jtrc_cb_t * cb, uint32_t dump_mask);
+int print_trace(jtrc_cb_t * cb, uint32_t dump_mask);
 int set_printk_value(char *buf_name, int value);
 
-int snarf_no_kmem(void *addr, void *buf, size_t len);
+//int snarf_no_kmem(void *addr, void *buf, size_t len);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define DUMP_HEX_BYTES_PER_LINE 16
@@ -93,11 +90,46 @@ void usage(rc)
     exit(rc);
 }
 
+/*
+ * Snarfing is getting strings or other values that are pointed to by
+ * entries in the jtrace. The trick is we must have access to the address
+ * space that was in effect when the trace entries were made.  Possibilities
+ * are:
+ *
+ * 1. the current process (snarf is just a memory access)
+ * 2. the kernel address space (snarf gets help from the jtrace kmod)
+ * 3. a core file - TBD
+ * 4. a kernel crash dump - TBD
+ */
+
+/**
+ * snarf_no_kmem()
+ *
+ * Once upon a time snarfing was easy because we could open /dev/kmem
+ * (with sufficient priveleges) and read whatever we needed.  Now we need
+ * help from the jtrace kernel module.
+ */
+int snarf_no_kmem(void *addr, void *buf, size_t len)
+{
+	jtrc_cmd_req_t cmd_req;
+
+	cmd_req.snarf_addr = addr;
+	cmd_req.data = buf;
+	cmd_req.data_size = len;
+
+	cmd_req.cmd = JTRCTL_SNARF;
+	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
+		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
+		return 1;
+	}
+
+	return (0);
+}
+
 void snarf(void *addr, void *buf, size_t len)
 {
 	size_t cc = 0;
 
-#if APP_KREL >= 26
 	/*
 	 * Access to /dev/kmem is broken in 2.6
 	 * Just have jtrace copyout the info we need.
@@ -105,37 +137,10 @@ void snarf(void *addr, void *buf, size_t len)
 	 */
 	cc = snarf_no_kmem(addr, buf, len);
 	if (cc) {
-		printf("snarf: read failed at %p, len %lx rc=%ld\n", addr,
-		       (long) len, (long) cc);
+		fprintf(stderr,
+			"snarf: read failed at %p, len %lx rc=%ld\n", addr,
+			(long) len, (long) cc);
 	}
-#else
-	if (isDumpFile) {
-#ifdef LATER
-		cc = osDumpRead(addr, buf, len);
-#endif
-		if (cc != len) {
-			printf("snarf: short read at %p, len %lx cc %lx\n", addr,
-			       (long) len, (long) cc);
-		}
-	} else {
-		off_t offset;
-		/* reading from memory */
-		offset = lseek(kfd, (off_t) addr, SEEK_SET);
-		if (offset == -1) {
-			/*
-			 * TODO: On the IA64 RHE1, this keeps returning -1
-			 * even though the data looks sane. Just comment
-			 * out for now.  */
-			/* printf("snarf: lseek(%p) offset=%p errno=%d sizeof(offset)=%d\n",
-			   addr, offset, errno, sizeof(offset)); */
-		}
-		cc = read(kfd, buf, len);
-		if (cc != len) {
-			printf("snarf: short read at %p, len %lx cc %lx\n",
-			       addr, (long) len, (long) cc);
-		}
-	}
-#endif
 }
 
 struct CacheStats {
@@ -144,6 +149,11 @@ struct CacheStats {
     int fastHits;
 } cStats;
 
+/**
+ * snarf_str()
+ *
+ * Snarf a null-terminated string, which requires a bit of initiative.
+ */
 char *snarf_str(void *addr)
 {
 	static struct StrCache {
@@ -188,19 +198,7 @@ char *snarf_str(void *addr)
 	return (last = ent)->str;
 }
 
-
-void setup(char *namelist, char *corefile, int flag)
-{
-#if APP_KREL < 26
-	/* /dev/kmem currently broken in 2.6, just skip */
-	kfd = open(corefile, flag);
-
-	if (kfd < 0) {
-		printf("Corefile open error, %s, errno=%d\n", corefile, errno);
-	}
-#endif
-	return;
-}
+/**********************************************************************/
 
 int clear_trace_buf(char *buf_name)
 {
@@ -213,23 +211,6 @@ int clear_trace_buf(char *buf_name)
 	cmd_req.cmd = JTRCTL_CLEAR;
 	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
 		fprintf(stderr, "JTRCTL_CLEAR Failed errno=%d\n", errno);
-		return 1;
-	}
-
-	return (0);
-}
-
-int snarf_no_kmem(void *addr, void *buf, size_t len)
-{
-	jtrc_cmd_req_t cmd_req;
-
-	cmd_req.snarf_addr = addr;
-	cmd_req.data = buf;
-	cmd_req.data_size = len;
-
-	cmd_req.cmd = JTRCTL_SNARF;
-	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
-		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
 		return 1;
 	}
 
@@ -281,8 +262,10 @@ int set_printk_value(char *buf_name, int value)
 /**
  * get_all_trc_info()
  *
- * Get all trace info. If trc_buf_name supplied,
- * set pointer to trace buffer with trc_buf_name
+ * Get all trace info from the jtrace kernel module. This function "knows"
+ * what gets packed into the output buffer by the jtrace kernel module.
+ *
+ * XXX: should de-obfuscate this...
  */
 int get_all_trc_info(char *trc_buf_name)
 {
@@ -305,17 +288,14 @@ int get_all_trc_info(char *trc_buf_name)
 		return (rc);
 	}
 	/* Upon clean return, the jtrace kernel driver has set
-	 *  cmd_req.data_size to the required size
+	 *  cmd_req.data_size to the required size */
 	if (verbose) {
 		printf("required_size=%d\n", cmd_req.data_size);
 	}
 
 	/* all_trc_info is global */
 	all_trc_info = malloc(cmd_req.data_size);
-	if (!all_trc_info) {
-		printf("malloc() failed\n");
-		return (-1);
-	}
+	assert(all_trc_info);
 
 	cmd_req.data = all_trc_info;
 	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
@@ -529,6 +509,7 @@ int main(int argc, char **argv)
 	int printk_value = 0;
 	int rc = 0;
 	unsigned int dump_mask = 0xffffffff;
+	char *trc_buf_name = NULL;
 
 	trace = 0;
 
@@ -538,12 +519,8 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	while ((ch = getopt(argc, argv, "?Zvgh:cd:f:s:u:p:n:Dm:")) != EOF) {
+	while ((ch = getopt(argc, argv, "?vgh:cd:f:s:u:p:n:Dm:")) != EOF) {
 		switch (ch) {
-
-		case 'Z':              /* undocumented -Zdebug option    */
-			++debugLvl;
-			break;
 
 		case 'v':
 			++verbose;
@@ -590,9 +567,8 @@ int main(int argc, char **argv)
 
 		case 'D':
 			n_flag++;
-#define DEFAULT_BUF_NAME "jtrc_default"
 			if (!trc_buf_name) {
-				trc_buf_name = DEFAULT_BUF_NAME;
+				trc_buf_name = JTRC_DEFAULT_NAME;
 			} else {
 				usage(1);
 				rc = -1;
@@ -793,19 +769,6 @@ int main(int argc, char **argv)
 			goto jtrc_util_exit;
 			break;
 
-#if 0
-			/* XXX maybe in 2.6 kernel linux will support
-			 * kernel dumps. */
-		case 'd':
-			coref = optarg;
-			++isDumpFile;
-			setup(namel, coref, O_RDONLY);
-			dump_trace(jtrc_cb);
-			/* XXX not yet supported */
-			rc = -1;
-			goto jtrc_util_exit;
-#endif
-
 		case 'c':
 			if (!n_flag) {
 				printf(TRC_BUF_NAME_REQUIRED);
@@ -843,13 +806,8 @@ int main(int argc, char **argv)
 	if (optind < argc) {
 		namel = argv[optind++];
 	}
-	if (optind < argc) {
-		coref = argv[optind++];
-	}
 
-	setup(namel, coref, O_RDONLY);
-
-	dump_trace(jtrc_cb, dump_mask);
+	print_trace(jtrc_cb, dump_mask);
 
 	if (verbose) {
 		printf("cache stats: fastHits %d hits %d misses %d\n",
@@ -896,7 +854,15 @@ static jtrc_element_t *ldTbuf;
 
 static int was_nl;
 
-int dump_trace(jtrc_cb_t * cb, uint32_t dump_mask)
+/**
+ * print_trace()
+ *
+ * Expand and print entries from the trace buffer
+ *
+ * @cb - The control block for the jtrace instance of interest
+ * @dump_mask - Mask to select which entries should be printed
+ */
+int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 {
 	size_t ldTbufSz;
 	uint32_t slot_idx, mark_slot;
@@ -910,39 +876,15 @@ int dump_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
 		return (-1);
 	}
-#if 0
-	if (isDumpFile) {
-#ifdef J_LATER
-		osDumpInit(coref, &trace_info_addr);
-		/* get trace_info from dump file */
-		snarf(trace_info_addr, &trace_info, sizeof(jtrc_info));
-#endif
-	} else {
-		strncpy(trace_info.jtrc_name, buf_name,
-			sizeof(trace_info.jtrc_name));
 
-#if 0
-		/* get trace_info from running kernel */
-		rc = get_trc_info(&trace_info);
-		if (rc) {
-			printf("get_trc_info failed errno=%d\n", rc);
-			return 1;
-		}
-#endif
-	}
-#endif
+	/* TODO: handle core files and kernel crash dumps */
 
 	if (verbose) {
 		printf("jtrc_info.jtrc_buf_size=0x%x,"
 		       " jtrc_info.jtrc_buf_index=0x%x\n",
 		       cb->jtrc_buf_size,
 		       cb->jtrc_buf_index);
-	}
 
-	ldTbufSz = cb->jtrc_buf_size;
-	slot_idx = cb->jtrc_buf_index;
-
-	if (verbose) {
 		printf("cb->ldTbuf=%p, cb->ldTbufSz=0x%x, "
 		       "cb->slotidx=0x%x "
 		       "cb->num_slots=0x%x\n",
@@ -951,6 +893,9 @@ int dump_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		       cb->jtrc_buf_index,
 		       cb->jtrc_num_entries);
 	}
+
+	ldTbufSz = cb->jtrc_buf_size;
+	slot_idx = cb->jtrc_buf_index;
 
 	p = malloc(ldTbufSz);
 	ldTbuf = (jtrc_element_t *) p;
@@ -978,6 +923,9 @@ int dump_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 	was_nl = 0;
 	slot = slot_idx % num_slots;
 
+	/*
+	 * Loop through the trace buffer and print each entry
+	 */
 	for (mark_slot = slot; ++slot != mark_slot;) {
 		if (slot >= num_slots) {
 			slot = -1;
@@ -1060,10 +1008,6 @@ int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
     time_t time_stamp_secs;
     struct tm time_stamp_formated;
     char header[256];
-
-    if (debugLvl) {
-        printf("fmt addr=%p\n", tp->fmt);
-    }
 
     tp->fmt = snarf_str(tp->fmt);
     tp->func_name = snarf_str((void *) tp->func_name);
@@ -1299,9 +1243,7 @@ printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
                     continue;
 
                 case 's':
-                    if (!debugLvl) {
                         *ap = (jtrc_arg_t) snarf_str((void *) *ap);
-                    }
                     break;
 
                 default:
@@ -1318,13 +1260,8 @@ printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
         }
     }
 
-    if (debugLvl) {
-        printf("'%s' %p %p %p %p %p", fmt, abuf[0], abuf[1], abuf[2],
-               abuf[3], abuf[4]);
-    } else {
-        printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
-               "", "", "", "", "", "");
-    }
+    printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
+	   "", "", "", "", "", "");
     return (0);
 }
 

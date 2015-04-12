@@ -16,6 +16,9 @@
 
 typedef void *jtrc_arg_t;
 
+/* Default trace buffer name */
+#define JTRC_DEFAULT_NAME "jtrc_default"
+
 typedef enum {
 	JTRC_FORMAT_INVALID = 0,
 	JTRC_FORMAT_REGULAR,

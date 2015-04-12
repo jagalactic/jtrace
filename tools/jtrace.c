@@ -27,7 +27,6 @@ char *namel = "/stand/vmunix";
 
 int verbose = 0;                /* flag: verbose or not    */
 
-//char *snarf_str(void *addr);
 char jtrc_dev[] = JTRACE_DEV_SPECIAL_FILE;
 int kutil_dev_fd = -1;
 
@@ -52,7 +51,6 @@ int show_trc_flags(uint32_t trc_flags);
 int print_trace(jtrc_cb_t * cb, uint32_t dump_mask);
 int set_printk_value(char *buf_name, int value);
 
-//int snarf_no_kmem(void *addr, void *buf, size_t len);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define DUMP_HEX_BYTES_PER_LINE 16
@@ -103,17 +101,17 @@ void usage(rc)
  */
 
 /**
- * snarf_no_kmem()
+ * snarf_from_kernel()
  *
  * Once upon a time snarfing was easy because we could open /dev/kmem
  * (with sufficient priveleges) and read whatever we needed.  Now we need
  * help from the jtrace kernel module.
  */
-int snarf_no_kmem(void *addr, void *buf, size_t len)
+int snarf_from_kernel(void *from, void *buf, size_t len)
 {
 	jtrc_cmd_req_t cmd_req;
 
-	cmd_req.snarf_addr = addr;
+	cmd_req.snarf_addr = from;
 	cmd_req.data = buf;
 	cmd_req.data_size = len;
 
@@ -126,19 +124,14 @@ int snarf_no_kmem(void *addr, void *buf, size_t len)
 	return (0);
 }
 
-void snarf(void *addr, void *buf, size_t len)
+void snarf(void *from, void *buf, size_t len)
 {
 	size_t cc = 0;
 
-	/*
-	 * Access to /dev/kmem is broken in 2.6
-	 * Just have jtrace copyout the info we need.
-	 * Yep, its slower.
-	 */
-	cc = snarf_no_kmem(addr, buf, len);
+	cc = snarf_from_kernel(from, buf, len);
 	if (cc) {
 		fprintf(stderr,
-			"snarf: read failed at %p, len %lx rc=%ld\n", addr,
+			"snarf: read failed at %p, len %lx rc=%ld\n", from,
 			(long) len, (long) cc);
 	}
 }
@@ -154,7 +147,7 @@ struct CacheStats {
  *
  * Snarf a null-terminated string, which requires a bit of initiative.
  */
-char *snarf_str(void *addr)
+char *snarf_str(void *from)
 {
 	static struct StrCache {
 		void *addr;
@@ -164,13 +157,13 @@ char *snarf_str(void *addr)
 	static uint lru;
 	struct StrCache *ent, *old;
 
-	if (last && last->addr == addr) {
+	if (last && last->addr == from) {
 		++cStats.fastHits;
 		return last->str;
 	}
 
 	for (old = ent = cache; ent < hiwat; ++ent) {
-		if (ent->addr == addr) {
+		if (ent->addr == from) {
 			++cStats.hits;
 			ent->lru = ++lru;
 			last = ent;
@@ -188,10 +181,10 @@ char *snarf_str(void *addr)
 	else
 		ent = old;
 
-	ent->addr = addr;
+	ent->addr = from;
 	ent->lru = ++lru;
 
-	snarf(addr, ent->str, (size_t) sizeof(ent->str));
+	snarf(from, ent->str, (size_t) sizeof(ent->str));
 	ent->str[sizeof(ent->str) - 1] = 0;
 	++cStats.misses;
 

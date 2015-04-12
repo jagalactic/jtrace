@@ -142,6 +142,11 @@ typedef struct _jtrc_element {
 #define JTRC_MAX_PREFMT_STR_PER_ELEM \
     (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, pfs_continue.data_start)-1)
 
+enum jtrace_context {
+	KERNEL=0,
+	USER,
+};
+
 /**
  * @jtrc_cb_t
  *
@@ -150,8 +155,10 @@ typedef struct _jtrc_element {
  * Location, size, number of entries in the trace buffer, flag values, etc.
  */
 typedef struct _jtrc_cb {
-#define JTRC_MOD_NAME_SIZE 32
+	enum jtrace_context jtrc_context;
+
 	/** Module trace info name */
+#define JTRC_MOD_NAME_SIZE 32
 	char jtrc_name[JTRC_MOD_NAME_SIZE];
 
 	/** Number of trace entries in the buffer. */
@@ -225,11 +232,6 @@ typedef enum {
 	JTRCTL_GET_ALL_TRC_INFO,
 	JTRCTL_SNARF
 } jtrc_cmd_t;
-
-enum jtrace_context {
-	KERNEL=0,
-	USER,
-};
 
 #ifndef __KERNEL__
 
@@ -364,7 +366,7 @@ static inline void list_del(struct list_head *entry)
  * register this structure.
  */
 typedef struct _jtrace_instance {
-	jtrc_cb_t mod_trc_info;
+	jtrc_cb_t jtrc_cb;
 	struct _jtrc_flag_descriptor *custom_flags;
 	spinlock_t jtrc_buf_mutex;
 	struct list_head jtrc_list;  /* List of jtrace instances */
@@ -408,7 +410,7 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
  */
 #ifdef JTRC_ENABLE
 #define jtrc_setmask(jtri, mask) do{				\
-		jtri->mod_trc_info.jtrc_flags = mask;	\
+		jtri->jtrc_cb.jtrc_flags = mask;	\
 	} while (0)
 #define jtrc_off() jtrc_setmask(0)
 
@@ -421,7 +423,7 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
  * @...  - Up to 5 arguments for the trace format string.
  */
 #define jtrc(jtri, mask, id, fmt, ...)  do {		   \
-    if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
+    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
 	    _jtrace( jtri, (void *)(id), mask,		\
 		      (struct timespec *)NULL,				\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
@@ -441,7 +443,7 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
  * WARNING: Slow; don't use in performance path.
  */
 #define jtrc_pfs(jtri, mask, id, fmt, ...)  do {		   \
-    if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
+    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
 	    jtrace_preformatted_str(jtri, (void *)(id), mask,\
 		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
     }\
@@ -463,7 +465,7 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
  * @param ... - Up to 5 arguments for the trace format string.
  */
 #define jtrc_funcline(jtri, mask, id, func, line, fmt, ...)  do {	\
-    if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
+    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
 	    _jtrace(jtri, (void *)(id), mask,	\
 		     (func), (line), (fmt) , ## __VA_ARGS__);	\
     }\
@@ -482,14 +484,14 @@ extern void jtrace_put_instance(jtrace_instance_t *jtri);
  * @param len  - Length of data to dump.
  */
 #define jtrc_hexdump(jtri, mask, id, msg, p, len) do {	   \
-    if (jtri->mod_trc_info.jtrc_flags & (mask)){ \
+    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
 	jtrace_hex_dump(jtri, __FUNCTION__, __LINE__, (void *)(id),\
 			mask, (msg), (p), (len));			\
     }\
 } while (0)
 
 #define jtrc_setprint(jtri, enabled) do {				\
-    jtri->mod_trc_info.jtrc_kprint_enabled = (enabled);\
+    jtri->jtrc_cb.jtrc_kprint_enabled = (enabled);\
 } while (0)
 
 #define jtrc_print_tail(jtri, num_elems) do {		\

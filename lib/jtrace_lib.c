@@ -93,6 +93,7 @@ map_trc_buf(const char *name, int num_entries, jtrace_instance_t **addr)
 	memset(jtri, 0, sizeof(jtrace_instance_t));
 	*addr = jtri;
 
+	jtri->context = USER;
 	jtri->mod_trc_info.jtrc_num_entries = num_entries;
 	jtri->mod_trc_info.jtrc_buf_size = num_entries* sizeof(jtrc_element_t);
 
@@ -128,7 +129,6 @@ jtrace_instance_t *jtrace_init(const char *name, int num_entries)
 	/* XXX free config lock */
 	return jtri;
 }
-
 
 int main(int argc, char **argv)
 {

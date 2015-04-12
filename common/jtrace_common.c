@@ -38,8 +38,8 @@ jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
 	jtrace_instance_t *jt = NULL;
 
 	list_for_each_entry(jt, jtri_list, jtrc_list) {
-		if (strncmp(jt->mod_trc_info.jtrc_name, trc_name,
-			    sizeof(jt->mod_trc_info.jtrc_name)) == 0) {
+		if (strncmp(jt->jtrc_cb.jtrc_name, trc_name,
+			    sizeof(jt->jtrc_cb.jtrc_name)) == 0) {
 			found = 1;
 			break;
 		}

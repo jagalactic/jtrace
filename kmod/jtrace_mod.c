@@ -95,21 +95,21 @@ static int __init jtrace_cdev_init(void)
 		char *buf;
 
 		memset(&jtr, 0, sizeof(jtr));
-		jtr.mod_trc_info.jtrc_num_entries = NUM_ELEM;
-		jtr.mod_trc_info.jtrc_buf_size = bufsize;
-		jtr.mod_trc_info.jtrc_flags = JTR_COMMON_FLAGS_MASK;
+		jtr.jtrc_cb.jtrc_num_entries = NUM_ELEM;
+		jtr.jtrc_cb.jtrc_buf_size = bufsize;
+		jtr.jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
 
-		strcpy(jtr.mod_trc_info.jtrc_name, "master");
+		strcpy(jtr.jtrc_cb.jtrc_name, "master");
 
 		buf = vmalloc_user(bufsize);
 		
-		jtr.mod_trc_info.jtrc_buf = (jtrc_element_t *)buf;
+		jtr.jtrc_cb.jtrc_buf = (jtrc_element_t *)buf;
 		if (!buf) {
 			printk("jtrace: unable to vmalloc master buffer\n");
 			goto errexit;
 		}
 
-		strcpy(jtr.mod_trc_info.jtrc_name, "master");
+		strcpy(jtr.jtrc_cb.jtrc_name, "master");
 
 		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
 		       MISC_MAJOR, jtr_mdev.minor, elem_size);
@@ -125,15 +125,15 @@ static int __init jtrace_cdev_init(void)
 		jtrc(JTR_MEM, 0, "jtrace module loaded");
 		jtrc_setprint(0);
 
-		for (i=jtr.mod_trc_info.jtrc_buf_index;
-		     (i+1) != jtr.mod_trc_info.jtrc_num_entries;
+		for (i=jtr.jtrc_cb.jtrc_buf_index;
+		     (i+1) != jtr.jtrc_cb.jtrc_num_entries;
 		     i++) {
 			jtrc_element_t *tp;
-			if (i > jtr.mod_trc_info.jtrc_num_entries)
+			if (i > jtr.jtrc_cb.jtrc_num_entries)
 				i = 0;
 
 			tp = (jtrc_element_t *)
-				&jtr.mod_trc_info.jtrc_buf[i];
+				&jtr.jtrc_cb.jtrc_buf[i];
 			printk("slot %d addr %p fmt %d (%s)\n",
 			       i, tp, tp->elem_fmt,
 			       (tp->elem_fmt) ? "used" : "empty");

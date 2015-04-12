@@ -892,6 +892,9 @@ printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
     return (0);
 }
 
+/**
+ * display_reg_trc_elem()
+ */
 int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
                          char *end_buf)
 {
@@ -941,7 +944,7 @@ int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
     return (0);
 }
 
-static uint32_t slot;
+static uint32_t curr_slot;
 static uint32_t num_slots;
 static jtrc_element_t *ldTbuf;
 
@@ -989,8 +992,8 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
         int length2 = 0;
         length2 = printf("%s", string_data);
         if (verbose) {
-            printf("\nstring_length=%ld length2=%d slot=%d\n",
-                   string_length, length2, slot);
+            printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
+                   string_length, length2, curr_slot);
         }
 
         string_data += length2;
@@ -999,12 +1002,12 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
         /* check for end of element */
         if (string_length && (string_data >= end_buf)) {
             /* Move to next element */
-            slot++;
-            if (slot >= num_slots) {
-                slot = 0;
+            curr_slot++;
+            if (curr_slot >= num_slots) {
+                curr_slot = 0;
             }
 
-            tp = &ldTbuf[slot];
+            tp = &ldTbuf[curr_slot];
 
             string_data = (char *) &tp->pfs_continue.data_start;
             end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
@@ -1110,12 +1113,12 @@ int display_hex_begin_trc_elem(jtrc_element_t * tp)
             if (binary_length && (binary_data >= end_buf)) {
                 /* Move to next element */
 
-                slot++;
-                if (slot >= num_slots) {
-                    slot = 0;
+                curr_slot++;
+                if (curr_slot >= num_slots) {
+                    curr_slot = 0;
                 }
 
-                tp = &ldTbuf[slot];
+                tp = &ldTbuf[curr_slot];
 
                 binary_data = (char *) &tp->hex.data_start;
                 end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
@@ -1195,23 +1198,23 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 	beg_buf = (char *) ldTbuf;
 	end_buf = beg_buf + ldTbufSz;
 
-	slot = slot_idx % num_slots;
+	curr_slot = slot_idx % num_slots;
 
 	/*
 	 * Loop through the trace buffer and print each entry
 	 */
-	for (mark_slot = slot; ++slot != mark_slot;) {
-		if (slot >= num_slots) {
-			slot = -1;
+	for (mark_slot = curr_slot; ++curr_slot != mark_slot;) {
+		if (curr_slot >= num_slots) {
+			curr_slot = -1;
 			continue;
 		}
 
-		tp = &ldTbuf[slot];
+		tp = &ldTbuf[curr_slot];
 
 		if (verbose) {
-			printf("num_slots=0x%x mark_slot=0x%x, slot=0x%x, "
+			printf("num_slots=0x%x mark_slot=0x%x, curr_slot=0x%x, "
 			       "elem_fmt=%d zero_slots=0x%x\n",
-			       num_slots, mark_slot, slot,
+			       num_slots, mark_slot, curr_slot,
 			       tp->elem_fmt, zero_slots);
 		}
 
@@ -1265,7 +1268,7 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		 * display_preformatted_str_begin_trc_elem().
 		 * If so and now equal to marked slot, we are done.
 		 */
-		if (slot == mark_slot) {
+		if (curr_slot == mark_slot) {
 			break;
 		}
 	}

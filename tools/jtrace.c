@@ -712,11 +712,9 @@ int display_hex_begin_trc_elem(jtrc_element_t * trc_buf,
     return (0);
 }
 
-static uint32_t curr_slot;
-static uint32_t num_slots;
-static jtrc_element_t *trc_buf;
-
-int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
+int display_preformatted_str_begin_trc_elem(jtrc_element_t * trc_buf,
+					    uint32_t *curr_slot,
+					    uint32_t num_slots)
 {
     time_t time_stamp_secs;
     struct tm time_stamp_formated;
@@ -724,6 +722,7 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
     char *string_data = NULL;
     size_t string_length = 0;
     char *end_buf = NULL;
+    jtrc_element_t *tp = &trc_buf[*curr_slot];
 
     tp->pfs_begin.func_name = snarf_str((void *) tp->pfs_begin.func_name);
 
@@ -761,7 +760,7 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
         length2 = printf("%s", string_data);
         if (verbose) {
             printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
-                   string_length, length2, curr_slot);
+                   string_length, length2, *curr_slot);
         }
 
         string_data += length2;
@@ -770,12 +769,12 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
         /* check for end of element */
         if (string_length && (string_data >= end_buf)) {
             /* Move to next element */
-            curr_slot++;
-            if (curr_slot >= num_slots) {
-                curr_slot = 0;
+	  (*curr_slot)++;
+            if (*curr_slot >= num_slots) {
+	      *curr_slot = 0;
             }
 
-            tp = &trc_buf[curr_slot];
+            tp = &trc_buf[*curr_slot];
 
             string_data = (char *) &tp->pfs_continue.data_start;
             end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
@@ -803,6 +802,10 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 	char *end_buf = NULL;
 	void *p = NULL;
 	uint32_t zero_slots = 0;
+	uint32_t curr_slot;
+	uint32_t num_slots;
+	jtrc_element_t *trc_buf;
+
 
 	if (!cb) {
 		printf("ERROR:%s: trace_info is NULL\n", __FUNCTION__);
@@ -899,7 +902,9 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 			break;
 
 		case JTRC_PREFORMATTED_STR_BEGIN:
-			display_preformatted_str_begin_trc_elem(tp);
+			display_preformatted_str_begin_trc_elem(trc_buf,
+								&curr_slot,
+								num_slots);
 			zero_slots = 0;
 			break;
 

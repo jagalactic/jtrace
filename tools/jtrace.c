@@ -595,6 +595,123 @@ int display_reg_trc_elem(jtrc_regular_element_t * tp, char *beg_buf,
     return (0);
 }
 
+void dump_hex_line(char *buf_ptr, int buf_len)
+{
+    int idx;
+    char ch;
+    int ebcdic_ch;
+
+    /* Print the hexadecimal values */
+    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+        if (idx < buf_len) {
+            printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
+        } else {
+            printf("   ");
+        }
+    }
+    printf("  ");
+    /* Translate and print hex to ASCII values */
+    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+        if (idx < buf_len) {
+            ch = buf_ptr[idx];
+            if ((ch < 0x20) || (ch > 0x7e)) {
+                printf(".");
+            } else {
+                printf("%c", buf_ptr[idx]);
+            }
+        }
+    }
+}
+
+int display_hex_begin_trc_elem(jtrc_element_t * trc_buf,
+			       uint32_t *curr_slot,
+			       uint32_t num_slots)
+{
+    time_t time_stamp_secs;
+    struct tm time_stamp_formated;
+    char *binary_data = NULL;
+    size_t binary_length = 0;
+    char header[256];
+    char *end_buf;
+    jtrc_element_t *tp = &trc_buf[*curr_slot];
+
+    tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
+    tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
+
+    time_stamp_secs = tp->hex_begin.tv_sec;
+
+    localtime_r(&time_stamp_secs, &time_stamp_formated);
+
+    snprintf(header, 256,
+             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
+             /* tm_mon is 0-11, add 1 for humans */
+             time_stamp_formated.tm_mon + 1,
+             time_stamp_formated.tm_mday,
+             time_stamp_formated.tm_hour,
+             time_stamp_formated.tm_min,
+             time_stamp_formated.tm_sec,
+             tp->hex_begin.tv_nsec,
+             tp->hex_begin.cpu,
+             tp->hex_begin.tid,
+             ((int) (2 * sizeof(tp->hex_begin.id))),
+             (long) tp->hex_begin.id, tp->hex_begin.func_name,
+             tp->hex_begin.line_num, tp->hex_begin.msg,
+             tp->hex_begin.total_length);
+
+    printf("%s", header);
+    printf("\n");
+
+    int idx = 0;
+    binary_length = (size_t) tp->hex_begin.total_length;
+
+    /* The binary data starts at the data_start location */
+    binary_data = (char *) &tp->hex_begin.data_start;
+
+    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
+	   "-----ASCII------"
+	   "\n",
+	   header);
+
+    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
+    char line_buf[DUMP_HEX_BYTES_PER_LINE];
+    /* Dump in increments of hex line size */
+    while (binary_length > 0) {
+        int i = 0;
+        int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
+        printf("%s:%04x:  ", header, idx);
+
+        binary_length -= length2;
+
+        /*
+         * The binary hex information is not contiguous, so
+         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
+         */
+        for (i = 0; i < length2; i++) {
+            line_buf[i] = *binary_data;
+            binary_data++;
+            /* check for end of element */
+            if (binary_length && (binary_data >= end_buf)) {
+                /* Move to next element */
+
+	        (*curr_slot)++;
+                if (*curr_slot >= num_slots) {
+                    *curr_slot = 0;
+                }
+
+                tp = &trc_buf[*curr_slot];
+
+                binary_data = (char *) &tp->hex.data_start;
+                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
+            }
+        }
+        dump_hex_line(line_buf, length2);
+        printf("\n");
+        idx += length2;
+    }
+
+    return (0);
+}
+
 static uint32_t curr_slot;
 static uint32_t num_slots;
 static jtrc_element_t *trc_buf;
@@ -665,120 +782,6 @@ int display_preformatted_str_begin_trc_elem(jtrc_element_t * tp)
         }
     }
     printf("\n");
-
-    return (0);
-}
-
-void dump_hex_line(char *buf_ptr, int buf_len)
-{
-    int idx;
-    char ch;
-    int ebcdic_ch;
-
-    /* Print the hexadecimal values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
-        } else {
-            printf("   ");
-        }
-    }
-    printf("  ");
-    /* Translate and print hex to ASCII values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ch = buf_ptr[idx];
-            if ((ch < 0x20) || (ch > 0x7e)) {
-                printf(".");
-            } else {
-                printf("%c", buf_ptr[idx]);
-            }
-        }
-    }
-}
-
-int display_hex_begin_trc_elem(jtrc_element_t * tp)
-{
-    time_t time_stamp_secs;
-    struct tm time_stamp_formated;
-    char *binary_data = NULL;
-    size_t binary_length = 0;
-    char header[256];
-    char *end_buf;
-
-    tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
-    tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
-
-    time_stamp_secs = tp->hex_begin.tv_sec;
-
-    localtime_r(&time_stamp_secs, &time_stamp_formated);
-
-    snprintf(header, 256,
-             "%02d-%02d:%02d:%02d:%02d:%8.08d:%02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
-             /* tm_mon is 0-11, add 1 for humans */
-             time_stamp_formated.tm_mon + 1,
-             time_stamp_formated.tm_mday,
-             time_stamp_formated.tm_hour,
-             time_stamp_formated.tm_min,
-             time_stamp_formated.tm_sec,
-             tp->hex_begin.tv_nsec,
-             tp->hex_begin.cpu,
-             tp->hex_begin.tid,
-             ((int) (2 * sizeof(tp->hex_begin.id))),
-             (long) tp->hex_begin.id, tp->hex_begin.func_name,
-             tp->hex_begin.line_num, tp->hex_begin.msg,
-             tp->hex_begin.total_length);
-
-    printf("%s", header);
-    printf("\n");
-
-    int idx = 0;
-    binary_length = (size_t) tp->hex_begin.total_length;
-
-    /* The binary data starts at the data_start location */
-    binary_data = (char *) &tp->hex_begin.data_start;
-
-    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
-	   "-----ASCII------"
-	   "\n",
-	   header);
-
-    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
-    char line_buf[DUMP_HEX_BYTES_PER_LINE];
-    /* Dump in increments of hex line size */
-    while (binary_length > 0) {
-        int i = 0;
-        int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
-        printf("%s:%04x:  ", header, idx);
-
-        binary_length -= length2;
-
-        /*
-         * The binary hex information is not contiguous, so
-         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
-         */
-        for (i = 0; i < length2; i++) {
-            line_buf[i] = *binary_data;
-            binary_data++;
-            /* check for end of element */
-            if (binary_length && (binary_data >= end_buf)) {
-                /* Move to next element */
-
-                curr_slot++;
-                if (curr_slot >= num_slots) {
-                    curr_slot = 0;
-                }
-
-                tp = &trc_buf[curr_slot];
-
-                binary_data = (char *) &tp->hex.data_start;
-                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
-            }
-        }
-        dump_hex_line(line_buf, length2);
-        printf("\n");
-        idx += length2;
-    }
 
     return (0);
 }
@@ -882,7 +885,7 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 
 			/* This dumps hex data slots until JTRC_HEX_DATA_END */
 		case JTRC_HEX_DATA_BEGIN:
-			display_hex_begin_trc_elem(tp);
+		  display_hex_begin_trc_elem(trc_buf, &curr_slot, num_slots);
 			zero_slots = 0;
 			break;
 

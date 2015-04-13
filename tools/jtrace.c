@@ -24,25 +24,22 @@
 /*
  * Global vars
  */
-char *namel = "/stand/vmunix";
 
 int verbose = 0;                /* flag: verbose or not    */
 
-char jtrc_dev[] = JTRACE_DEV_SPECIAL_FILE;
-int kutil_dev_fd = -1;
+char *jtrc_dev = JTRACE_DEV_SPECIAL_FILE;
+int jtrace_kfd = -1;  /* File descriptor for jtrace kernel module */
 
-void *all_trc_info = NULL;
 int jtrc_num_common_flags = 0;
 jtrc_flag_descriptor_t *jtrc_common_flag_array = 0;
 int jtrc_num_instances = 0;
-jtrc_cb_t *jtrc_first_cb = NULL;
+
+/* first cb returned by the kernel module */
+jtrc_cb_t *jtrc_first_kernel_cb = NULL;
+/* cb returned by jtrace kernel module that matches name search */
 jtrc_cb_t *jtrc_cb = NULL;
 
 /*******************************************************************/
-
-int show_trc_flags(uint32_t trc_flags);
-int print_trace(jtrc_cb_t * cb, uint32_t dump_mask);
-int set_printk_value(char *buf_name, int value);
 
 #define DUMP_HEX_BYTES_PER_LINE 16
 
@@ -55,7 +52,6 @@ void usage(rc)
             "    -n <trc_buf_name>   trace buffer name\n"
 	    "    -D     use default trace buffer name\n"
             "    [-v]        verbose\n"
-            /* XXX maybe once on 2.6 kernel.. "    [-d dumpfile] pull out of dumpfile, not memory\n" */
             "\n    Trace flag control (requires -n|-D first):\n"
             "    [-h trace_flags]  trace flags absolute, hex value\n"
             "    [-f trace_flag_strs] trace flags absolute, string values\n"
@@ -106,7 +102,7 @@ int snarf_from_kernel(void *from, void *buf, size_t len)
 	cmd_req.data_size = len;
 
 	cmd_req.cmd = JTRCTL_SNARF;
-	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
+	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
 		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
 		return 1;
 	}
@@ -192,7 +188,7 @@ int clear_trace_buf(char *buf_name)
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
 	cmd_req.cmd = JTRCTL_CLEAR;
-	if (ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req)) {
+	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
 		fprintf(stderr, "JTRCTL_CLEAR Failed errno=%d\n", errno);
 		return 1;
 	}
@@ -210,7 +206,7 @@ int set_trc_flags(char *buf_name, int trc_flags)
 
 	cmd_req.cmd = JTRCTL_SET_TRC_FLAGS;
 	cmd_req.data = &trc_flags;
-	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		printf("ioctl JTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
 		       rc, errno);
@@ -231,7 +227,7 @@ int set_printk_value(char *buf_name, int value)
 
 	cmd_req.cmd = JTRCTL_SET_PRINTK;
 	cmd_req.data = &value;
-	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		printf("ioctl JTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
 		       rc, errno);
@@ -250,7 +246,7 @@ int set_printk_value(char *buf_name, int value)
  *
  * XXX: should de-obfuscate this...
  */
-int get_all_trc_info(char *trc_buf_name)
+int get_all_trc_info(char *trc_buf_name, void **buf)
 {
 	jtrc_cb_t *cb = NULL;
 	jtrc_cmd_req_t cmd_req;
@@ -265,7 +261,7 @@ int get_all_trc_info(char *trc_buf_name)
 	cmd_req.data_size = 0;
 
 	/* Call once with no output buffer, to get required size */
-	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
+	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc && (rc != ENOMEM)) {
 		fprintf(stderr, "JTR_GET_ALL_TRC_INFO(0) Failed rc=%d\n", rc);
 		return (rc);
@@ -276,20 +272,23 @@ int get_all_trc_info(char *trc_buf_name)
 		printf("required_size=%d\n", cmd_req.data_size);
 	}
 
-	/* all_trc_info is global */
-	all_trc_info = malloc(cmd_req.data_size);
-	assert(all_trc_info);
+	*buf = malloc(cmd_req.data_size);
+	assert(*buf);
 
-	cmd_req.data = all_trc_info;
-	rc = ioctl(kutil_dev_fd, JTRC_CMD_IOCTL, &cmd_req);
+	cmd_req.data = *buf;
+	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		fprintf(stderr,
 			"JTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
 			cmd_req.data_size);
 		return (rc);
 	}
+
+	/*
+	 * use out_bufp to walk through the glob that we got from the kernel
+	 */
+	out_bufp = *buf;
 	/* Number of common Flags */
-	out_bufp = all_trc_info;
 	memcpy(&jtrc_num_common_flags, out_bufp,
 	       sizeof(jtrc_num_common_flags));
 	out_bufp += sizeof(jtrc_num_common_flags);
@@ -312,11 +311,14 @@ int get_all_trc_info(char *trc_buf_name)
 	/* Array of registered modules, each followed
 	 * by optional custom flags */
 	if (jtrc_num_instances) {
-		jtrc_first_cb = (jtrc_cb_t *) out_bufp;
-		cb = jtrc_first_cb;
+		jtrc_first_kernel_cb = (jtrc_cb_t *) out_bufp;
+		cb = jtrc_first_kernel_cb;
 	}
 
-	/* If trc_buf_name supplied, find that trace module information */
+	/*
+	 * If there is more than one registered instance (jtrc_cb), we will
+	 * get them all here.  Gotta look for the one that matches trc_buf_name
+	 */
 	if (trc_buf_name) {
 		for (i = 0; i < jtrc_num_instances; i++) {
 			if (strcmp(cb->jtrc_name,
@@ -340,6 +342,35 @@ int get_all_trc_info(char *trc_buf_name)
 	return (rc);
 }
 
+static void
+__show_jtrc_custom_flags(jtrc_cb_t *cb, uint32_t trc_flags)
+{
+	char *ptr = NULL;
+	int i;
+	jtrc_flag_descriptor_t *flag_descp = NULL;
+
+	if (cb->jtrc_num_custom_flags) {
+		printf("\nCustom trace flags for module %s:\n",
+		       cb->jtrc_name);
+		/* Custom flags start after the module trc info */
+		ptr = (char *) cb;
+		ptr += sizeof(jtrc_cb_t);
+		flag_descp = (jtrc_flag_descriptor_t *) ptr;
+		for (i = 0; i < (cb->jtrc_num_custom_flags); i++) {
+			if ((JTR_CUSTOM_FLAG(i)) & trc_flags) {
+				printf("%12s (0x%08x) - %s\n",
+				       flag_descp->jtrc_flag_cmd_line_name,
+				       JTR_CUSTOM_FLAG(i),
+				       flag_descp->jtrc_flag_description);
+			}
+			flag_descp++;
+		}
+	} else {
+		printf("\nNo custom trace flags for module %s:\n",
+		       cb->jtrc_name);
+	}
+	printf("\n\n");
+}
 
 int show_trc_flags(uint32_t trc_flags)
 {
@@ -362,33 +393,11 @@ int show_trc_flags(uint32_t trc_flags)
 
 	/* Specific trace module requested */
 	if (jtrc_cb) {
-		if (jtrc_cb->jtrc_num_custom_flags) {
-			printf("\nCustom trace flags for module %s:\n",
-			       jtrc_cb->jtrc_name);
-			/* Custom flags start after the module trc info */
-			ptr = (char *) jtrc_cb;
-			ptr += sizeof(jtrc_cb_t);
-			flag_descp = (jtrc_flag_descriptor_t *) ptr;
-			for (i = 0;
-			     i < (jtrc_cb->jtrc_num_custom_flags);
-			     i++) {
-				if ((JTR_CUSTOM_FLAG(i)) & trc_flags) {
-					printf("%12s (0x%08x) - %s\n",
-					       flag_descp->jtrc_flag_cmd_line_name,
-					       JTR_CUSTOM_FLAG(i),
-					       flag_descp->jtrc_flag_description);
-				}
-				flag_descp++;
-			}
-		} else {
-			printf("\nNo custom trace flags for module %s:\n",
-			       jtrc_cb->jtrc_name);
-		}
-		printf("\n\n");
+		__show_jtrc_custom_flags(jtrc_cb, trc_flags);
 		return (0);
 	}
 
-	cb = jtrc_first_cb;
+	cb = jtrc_first_kernel_cb;
 	if (!cb) {
 		/* No registered trace modules */
 		printf("\n\n");
@@ -400,29 +409,7 @@ int show_trc_flags(uint32_t trc_flags)
 	 * Check all registered modules
 	 */
 	for (i = 0; i < jtrc_num_instances; i++) {
-
-		if (cb->jtrc_num_custom_flags) {
-			printf("\nCustom trace flags for module %s:\n",
-			       cb->jtrc_name);
-
-			/* Custom flags start after the module trc info */
-			ptr = (char *) cb;
-			ptr += sizeof(jtrc_cb_t);
-			flag_descp = (jtrc_flag_descriptor_t *) ptr;
-			for (j = 0;
-			     j < (cb->jtrc_num_custom_flags); j++) {
-				if ((JTR_CUSTOM_FLAG(j)) & trc_flags) {
-					printf("%12s (0x%08x) - %s\n",
-					       flag_descp->jtrc_flag_cmd_line_name,
-					       JTR_CUSTOM_FLAG(j),
-					       flag_descp->jtrc_flag_description);
-				}
-				flag_descp++;
-			}
-		} else {
-			printf("\nNo custom trace flags for module %s:\n",
-			       cb->jtrc_name);
-		}
+		__show_jtrc_custom_flags(cb, trc_flags);
 
 		/* Get next trace information */
 		ptr = (char *) cb;
@@ -953,11 +940,12 @@ int main(int argc, char **argv)
 	int rc = 0;
 	unsigned int dump_mask = 0xffffffff;
 	char *trc_buf_name = NULL;
+	void *all_trc_info = NULL;
 
 	trace = 0;
 
-	kutil_dev_fd = open(jtrc_dev, O_RDWR);
-	if (kutil_dev_fd < 0) {
+	jtrace_kfd = open(jtrc_dev, O_RDWR);
+	if (jtrace_kfd < 0) {
 		printf("%s: Device open failed %d\n", jtrc_dev, errno);
 		exit(-1);
 	}
@@ -1001,7 +989,7 @@ int main(int argc, char **argv)
 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
-			rc = get_all_trc_info(trc_buf_name);
+			rc = get_all_trc_info(trc_buf_name, &all_trc_info);
 			if (rc) {
 				printf("get_trc_info failed errno=%d\n", rc);
 				goto jtrc_util_exit;
@@ -1019,7 +1007,7 @@ int main(int argc, char **argv)
 			}
 			printf("\ntrc_buf_name=%s\n", trc_buf_name);
 			/* get trace_info from running kernel */
-			rc = get_all_trc_info(trc_buf_name);
+			rc = get_all_trc_info(trc_buf_name, &all_trc_info);
 			if (rc) {
 				printf("get_trc_info failed errno=%d\n", rc);
 				goto jtrc_util_exit;
@@ -1226,7 +1214,7 @@ int main(int argc, char **argv)
 
 		case '?':
 			/* Try to get all info for flag information */
-			get_all_trc_info(trc_buf_name);
+			get_all_trc_info(trc_buf_name, &all_trc_info);
 			usage(0);
 			rc = 0;
 			goto jtrc_util_exit;
@@ -1240,14 +1228,10 @@ int main(int argc, char **argv)
 		printf("Error: Could not find trc_buf_name=%s\n",
 		       trc_buf_name);
 		/* Try to get all info for module and flag information */
-		get_all_trc_info(trc_buf_name);
+		get_all_trc_info(trc_buf_name, &all_trc_info);
 		usage(1);
 		rc = -1;
 		goto jtrc_util_exit;
-	}
-
-	if (optind < argc) {
-		namel = argv[optind++];
 	}
 
 	print_trace(jtrc_cb, dump_mask);
@@ -1262,8 +1246,8 @@ jtrc_util_exit:
 		free(all_trc_info);
 	}
 
-	if (kutil_dev_fd > 0) {
-		close(kutil_dev_fd);
+	if (jtrace_kfd > 0) {
+		close(jtrace_kfd);
 	}
 
 	exit(0);

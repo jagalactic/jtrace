@@ -20,6 +20,7 @@
 #include <asm/smp.h>
 
 #include "jtrace.h"
+#include "jtrace_common.h"
 
 /* A chrdev is used for ioctl interface */
 long jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
@@ -175,8 +176,8 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(jtrace_register_instance);
 EXPORT_SYMBOL(jtrace_put_instance);
 EXPORT_SYMBOL(jtrace_get_instance);
+EXPORT_SYMBOL(jtrc_default_instance);
 EXPORT_SYMBOL(_jtrace);
 EXPORT_SYMBOL(jtrace_hex_dump);
 EXPORT_SYMBOL(jtrace_print_tail);
-
 

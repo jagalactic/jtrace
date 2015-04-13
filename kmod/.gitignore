@@ -1,0 +1,8 @@
+
+modules.order
+.tmp_versions
+
+# These files are symlinked from ../common; if that changes, this will need to
+# change
+jtrace_common.c
+jtrace_common.h

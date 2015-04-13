@@ -1,10 +1,15 @@
 
-
 all:
+	mkdir -p builds
+	cd builds; cmake ..; make
+	cd kmod; make all
+
+oldall:
 	cd kmod; make -k
 	cd tools;   make -k jtrace
 
 clean:
+	rm -rf builds
 	cd kmod; make -k clean
 	cd tools;   make -k clean
 

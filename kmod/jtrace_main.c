@@ -17,7 +17,9 @@
 #include <asm/current.h>
 #include <asm/smp.h>
 #include <linux/slab.h>
+
 #include "jtrace.h"
+#include "jtrace_common.h"
 
 /* 
  * A reasonable amount of common flags.
@@ -45,10 +47,10 @@ static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
  * This is the kernel-mode list of extant jtrace instances
  */
 DEFINE_SPINLOCK(jtrc_config_lock);
-static struct list_head jtrc_instance_list
+struct list_head jtrc_instance_list
             = LIST_HEAD_INIT(jtrc_instance_list);
 
-static int jtrc_num_instances;
+int jtrc_num_instances;
 
 /*
  * local fuctions
@@ -69,7 +71,11 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 static void jtrc_test(void);
 #endif
 
-#include "../common/jtrace_common.c"
+void __free_jtrace_instance(jtrace_instance_t *jt)
+{
+	vfree(jt->jtrc_cb.jtrc_buf);
+	kfree(jt);
+}
 
 /**
  * copyout_append()
@@ -888,44 +894,6 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 	return (0);
 }
 
-/**
- * jtrace_get_instance()
- *
- * Get a refcount on an existing jtrace instance
- */
-int jtrace_get_instance(jtrace_instance_t *jt)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&jtrc_config_lock, flags);
-	jt->refcount++;
-	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-	return 0;
-}
-
-/* Unregister module trace information */
-void jtrace_put_instance(jtrace_instance_t * jt)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&jtrc_config_lock, flags);
-	/* Can only put if it's on the instance list */
-	if (!jtrc_find_instance_by_addr(&jtrc_instance_list, jt)) {
-		spin_unlock_irqrestore(&jtrc_config_lock, flags);
-		return;
-	}
-
-	jt->refcount--;
-	if (jt->refcount == 0) {
-		list_del(&jt->jtrc_list);
-		jtrc_num_instances--;
-		vfree(jt->jtrc_cb.jtrc_buf);
-		kfree(jt);
-	}
-
-	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-	return;
-}
 
 /* Module Parameters */
 int num_trc_elements = 0x100000;

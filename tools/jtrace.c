@@ -44,9 +44,11 @@ jtrc_cb_t *jtrc_cb = NULL;
 
 /*******************************************************************/
 
+int show_trc_flags(uint32_t trc_flags);
+
 #define DUMP_HEX_BYTES_PER_LINE 16
 
-void usage(rc)
+void usage(int rc)
 {
 
     fprintf(rc ? stderr : stdout,
@@ -294,7 +296,7 @@ int get_all_trc_info(char *trc_buf_name, void **buf)
 	if (rc) {
 		fprintf(stderr,
 			"JTR_GET_ALL_TRC_INFO(%d) Failed describe rc=%d\n",
-			cmd_req.data_size);
+			cmd_req.data_size, rc);
 		return (rc);
 	}
 
@@ -389,7 +391,6 @@ __show_jtrc_custom_flags(jtrc_cb_t *cb, uint32_t trc_flags)
 int show_trc_flags(uint32_t trc_flags)
 {
 	int i = 0;
-	int j = 0;
 	char *ptr = NULL;
 	jtrc_flag_descriptor_t *flag_descp = NULL;
 	jtrc_cb_t *cb = NULL;
@@ -440,7 +441,7 @@ int show_trc_flags(uint32_t trc_flags)
 	return (0);
 }
 
-int flag_str_to_flag(char *trc_flag_str, int *trc_flag)
+int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
 {
 	int i = 0;
 	char *ptr = NULL;
@@ -600,7 +601,6 @@ void dump_hex_line(char *buf_ptr, int buf_len)
 {
     int idx;
     char ch;
-    int ebcdic_ch;
 
     /* Print the hexadecimal values */
     for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
@@ -947,7 +947,7 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
  */
 int main(int argc, char **argv)
 {
-	int ch, trace;
+	int ch;
 	uint32_t trc_flags = 0;
 	uint32_t trc_flag = 0;
 	int n_flag = 0;
@@ -956,8 +956,6 @@ int main(int argc, char **argv)
 	unsigned int dump_mask = 0xffffffff;
 	char *trc_buf_name = NULL;
 	void *all_trc_info = NULL;
-
-	trace = 0;
 
 	jtrace_kfd = open(jtrc_dev, O_RDWR);
 	if (jtrace_kfd < 0) {

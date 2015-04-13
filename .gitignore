@@ -6,3 +6,4 @@ Module.symvers
 TAGS
 *.ko
 *.mod.c
+builds

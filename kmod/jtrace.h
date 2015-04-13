@@ -237,7 +237,15 @@ typedef enum {
 #include "userlist.h"
 #include <pthread.h>
 #define spinlock_t pthread_spinlock_t
+#define spin_lock_irqsave(lock, flags) pthread_spin_lock(lock)
+#define spin_unlock_irqrestore(lock, flags) pthread_spin_unlock(lock)
+#else
+/* Kernel mode */
+
 #endif
+
+extern spinlock_t jtrc_config_lock;
+
 
 /**
  * @jtrace_instance_t
@@ -263,19 +271,12 @@ typedef struct _jtrace_instance {
 extern int jtrace_init(void);
 extern void jtrace_exit(void);
 extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
-extern void _jtrace(jtrace_instance_t * jtri, void *id,
-		    uint32_t tflags, struct timespec *tm,
-		    const char *func, int line, char *fmt, ...);
-extern void jtrace_hex_dump(jtrace_instance_t * jtri,
-			    const char *func, uint line,
-			    void *id, uint32_t tflags,
-			    char *msg, void *p, uint len);
-extern void jtrace_preformatted_str(jtrace_instance_t * jtri,
-				    void *id, uint32_t tflags,
-				    const char *func, int line,
-				    char *fmt, ...);
 extern void jtrace_print_tail(jtrace_instance_t * jtri,
 			      int num_elems);
+
+#endif                          /* __KERNEL__ */
+
+/* Dual mode (user/kernel) prototypes */
 
 /* Register new jtrace instance: */
 extern int jtrace_register_instance(jtrace_instance_t * jtri);
@@ -284,7 +285,18 @@ extern int jtrace_get_instance(jtrace_instance_t *jtri);
 /* Put refcount on jtrace instance.  Unregister if ref goes to zero: */
 extern void jtrace_put_instance(jtrace_instance_t *jtri);
 
-#endif                          /* __KERNEL__ */
+extern void _jtrace(jtrace_instance_t * jtri, void *id,
+		    uint32_t tflags, struct timespec *tm,
+		    const char *func, int line, char *fmt, ...);
+extern void jtrace_preformatted_str(jtrace_instance_t * jtri,
+				    void *id, uint32_t tflags,
+				    const char *func, int line,
+				    char *fmt, ...);
+extern void jtrace_hex_dump(jtrace_instance_t * jtri,
+			    const char *func, uint line,
+			    void *id, uint32_t tflags,
+			    char *msg, void *p, uint len);
+extern void __free_jtrace_instance(jtrace_instance_t *jtri);
 
 
 /************************************************************************

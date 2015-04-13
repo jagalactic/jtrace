@@ -3,15 +3,26 @@ MODULE_NAME = jtrace
 
 obj-m += $(MODULE_NAME).o
 
-$(MODULE_NAME)-objs = jtrace_main.o jtrace_mod.o
-
 KDIR  := /lib/modules/$(shell uname -r)/build
 PWD   := $(shell pwd)
 
-all:
+$(MODULE_NAME)-objs = jtrace_main.o \
+	jtrace_mod.o \
+	jtrace_common.o
+
+EXTRA_CFLAGS += -I $(PWD)/../common
+
+jtrace_common.c:
+	ln -s $(PWD)/../common/$@ $@
+
+jtrace_common.h:
+	ln -s $(PWD)/../common/$@ $@
+
+all:	jtrace_common.c jtrace_common.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
+	-rm jtrace_common.[ch]
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 

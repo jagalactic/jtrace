@@ -395,11 +395,11 @@ extern void jtrace_preformatted_str(jtrace_instance_t * jtri,
 extern void jtrace_print_tail(jtrace_instance_t * jtri,
 			      int num_elems);
 
-/* Register new jtrace instance */
+/* Register new jtrace instance: */
 extern int jtrace_register_instance(jtrace_instance_t * jtri);
-/* get pointer to existing instance, and get refcount on it */
-extern jtrace_instance_t *jtrace_get_instance(char *name);
-/* Put refcount on jtrace instance.  Unregister if ref goes to zero */
+/* Get a refcount on an existing jtrace instance: */
+extern int jtrace_get_instance(jtrace_instance_t *jtri);
+/* Put refcount on jtrace instance.  Unregister if ref goes to zero: */
 extern void jtrace_put_instance(jtrace_instance_t *jtri);
 
 #endif                          /* __KERNEL__ */

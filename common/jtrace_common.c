@@ -50,3 +50,9 @@ jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
 	}
 	return (jt);
 }
+
+static jtrace_instance_t *
+jtrc_default_instance(struct list_head *jtri_list)
+{
+	return jtrc_find_instance_by_name(jtri_list, JTRC_DEFAULT_NAME);
+}

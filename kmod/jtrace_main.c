@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <asm/current.h>
 #include <asm/smp.h>
+#include <linux/slab.h>
 #include "jtrace.h"
 
 /* 
@@ -63,16 +64,6 @@ static void dump_hex_line(char *buf_ptr, int buf_len);
 void jtrace_print_element(jtrc_element_t * tp);
 void jtrace_print_tail(jtrace_instance_t * jt,
                             int num_elems);
-
-#if 0
-static int jtrc_panic_event(struct notifier_block *, unsigned long event,
-                             void *ptr);
-static struct notifier_block jtrc_panic_block = {
-	jtrc_panic_event,
-	NULL,                       /* Next notifier block */
-	INT_MAX                     /* try to do it first */
-};
-#endif
 
 #ifdef JTRC_TEST
 static void jtrc_test(void);
@@ -178,8 +169,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 		       &out_buf_remainder);
 
 	/* Output each registered module's info */
-	list_for_each_entry(jtri,
-			    &jtrc_instance_list, jtrc_list) {
+	list_for_each_entry(jtri, &jtrc_instance_list, jtrc_list) {
 		copyout_append(&out_buffer,
 			       (char *) &jtri->jtrc_cb,
 			       sizeof(jtrc_cb_t),
@@ -839,27 +829,6 @@ jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
 
 }
 
-#if 0
-static int jtrc_has_paniced = 0;
-
-static int jtrc_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
-{
-	jtrace_instance_t *jt;
-
-	if (jtrc_has_paniced) {
-		return NOTIFY_DONE;
-	}
-	jtrc_has_paniced = 1;
-
-	list_for_each_entry(jt, &jtrc_instance_list, jtrc_list) {
-		jtrace_print_tail(jt, 500);
-	}
-
-	return NOTIFY_DONE;
-}
-#endif
-
 /***************************************************************************/
 
 /**
@@ -888,6 +857,14 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 		return (EINVAL);
 	}
 
+	if (!jt->jtrc_cb.jtrc_buf) {
+		jt->jtrc_cb.jtrc_buf = vmalloc_user(jt->jtrc_cb.jtrc_buf_size);
+		if (!jt->jtrc_cb.jtrc_buf) {
+			printk("jtrace: vmalloc failed\n");
+			return ENOMEM;
+		}
+	}
+
 	spin_lock_irqsave(&jtrc_config_lock, flags);
 
 	/* Does this instance already exist? */
@@ -899,11 +876,6 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 		return (EALREADY);
 	}
 
-	if (!jt->jtrc_cb.jtrc_buf) {
-		jt->jtrc_cb.jtrc_buf = vmalloc_user(jt->jtrc_cb.jtrc_buf_size);
-		if (!jt->jtrc_cb.jtrc_buf)
-			return ENOMEM;
-	}
 	spin_lock_init(&jt->jtrc_buf_mutex);
 	jt->jtrc_cb.jtrc_buf_index = 0;
 	memset((caddr_t) jt->jtrc_cb.jtrc_buf, 0, jt->jtrc_cb.jtrc_buf_size);
@@ -916,25 +888,19 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 	return (0);
 }
 
-/* 
- * Use existing trace buffer information 
+/**
+ * jtrace_get_instance()
+ *
+ * Get a refcount on an existing jtrace instance
  */
-jtrace_instance_t *jtrace_get_instance(char *name)
+int jtrace_get_instance(jtrace_instance_t *jt)
 {
-	jtrace_instance_t *tmp_jtri;
 	unsigned long flags;
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
-	tmp_jtri = jtrc_find_instance_by_name(&jtrc_instance_list, name);
-
-	if (!tmp_jtri) {
-		spin_unlock_irqrestore(&jtrc_config_lock, flags);
-		return (0);
-	}
-
-	tmp_jtri->refcount++;
+	jt->refcount++;
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-	return (tmp_jtri);
+	return 0;
 }
 
 /* Unregister module trace information */
@@ -943,6 +909,7 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 	unsigned long flags;
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
+	/* Can only put if it's on the instance list */
 	if (!jtrc_find_instance_by_addr(&jtrc_instance_list, jt)) {
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
 		return;
@@ -952,6 +919,8 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 	if (jt->refcount == 0) {
 		list_del(&jt->jtrc_list);
 		jtrc_num_instances--;
+		vfree(jt->jtrc_cb.jtrc_buf);
+		kfree(jt);
 	}
 
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
@@ -962,47 +931,41 @@ void jtrace_put_instance(jtrace_instance_t * jt)
 int num_trc_elements = 0x100000;
 module_param(num_trc_elements, int, 0444); /* Can't be changed, must re-load */
 
-
-
-//#define  num_trc_elements  (0x100000) /* # trace entries  */
-static jtrace_instance_t jtrc_default_info;
-
-/* Static jtrace reg info for default instance; should probably not be static */
-jtrace_instance_t *jtri = NULL;
-
 /**
  * jtrace_init()
  *
  * Initialize the default jtrace instance.
  */
-int jtrace_init(void)
+static int
+__jtrace_init(int32_t num_slots)
 {
 	int result;
+	jtrace_instance_t *jtri = NULL;
 
-	//notifier_chain_register(&panic_notifier_list, &jtrc_panic_block);
+	/*
+	 * Create the default jtrace instance
+	 */
+	jtri = kmalloc(sizeof(jtrace_instance_t), GFP_KERNEL);
+	if (!jtri) return -ENOMEM;
 
 	/* We automatically init a trace buffer with JTRC_DEFAULT_NAME
 	 * at module init time. */
-	jtrc_default_info.jtrc_cb.jtrc_context = KERNEL;
-	strncpy(jtrc_default_info.jtrc_cb.jtrc_name,
-		JTRC_DEFAULT_NAME,
-		sizeof(jtrc_default_info.jtrc_cb.jtrc_name));
-	jtrc_default_info.jtrc_cb.jtrc_buf = NULL;
-	jtrc_default_info.jtrc_cb.jtrc_num_entries =
-		num_trc_elements;
-	jtrc_default_info.jtrc_cb.jtrc_buf_size =
-	  num_trc_elements * sizeof(jtrc_element_t);
+	jtri->jtrc_cb.jtrc_context = KERNEL;
+	strncpy(jtri->jtrc_cb.jtrc_name,
+		JTRC_DEFAULT_NAME, sizeof(jtri->jtrc_cb.jtrc_name));
+	jtri->jtrc_cb.jtrc_buf = NULL;
+	jtri->jtrc_cb.jtrc_num_entries = num_slots;
+	jtri->jtrc_cb.jtrc_buf_size = num_slots * sizeof(jtrc_element_t);
 
-	jtrc_default_info.jtrc_cb.jtrc_buf_index = 0;
-	jtrc_default_info.jtrc_cb.jtrc_kprint_enabled = 0;
-	jtrc_default_info.jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
+	jtri->jtrc_cb.jtrc_buf_index = 0;
+	jtri->jtrc_cb.jtrc_kprint_enabled = 0;
+	jtri->jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
 
-	result = jtrace_register_instance(&jtrc_default_info);
+	result = jtrace_register_instance(jtri);
 	if (result) {
 		return (result);
 	}
 
-	jtri = &jtrc_default_info;
 #ifdef JTRC_TEST
 	jtrc_test();
 #endif
@@ -1011,13 +974,21 @@ int jtrace_init(void)
 
 }
 
+int jtrace_init(void)
+{
+	return __jtrace_init(num_trc_elements);
+}
+
 void jtrace_exit(void)
 {
-	if (jtri) {
+	jtrace_instance_t *jtri;
+	struct list_head *this, *next;
+	list_for_each_safe(this, next, &jtrc_instance_list) {
+		jtri = list_entry(this, jtrace_instance_t, jtrc_list);
+		printk("jtrace: unloading instance %s\n",
+		       jtri->jtrc_cb.jtrc_name);
 		jtrace_put_instance(jtri);
 	}
-
-	//notifier_chain_unregister(&panic_notifier_list, &jtrc_panic_block);
 
 	return;
 }
@@ -1031,6 +1002,13 @@ static void jtrc_test(void)
 	//int value2 = 2;
 	char hex_dump_data[512];
 	int i = 0;
+	jtrace_instance_t *jtri;
+
+	jtri = jtrc_default_instance(&jtrc_instance_list);
+	if (jtrace_get_instance(jtri)) {
+		printk("jtrc_test: failed refount on default instance\n");
+		return;
+	}
 
 	for (i = 0; i < 512; i++) {
 		hex_dump_data[i] = (char) (i & 0xff);

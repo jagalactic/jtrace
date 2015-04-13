@@ -156,9 +156,7 @@ static int __init jtrace_cdev_init(void)
 
 static void __exit jtrace_cdev_exit(void)
 {
-	printk("jtrace unloading\n");
-
-	//jtrace_put_instance(&jtr);
+	printk("jtrace: unloading\n");
 
 	jtrace_exit();
 

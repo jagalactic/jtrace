@@ -136,6 +136,13 @@ struct CacheStats {
  *
  * Snarf a null-terminated string, which requires a bit of initiative.
  * Ok, this is some squirrely shit.  String gets stored in a local static.
+ * Clearly not re-entrant!
+ *
+ * I have no recollection of writing this, so somebody else is probably the
+ * culprit ;-).  Strings must be <128b.
+ * XXX: Looks like don't currently check that there is a NULL in the 1st 128b.
+ * But on the plus side, if it's recently been snarfed, we'll deliver it from
+ * cache...
  */
 char *snarf_str(void *from)
 {
@@ -152,6 +159,9 @@ char *snarf_str(void *from)
 		return last->str;
 	}
 
+	/* If the requested string address has recently been snarfed
+	 * (i.e. we still have it), return the copy we already have
+	 */
 	for (old = ent = cache; ent < hiwat; ++ent) {
 		if (ent->addr == from) {
 			++cStats.hits;

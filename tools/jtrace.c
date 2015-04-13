@@ -30,12 +30,15 @@ int verbose = 0;                /* flag: verbose or not    */
 char *jtrc_dev = JTRACE_DEV_SPECIAL_FILE;
 int jtrace_kfd = -1;  /* File descriptor for jtrace kernel module */
 
+/*
+ * These globals are initialized when we get_all_trc_info from the kernel:
+ */
 int jtrc_num_common_flags = 0;
 jtrc_flag_descriptor_t *jtrc_common_flag_array = 0;
 int jtrc_num_instances = 0;
-
 /* first cb returned by the kernel module */
 jtrc_cb_t *jtrc_first_kernel_cb = NULL;
+
 /* cb returned by jtrace kernel module that matches name search */
 jtrc_cb_t *jtrc_cb = NULL;
 
@@ -93,12 +96,12 @@ void usage(rc)
  * (with sufficient priveleges) and read whatever we needed.  Now we need
  * help from the jtrace kernel module.
  */
-int snarf_from_kernel(void *from, void *buf, size_t len)
+int snarf_from_kernel(void *to, void *from, size_t len)
 {
 	jtrc_cmd_req_t cmd_req;
 
 	cmd_req.snarf_addr = from;
-	cmd_req.data = buf;
+	cmd_req.data = to;
 	cmd_req.data_size = len;
 
 	cmd_req.cmd = JTRCTL_SNARF;
@@ -110,11 +113,11 @@ int snarf_from_kernel(void *from, void *buf, size_t len)
 	return (0);
 }
 
-void snarf(void *from, void *buf, size_t len)
+void snarf(void *to, void *from, size_t len)
 {
 	size_t cc = 0;
 
-	cc = snarf_from_kernel(from, buf, len);
+	cc = snarf_from_kernel(to, from, len);
 	if (cc) {
 		fprintf(stderr,
 			"snarf: read failed at %p, len %lx rc=%ld\n", from,
@@ -132,6 +135,7 @@ struct CacheStats {
  * snarf_str()
  *
  * Snarf a null-terminated string, which requires a bit of initiative.
+ * Ok, this is some squirrely shit.  String gets stored in a local static.
  */
 char *snarf_str(void *from)
 {
@@ -170,7 +174,7 @@ char *snarf_str(void *from)
 	ent->addr = from;
 	ent->lru = ++lru;
 
-	snarf(from, ent->str, (size_t) sizeof(ent->str));
+	snarf(ent->str, from, (size_t) sizeof(ent->str));
 	ent->str[sizeof(ent->str) - 1] = 0;
 	++cStats.misses;
 
@@ -827,7 +831,8 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		return 1;
 	}
 
-	snarf(cb->jtrc_buf, (void *) trc_buf, trc_buf_size);
+	/* Get the whole trc_buf in one bodacious snarf */
+	snarf((void *) trc_buf, cb->jtrc_buf, trc_buf_size);
 
 	if (verbose) {
 		printf("trc_buf = %p, trc_buf_size=%lx slot_idx=0x%x\n",

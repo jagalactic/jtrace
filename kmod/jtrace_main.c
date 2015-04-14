@@ -55,11 +55,7 @@ int jtrc_num_instances;
 /*
  * local fuctions
  */
-static void jtrc_v(jtrace_instance_t * jt, void *id,
-		    uint32_t flags, struct timespec *tm,
-                    const char *func, int line, char *fmt, va_list vap);
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
 #define DUMP_HEX_BYTES_PER_LINE 16
 static void dump_hex_line(char *buf_ptr, int buf_len);
 
@@ -360,8 +356,8 @@ void jtrc_print_element(jtrc_element_t * tp)
 	case JTRC_FORMAT_REGULAR:
 
 	prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                              "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",
-                              tp->reg.tv_sec, tp->reg.tv_nsec / 10000,
+                              "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+			      tp->reg.tscp,
                               tp->reg.cpu, tp->reg.tid,
                               tp->reg.id, tp->reg.func_name,
                               tp->reg.line_num);
@@ -383,9 +379,8 @@ void jtrc_print_element(jtrc_element_t * tp)
             idx = 0;
 
             prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                                  "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",
-                                  tp->hex_begin.tv_sec,
-                                  tp->hex_begin.tv_nsec / 10000000,
+                                  "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+				  tp->hex_begin.tscp,
                                   tp->reg.cpu, tp->reg.tid,
                                   tp->hex_begin.id,
                                   tp->hex_begin.func_name,
@@ -451,9 +446,8 @@ void jtrc_print_element(jtrc_element_t * tp)
             idx = 0;
 
             prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                                  "%6.6d.%2.2d:%2.2d:%p:%p:%25.25s:%4d:",
-                                  tp->pfs_begin.tv_sec,
-                                  tp->pfs_begin.tv_nsec / 10000000,
+                                  "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+				  tp->pfs_begin.tscp,
                                   tp->pfs_begin.cpu, tp->pfs_begin.tid,
                                   tp->pfs_begin.id,
                                   tp->pfs_begin.func_name,
@@ -548,292 +542,6 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 
 /* Put stuff in trace buffers *********************************************/
 
-/**
- * jtrc_v() - add trace entries to buffer
- */
-static void
-jtrc_v(jtrace_instance_t * jt, void *id,
-	uint32_t tflags, struct timespec *tm,
-        const char *func_name, int line_num, char *fmt, va_list vap)
-{
-	register jtrc_element_t *tp;
-	struct timespec time;
-	unsigned long flags;
-
-	spin_lock_irqsave(&jt->jtrc_buf_mutex, flags);
-
-	if (!tm) {
-		tm = &time;
-		/* XXX: this is slow; need to just read the clock */
-		getnstimeofday(&time);
-	}
-
-	/* Increment index and handle wrap */
-	jt->jtrc_cb.jtrc_buf_index++;
-	if (jt->jtrc_cb.jtrc_buf_index >
-	    (jt->jtrc_cb.jtrc_num_entries - 1)) {
-		jt->jtrc_cb.jtrc_buf_index = 0;
-	}
-
-	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
-
-	tp->elem_fmt = JTRC_FORMAT_REGULAR;
-	tp->flag = tflags;
-	tp->reg.tv_sec = tm->tv_sec;
-	tp->reg.tv_nsec = tm->tv_nsec;
-	tp->reg.cpu = smp_processor_id();
-	tp->reg.tid = (void *) current;
-	tp->reg.func_name = func_name;
-	tp->reg.line_num = line_num;
-	tp->reg.id = id;
-	tp->reg.fmt = fmt;
-	tp->reg.a0 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a1 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a2 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a3 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a4 = va_arg(vap, jtrc_arg_t);
-
-	/*
-	 * If things are really crashing, enable jtrc_kprint_enabled = 1
-	 * for output to the console.
-	 */
-	if (jt->jtrc_cb.jtrc_kprint_enabled) {
-		jtrc_print_element(tp);
-	}
-	spin_unlock_irqrestore(&jt->jtrc_buf_mutex, flags);
-}
-
-
-/**
- * _jtrace() -    add trace entries to buffer
- */
-void _jtrace(jtrace_instance_t * jt, void *id,
-	     uint32_t flags, struct timespec *tm,
-	     const char *func, int line, char *fmt, ...)
-{
-    va_list vap;
-
-    va_start(vap, fmt);
-
-    jtrc_v(jt, id, flags, tm, func, line, fmt, vap);
-
-    va_end(vap);
-}
-
-/**
- * jtrace_preformatted_str_v() - add trace entries to buffer
- */
-static void
-__jtrace_preformatted_str(jtrace_instance_t * jt, void *id,
-			  uint32_t flags,
-			  const char *func_name, int line_num, char *buf,
-			  int str_len)
-{
-	register jtrc_element_t *tp;
-	struct timespec time;
-	jtrc_element_fmt_t elem_fmt;
-
-	char *in_buf = (char *) buf;
-	char *in_buf_end = NULL;
-	char *out_buf = NULL;
-	unsigned char length2;
-
-	if (!buf) {
-		return;
-	}
-
-	if (!str_len) {
-		return;
-	}
-
-	in_buf_end = in_buf + str_len;
-
-	getnstimeofday(&time);
-
-	jt->jtrc_cb.jtrc_buf_index++;
-	if (jt->jtrc_cb.jtrc_buf_index > (jt->jtrc_cb.jtrc_num_entries - 1)) {
-		jt->jtrc_cb.jtrc_buf_index = 0;
-	}
-
-	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
-
-	tp->elem_fmt = JTRC_PREFORMATTED_STR_BEGIN;
-	tp->flag = flags;
-	tp->pfs_begin.tv_sec = time.tv_sec;
-	tp->pfs_begin.tv_nsec = time.tv_nsec;
-	tp->pfs_begin.cpu = smp_processor_id();
-	tp->pfs_begin.tid = (void *) current;
-	tp->pfs_begin.func_name = func_name;
-	tp->pfs_begin.line_num = line_num;
-	tp->pfs_begin.id = id;
-	tp->pfs_begin.total_length = str_len;
-
-	/* Fill the rest of first element with string data */
-	length2 =
-		MIN((in_buf_end - in_buf), JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM);
-	out_buf = (char *) &tp->pfs_begin.data_start;
-	memcpy(out_buf, in_buf, length2);
-	out_buf += length2;
-	/* Terminate string */
-	*out_buf = 0;
-
-	if (jt->jtrc_cb.jtrc_kprint_enabled) {
-		jtrc_print_element(tp);
-	}
-
-	in_buf += length2;
-
-	/* Fill in remaining elements */
-	if (in_buf < in_buf_end) {
-		elem_fmt = JTRC_PREFORMATTED_STR_CONTINUE;
-		while (in_buf < in_buf_end) {
-			length2 =
-				MIN((in_buf_end - in_buf),
-				    JTRC_MAX_PREFMT_STR_PER_ELEM);
-
-			jt->jtrc_cb.jtrc_buf_index++;
-			if (jt->jtrc_cb.jtrc_buf_index >
-			    (jt->jtrc_cb.jtrc_num_entries - 1)) {
-				jt->jtrc_cb.jtrc_buf_index = 0;
-			}
-			tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
-
-			tp->elem_fmt = elem_fmt;
-			tp->pfs_continue.length = length2;
-
-			out_buf = (char *) &tp->pfs_continue.data_start;
-
-			memcpy(out_buf, in_buf, length2);
-			out_buf += length2;
-			/* Terminate string */
-			*out_buf = 0;
-
-			if (jt->jtrc_cb.jtrc_kprint_enabled) {
-				jtrc_print_element(tp);
-			}
-
-			in_buf += length2;
-			elem_fmt = JTRC_PREFORMATTED_STR_CONTINUE;
-		}
-		tp->elem_fmt = JTRC_PREFORMATTED_STR_END;
-	}
-}
-
-#define MAX_PREFORMATTED_STR_LEN 256
-static char pre_fmt_buf[MAX_PREFORMATTED_STR_LEN];
-void jtrace_preformatted_str(jtrace_instance_t * jt,
-			     void *id, uint32_t tflags,
-			     const char *func, int line,
-			     char *fmt, ...)
-{
-	int str_len = 0;
-	va_list vap;
-	unsigned long flags;
-
-	spin_lock_irqsave(&jt->jtrc_buf_mutex, flags);
-	va_start(vap, fmt);
-	str_len = vsnprintf(pre_fmt_buf, MAX_PREFORMATTED_STR_LEN, fmt, vap);
-	va_end(vap);
-
-	__jtrace_preformatted_str(jt, id, tflags, func, line, pre_fmt_buf,
-			       str_len);
-	spin_unlock_irqrestore(&jt->jtrc_buf_mutex, flags);
-}
-
-#define MAX_HEX_BUF 1024
-/**
- * jtrace_hex_dump() - add a HEX dump to the trace
- */
-void
-jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
-                uint line, void *id, uint32_t tflags,
-		char *msg, void *p, uint len)
-{
-	register jtrc_element_t *tp = NULL;
-	int max_len = 0;
-	char *in_buf = (char *) p;
-	char *in_buf_end = NULL;
-	char *out_buf = NULL;
-	struct timespec time;
-	unsigned long flags;
-	jtrc_element_fmt_t elem_fmt;
-	unsigned char length2;
-
-	if (!p) {
-		return;
-	}
-
-	max_len = MIN(len, MAX_HEX_BUF);
-	in_buf_end = in_buf + max_len;
-
-	spin_lock_irqsave(&jt->jtrc_buf_mutex, flags);
-
-	getnstimeofday(&time);
-
-	jt->jtrc_cb.jtrc_buf_index++;
-	if (jt->jtrc_cb.jtrc_buf_index > (jt->jtrc_cb.jtrc_num_entries - 1)) {
-		jt->jtrc_cb.jtrc_buf_index = 0;
-	}
-
-	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
-
-	tp->elem_fmt = JTRC_HEX_DATA_BEGIN;
-	tp->flag = tflags;
-	tp->hex_begin.tv_sec = time.tv_sec;
-	tp->hex_begin.tv_nsec = time.tv_nsec;
-	tp->hex_begin.cpu = smp_processor_id();
-	tp->hex_begin.tid = (void *) current;
-	tp->hex_begin.func_name = func;
-	tp->hex_begin.line_num = line;
-	tp->hex_begin.id = id;
-	tp->hex_begin.msg = msg;
-	tp->hex_begin.total_length = max_len;
-
-	/* Fill the rest of first element with hex data */
-	length2 = MIN((in_buf_end - in_buf), JTRC_MAX_HEX_DATA_FOR_BEG_ELEM);
-	out_buf = (char *) &tp->hex_begin.data_start;
-	memcpy(out_buf, in_buf, length2);
-
-	if (jt->jtrc_cb.jtrc_kprint_enabled) {
-		jtrc_print_element(tp);
-	}
-
-	in_buf += length2;
-
-	/* Fill in remaining elements */
-	if (in_buf < in_buf_end) {
-		elem_fmt = JTRC_HEX_DATA_CONTINUE;
-		while (in_buf < in_buf_end) {
-			length2 = MIN((in_buf_end - in_buf),
-				      JTRC_MAX_HEX_DATA_PER_ELEM);
-
-			jt->jtrc_cb.jtrc_buf_index++;
-			if (jt->jtrc_cb.jtrc_buf_index >
-			    (jt->jtrc_cb.jtrc_num_entries - 1)) {
-				jt->jtrc_cb.jtrc_buf_index = 0;
-			}
-
-			tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
-			tp->elem_fmt = elem_fmt;
-			tp->hex.length = length2;
-
-			out_buf = (char *) &tp->hex.data_start;
-
-			memcpy(out_buf, in_buf, length2);
-
-			if (jt->jtrc_cb.jtrc_kprint_enabled) {
-				jtrc_print_element(tp);
-			}
-
-			in_buf += length2;
-			elem_fmt = JTRC_HEX_DATA_CONTINUE;
-		}
-		tp->elem_fmt = JTRC_HEX_DATA_END;
-	}
-
-	spin_unlock_irqrestore(&jt->jtrc_buf_mutex, flags);
-
-}
 
 /***************************************************************************/
 
@@ -915,6 +623,7 @@ __jtrace_init(int32_t num_slots)
 	 */
 	jtri = kmalloc(sizeof(jtrace_instance_t), GFP_KERNEL);
 	if (!jtri) return -ENOMEM;
+	memset(jtri, 0, sizeof(*jtri));
 
 	/* We automatically init a trace buffer with JTRC_DEFAULT_NAME
 	 * at module init time. */

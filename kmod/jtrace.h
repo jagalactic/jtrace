@@ -40,8 +40,7 @@ typedef enum {
  */
 typedef struct _jtrc_regular_element {
 	int cpu;                    /* cpu */
-	uint tv_sec;                /* copy of `tod' tv_sec  */
-	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	unsigned long tscp;         /* time from rdtscp */
 	void *tid;                  /* tasket or tid */
 	const char *func_name;      /* pointer to function name */
 	int line_num;               /* line number */
@@ -61,8 +60,7 @@ typedef struct _jtrc_regular_element {
  */
 typedef struct _jtrc_hex_begin_element {
 	int cpu;                    /* cpu */
-	uint tv_sec;                /* copy of `tod' tv_sec  */
-	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	unsigned long tscp;         /* time from rdtscp */
 	void *tid;                  /* tasket or tid */
 	const char *func_name;      /* pointer to function name */
 	int line_num;               /* line number */
@@ -91,8 +89,7 @@ typedef struct _jtrc_hex_element {
  */
 typedef struct _jtrc_prefmtstr_begin_element {
 	int cpu;                    /* cpu */
-	uint tv_sec;                /* copy of `tod' tv_sec  */
-	uint tv_nsec;               /* copy of `tod' tv_nsec */
+	unsigned long tscp;         /* time from rdtscp */
 	void *tid;                  /* tasket or tid */
 	const char *func_name;      /* pointer to function name */
 	int line_num;               /* line number */
@@ -239,13 +236,29 @@ typedef enum {
 #define spinlock_t pthread_spinlock_t
 #define spin_lock_irqsave(lock, flags) pthread_spin_lock(lock)
 #define spin_unlock_irqrestore(lock, flags) pthread_spin_unlock(lock)
+
+static inline uint64_t
+jtrace_rdtscp(void)
+{
+        uint32_t eax = 0, edx = 0;
+
+        __asm__ __volatile__("rdtscp"
+                                : "+a" (eax), "=d" (edx)
+                                :
+                                : "%ecx", "memory");
+
+        return (((uint64_t)edx << 32) | eax);
+}
+
 #else
 /* Kernel mode */
-
+#define jtrace_rdtscp get_cycles
+/* Simple kernel func to print a jtrace element */
+void jtrc_print_element(jtrc_element_t * tp);
+#define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
 
 extern spinlock_t jtrc_config_lock;
-
 
 /**
  * @jtrace_instance_t
@@ -274,9 +287,27 @@ extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
 extern void jtrace_print_tail(jtrace_instance_t * jtri,
 			      int num_elems);
 
-#endif                          /* __KERNEL__ */
+#else
 
-/* Dual mode (user/kernel) prototypes */
+/* Userspace libjtrace globals */
+extern int jtrc_verbose;
+
+/* Userspace libjtrace prototypes */
+int jtrace_kopen(void);
+int set_printk_value(char *buf_name, int value);
+int clear_trace_buf(char *buf_name);
+int set_trc_flags(char *buf_name, int trc_flags);
+jtrc_cb_t *get_all_trc_info(char *trc_buf_name, void **buf);
+int flag_str_to_flag(char *trc_flag_str, uint *trc_flag);
+int print_trace(jtrc_cb_t * cb, uint32_t dump_mask);
+int show_trc_flags(uint32_t trc_flags);
+jtrace_instance_t *jtrace_init(const char *name, int num_entries);
+
+#endif                          /* __KERNEL__ / USER */
+
+/* Dual mode (user/kernel) prototypes:
+ * These are implemented in jtrace_common, and linked both in the kmod
+ * and in libjtrace */
 
 /* Register new jtrace instance: */
 extern int jtrace_register_instance(jtrace_instance_t * jtri);
@@ -286,7 +317,7 @@ extern int jtrace_get_instance(jtrace_instance_t *jtri);
 extern void jtrace_put_instance(jtrace_instance_t *jtri);
 
 extern void _jtrace(jtrace_instance_t * jtri, void *id,
-		    uint32_t tflags, struct timespec *tm,
+		    uint32_t tflags,
 		    const char *func, int line, char *fmt, ...);
 extern void jtrace_preformatted_str(jtrace_instance_t * jtri,
 				    void *id, uint32_t tflags,
@@ -300,7 +331,7 @@ extern void __free_jtrace_instance(jtrace_instance_t *jtri);
 
 
 /************************************************************************
- * jtrace macros
+ * jtrace macros (all are user/kernel dual-mode)
  */
 #ifdef JTRC_ENABLE
 #define jtrc_setmask(jtri, mask) do{				\
@@ -319,7 +350,6 @@ extern void __free_jtrace_instance(jtrace_instance_t *jtri);
 #define jtrc(jtri, mask, id, fmt, ...)  do {		   \
     if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
 	    _jtrace( jtri, (void *)(id), mask,		\
-		      (struct timespec *)NULL,				\
 		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
     }\
 } while (0)

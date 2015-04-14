@@ -65,13 +65,11 @@ jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 extern void jtrc_print_element(jtrc_element_t * tp);
-static jtrace_instance_t jtr;
+static jtrace_instance_t tmp_jtr;
 
 static int __init jtrace_cdev_init(void)
 {
-
 	int rc;
-	//int i;
 
 	rc = misc_register(&jtr_mdev);
 
@@ -95,28 +93,28 @@ static int __init jtrace_cdev_init(void)
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
 
-		memset(&jtr, 0, sizeof(jtr));
-		jtr.jtrc_cb.jtrc_num_entries = NUM_ELEM;
-		jtr.jtrc_cb.jtrc_buf_size = bufsize;
-		jtr.jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
+		memset(&tmp_jtr, 0, sizeof(tmp_jtr));
+		tmp_jtr.jtrc_cb.jtrc_num_entries = NUM_ELEM;
+		tmp_jtr.jtrc_cb.jtrc_buf_size = bufsize;
+		tmp_jtr.jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
 
-		strcpy(jtr.jtrc_cb.jtrc_name, "master");
+		strcpy(tmp_jtr.jtrc_cb.jtrc_name, "master");
 
 		buf = vmalloc_user(bufsize);
 		
-		jtr.jtrc_cb.jtrc_buf = (jtrc_element_t *)buf;
+		tmp_jtr.jtrc_cb.jtrc_buf = (jtrc_element_t *)buf;
 		if (!buf) {
 			printk("jtrace: unable to vmalloc master buffer\n");
 			goto errexit;
 		}
 
-		strcpy(jtr.jtrc_cb.jtrc_name, "master");
+		strcpy(tmp_jtr.jtrc_cb.jtrc_name, "master");
 
 		printk("jtrace loaded: devno major %d minor %d elem size %d\n",
 		       MISC_MAJOR, jtr_mdev.minor, elem_size);
 
 #if 0
-		jtrace_register_instance(&jtr);
+		jtrace_register_instance(&tmp_jtr);
 
 		jtrc_setprint(1);
 		jtrc(&jtr, 0, "jtrace module loaded");
@@ -126,15 +124,15 @@ static int __init jtrace_cdev_init(void)
 		jtrc(JTR_MEM, 0, "jtrace module loaded");
 		jtrc_setprint(0);
 
-		for (i=jtr.jtrc_cb.jtrc_buf_index;
-		     (i+1) != jtr.jtrc_cb.jtrc_num_entries;
+		for (i=tmp_jtr.jtrc_cb.jtrc_buf_index;
+		     (i+1) != tmp_jtr.jtrc_cb.jtrc_num_entries;
 		     i++) {
 			jtrc_element_t *tp;
-			if (i > jtr.jtrc_cb.jtrc_num_entries)
+			if (i > tmp_jtr.jtrc_cb.jtrc_num_entries)
 				i = 0;
 
 			tp = (jtrc_element_t *)
-				&jtr.jtrc_cb.jtrc_buf[i];
+				&tmp_jtr.jtrc_cb.jtrc_buf[i];
 			printk("slot %d addr %p fmt %d (%s)\n",
 			       i, tp, tp->elem_fmt,
 			       (tp->elem_fmt) ? "used" : "empty");
@@ -148,7 +146,8 @@ static int __init jtrace_cdev_init(void)
 
   errexit:
 
-	if (jtr_mdev.minor) {
+	if (jtr_mdev.minor || (jtr_mdev.list.next != jtr_mdev.list.prev)) {
+		printk("jtrace: failed config, deregister misc device\n");
 		misc_deregister(&jtr_mdev);
 	}
 

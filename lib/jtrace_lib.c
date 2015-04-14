@@ -18,10 +18,18 @@
 #define MAX_NAME_LEN 1024
 #define MAX_TRC_FILES 8
 
+pthread_spinlock_t jtrc_config_lock;
+
 /* Todo: make this figure out where tmpfs is...? */
 char *tmpfs_path = "/tmpfs";
 
 #define DEFAULT_DIR_MODE  (S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
+
+void __free_jtrace_instance(jtrace_instance_t *jt)
+{
+	munmap(jt->jtrc_cb.jtrc_buf, jt->jtrc_cb.jtrc_buf_size);
+	munmap(jt, sizeof(*jt));
+}
 
 /**
  * map_trc_buf()
@@ -29,7 +37,9 @@ char *tmpfs_path = "/tmpfs";
  * User space function to map a trace buffer
  */
 int
-map_trc_buf(const char *name, int num_entries, jtrace_instance_t **addr)
+map_user_trc_buf(const char *instancename,
+		 int num_entries,
+		 jtrace_instance_t **addr)
 {
 	int rc;
 	pid_t mypid = getpid();
@@ -70,7 +80,7 @@ map_trc_buf(const char *name, int num_entries, jtrace_instance_t **addr)
 	 */
 	/* Meta file */
 	snprintf(trcfilename, MAX_NAME_LEN, "%s/jtrace/%d.%s.meta",
-		 tmpfs_path, mypid, name);
+		 tmpfs_path, mypid, instancename);
 	meta_fd = open(trcfilename, O_RDWR|O_CREAT, 00644);
 	if (meta_fd <= 0) {
 		fprintf(stderr,"failed to create meta file %s\n",
@@ -94,7 +104,7 @@ map_trc_buf(const char *name, int num_entries, jtrace_instance_t **addr)
 
 	/* Trace file(s) */
 	snprintf(trcfilename, MAX_NAME_LEN, "%s/jtrace/%d.%s.jtr0",
-		 tmpfs_path, mypid, name);
+		 tmpfs_path, mypid, instancename);
 	trc_fd = open(trcfilename, O_RDWR|O_CREAT, 00644);
 	if (trc_fd <= 0) {
 		fprintf(stderr,"failed to create meta file %s\n",
@@ -111,7 +121,8 @@ jtrace_instance_t *jtri = 0;
 
 struct list_head jtrc_instance_list;
 
-jtrace_instance_t *jtrace_init(const char *name, int num_entries)
+jtrace_instance_t *
+jtrace_init(const char *name, int num_entries)
 {
 	jtrace_instance_t *jtri;
 
@@ -120,7 +131,7 @@ jtrace_instance_t *jtrace_init(const char *name, int num_entries)
 		return NULL;
 	}
 
-	if (map_trc_buf(name, num_entries, &jtri))
+	if (map_user_trc_buf(name, num_entries, &jtri))
 		return NULL;
 
 	printf("jtrace_init: jtri %p\n", jtri);
@@ -134,30 +145,3 @@ jtrace_instance_t *jtrace_init(const char *name, int num_entries)
 	return jtri;
 }
 
-int main(int argc, char **argv)
-{
-	jtrace_instance_t *jtri;
-	jtrace_instance_t *jtri0;
-	jtrace_instance_t *jtri1;
-	jtrace_instance_t *jtri2;
-
-	INIT_LIST_HEAD(&jtrc_instance_list);
-
-	jtri0 = jtrace_init("test", 0x100000);
-	printf("test: %p\n", jtri0);
-	assert(jtri0);
-	jtri1 = jtrace_init("frog", 0x100000);
-	printf("frog: %p\n", jtri1);
-	assert(jtri1);
-	jtri2 = jtrace_init("bunny", 0x100000);
-	printf("bunny: %p\n", jtri2);
-	assert(jtri2);
-	jtri = jtrc_find_instance_by_name(&jtrc_instance_list, "frog");
-	printf("jtrc_find_instance_by_name(frog): %p\n", jtri);
-	assert(jtri == jtri1);
-	list_del(&jtri->jtrc_list);
-	jtri = jtrc_find_instance_by_name(&jtrc_instance_list, "frog");
-	assert(jtri == NULL);
-
-	return 0;
-}

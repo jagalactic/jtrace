@@ -1,5 +1,5 @@
 /*
- * jtrc.c 
+ * jtrc.c
  */
 
 #define JTRC_TEST
@@ -13,33 +13,34 @@
 #include <linux/errno.h>
 #include <linux/notifier.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/current.h>
-#include <asm/smp.h>
+#include <linux/smp.h>
 #include <linux/slab.h>
 
 #include "jtrace.h"
 #include "jtrace_common.h"
 
-/* 
+/*
  * A reasonable amount of common flags.
  */
 jtrc_flag_descriptor_t jtrc_common_flag_array[] = {
-    {"ERROR", "Trace error conditions"}
-    ,
-    {"WARN", "Trace warning conditions"}
-    ,
-    {"CONFIG", "Trace configuration routines"}
-    ,
-    {"ENTX", "Trace all routine entry and exit points."}
-    ,
-    {"IOCTL", "Trace ioctl() calls"}
-    ,
-    {"DEBUG", "General debug"}
-    ,
+	{"ERROR", "Trace error conditions"}
+	,
+	{"WARN", "Trace warning conditions"}
+	,
+	{"CONFIG", "Trace configuration routines"}
+	,
+	{"ENTX", "Trace all routine entry and exit points."}
+	,
+	{"IOCTL", "Trace ioctl() calls"}
+	,
+	{"DEBUG", "General debug"}
+	,
 };
 
-#define JTRC_NUM_COMMON_FLAGS (sizeof(jtrc_common_flag_array)/sizeof(jtrc_flag_descriptor_t))
+#define JTRC_NUM_COMMON_FLAGS (sizeof(jtrc_common_flag_array)		\
+			       / sizeof(jtrc_flag_descriptor_t))
 static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
 
 /**
@@ -48,7 +49,7 @@ static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
  */
 DEFINE_SPINLOCK(jtrc_config_lock);
 struct list_head jtrc_instance_list
-            = LIST_HEAD_INIT(jtrc_instance_list);
+	    = LIST_HEAD_INIT(jtrc_instance_list);
 
 int jtrc_num_instances;
 
@@ -58,10 +59,6 @@ int jtrc_num_instances;
 
 #define DUMP_HEX_BYTES_PER_LINE 16
 static void dump_hex_line(char *buf_ptr, int buf_len);
-
-void jtrace_print_element(jtrc_element_t * tp);
-void jtrace_print_tail(jtrace_instance_t * jt,
-                            int num_elems);
 
 #ifdef JTRC_TEST
 static void jtrc_test(void);
@@ -103,11 +100,13 @@ copyout_append(char **out_buffer,  /* Where to copy */
 	       int *out_buf_remainder)
 {
 	int rc = 0;
+
 	if (*out_buffer &&
 	    (objp) &&
 	    (obj_size) &&
-	    (obj_size <= *out_buf_remainder) ) {
+	    (obj_size <= *out_buf_remainder)) {
 		int size = MIN(obj_size, *out_buf_remainder);
+
 		rc = copy_to_user(*out_buffer, objp, size);
 		*out_buf_remainder -= size;
 		*out_buffer += size;
@@ -130,7 +129,7 @@ copyout_append(char **out_buffer,  /* Where to copy */
  * 3. The number of registered modules
  * 4. the (module_trc_info_t, (jtrc_flag_descriptor_t, ...)) set for each module
  */
-static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
+static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
 {
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
@@ -140,9 +139,8 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 	int rc = 0;
 	int req_size;
 
-	if (!cmd_req) {
-		return (EINVAL);
-	}
+	if (!cmd_req)
+		return -EINVAL;
 
 	out_buffer = cmd_req->data;
 	out_buf_remainder = req_size = cmd_req->data_size;
@@ -191,26 +189,24 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t * cmd_req)
 	}
 
 	/* Always set required size */
-	if (total_bytes != cmd_req->data_size) {
+	if (total_bytes != cmd_req->data_size)
 		cmd_req->data_size = total_bytes;
-	}
 
-	return (rc);
+	return rc;
 }
 
 
-static int jtrc_snarf(jtrc_cmd_req_t * cmd_req)
+static int jtrc_snarf(jtrc_cmd_req_t *cmd_req)
 {
 	int rc = 0;
 
-	if (!cmd_req) {
-		return (EINVAL);
-	}
+	if (!cmd_req)
+		return -EINVAL;
 
 	rc = copy_to_user(cmd_req->data, cmd_req->snarf_addr,
 			  cmd_req->data_size);
 
-	return (rc);
+	return rc;
 }
 
 
@@ -221,7 +217,7 @@ static int jtrc_snarf(jtrc_cmd_req_t * cmd_req)
  *
  * @cmd_req - jtrc_cmd_req_t struct, describing what the caller wants
  */
-int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
+int jtrace_cmd(jtrc_cmd_req_t *cmd_req, void *uaddr)
 {
 	int rc = 0;
 	jtrace_instance_t *jt = NULL;
@@ -230,17 +226,16 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 	if (cmd_req->cmd == JTRCTL_GET_ALL_TRC_INFO) {
 		rc = jtrc_get_all_trc_info(cmd_req);
 		cmd_req->status = rc;
-		if (rc == 0) {
+		if (rc == 0)
 			rc = copy_to_user(uaddr, cmd_req, sizeof(*cmd_req));
-		}
-		return (rc);
+		return rc;
 	}
 
 	/* JTRCTL_SNARF does not require valid jt */
 	if (cmd_req->cmd == JTRCTL_SNARF) {
 		rc = jtrc_snarf(cmd_req);
 		cmd_req->status = rc;
-		return (rc);
+		return rc;
 	}
 
 	/* All others require valid trc_name info */
@@ -248,15 +243,16 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 					cmd_req->trc_name);
 	if (!jt) {
 		cmd_req->status = ENODEV;
-		return (ENODEV);
+		return -ENODEV;
 	}
 
 	switch (cmd_req->cmd) {
 	case JTRCTL_SET_PRINTK:
-        {
+	{
 		/* Turn printk on & off */
 		int value;
-		rc = copy_from_user((caddr_t) & value,
+
+		rc = copy_from_user((caddr_t) &value,
 				    (caddr_t) cmd_req->data, sizeof(value));
 		if (!((value == 0) || (value == 1))) {
 			cmd_req->status = EINVAL;
@@ -264,15 +260,15 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 			break;
 		}
 		jt->jtrc_cb.jtrc_kprint_enabled = value;
-		printk("JTRCTL_SET_PRINTK %d\n", value);
+		pr_info("JTRCTL_SET_PRINTK %d\n", value);
 		cmd_req->status = 0;
 		rc = 0;
-        }
-        break;
+	}
+	break;
 
 	case JTRCTL_SET_TRC_FLAGS:
 		/* Set the flag mask which controls what is traced */
-		rc = copy_from_user((caddr_t) 
+		rc = copy_from_user((caddr_t)
 			    &jt->jtrc_cb.jtrc_flags,
 			    (caddr_t) cmd_req->data,
 			    sizeof(jt->jtrc_cb.jtrc_flags));
@@ -290,10 +286,10 @@ int jtrace_cmd(jtrc_cmd_req_t * cmd_req, void *uaddr)
 
 	default:
 		cmd_req->status = EINVAL;
-		return EINVAL;
+		return -EINVAL;
 	}
 
-	return (rc);
+	return rc;
 }
 
 void dump_hex_line(char *buf_ptr, int buf_len)
@@ -306,22 +302,20 @@ void dump_hex_line(char *buf_ptr, int buf_len)
 
 	/* Print the hexadecimal values */
 	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-		if (idx < buf_len) {
+		if (idx < buf_len)
 			printk("%02x ", ((int) buf_ptr[idx]) & 0xff);
-		} else {
+		else
 			printk("   ");
-		}
 	}
 	printk("  ");
 	/* Translate and print hex to ASCII values */
 	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
 		if (idx < buf_len) {
 			ch = buf_ptr[idx];
-			if ((ch < 0x20) || (ch > 0x7e)) {
+			if ((ch < 0x20) || (ch > 0x7e))
 				printk(".");
-			} else {
+			else
 				printk("%c", buf_ptr[idx]);
-			}
 		}
 	}
 #ifdef OUTPUT_EBCIDIC_TOO
@@ -338,7 +332,7 @@ void dump_hex_line(char *buf_ptr, int buf_len)
 
 #define JTRC_KPRINT_BUF_SIZE 256
 static char buf[JTRC_KPRINT_BUF_SIZE];
-static int idx = 0;
+static int idx;
 
 /**
  * jtrc_print_element()
@@ -348,7 +342,7 @@ static int idx = 0;
  * This prints a trace element to the system log (printk) in an
  * element-type-dependent format
  */
-void jtrc_print_element(jtrc_element_t * tp)
+void jtrc_print_element(jtrc_element_t *tp)
 {
 	int prefix_len = 0;
 
@@ -356,130 +350,126 @@ void jtrc_print_element(jtrc_element_t * tp)
 	case JTRC_FORMAT_REGULAR:
 
 	prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                              "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+			      "%ld : %2.2d:%p:%p:%25.25s:%4d:",
 			      tp->reg.tscp,
-                              tp->reg.cpu, tp->reg.tid,
-                              tp->reg.id, tp->reg.func_name,
-                              tp->reg.line_num);
+			      tp->reg.cpu, tp->reg.tid,
+			      tp->reg.id, tp->reg.func_name,
+			      tp->reg.line_num);
 
-        snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
-                 tp->reg.fmt, tp->reg.a0, tp->reg.a1, tp->reg.a2,
-                 tp->reg.a3, tp->reg.a4);
-        printk("%s\n", buf);
-        buf[0] = 0;
-        idx = 0;
+	snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
+		 tp->reg.fmt, tp->reg.a0, tp->reg.a1, tp->reg.a2,
+		 tp->reg.a3, tp->reg.a4);
+	printk("%s\n", buf);
+	buf[0] = 0;
+	idx = 0;
 
-        break;
+	break;
 
-    case JTRC_HEX_DATA_BEGIN:
-        {
-            size_t binary_length = 0;
-            char *binary_data = NULL;
+	case JTRC_HEX_DATA_BEGIN:
+	{
+	    size_t binary_length = 0;
+	    char *binary_data = NULL;
 
-            idx = 0;
+	    idx = 0;
 
-            prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                                  "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+	    prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
+				  "%ld : %2.2d:%p:%p:%25.25s:%4d:",
 				  tp->hex_begin.tscp,
-                                  tp->reg.cpu, tp->reg.tid,
-                                  tp->hex_begin.id,
-                                  tp->hex_begin.func_name,
-                                  tp->hex_begin.line_num);
+				  tp->reg.cpu, tp->reg.tid,
+				  tp->hex_begin.id,
+				  tp->hex_begin.func_name,
+				  tp->hex_begin.line_num);
 
-            snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
-                     "hex: %s len=0x%x", tp->hex_begin.msg,
-                     tp->hex_begin.total_length);
+	    snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
+		     "hex: %s len=0x%x", tp->hex_begin.msg,
+		     tp->hex_begin.total_length);
 
-            binary_length =
-                (size_t) MIN(tp->hex_begin.total_length,
-                             JTRC_MAX_HEX_DATA_FOR_BEG_ELEM);
+	    binary_length =
+		(size_t) MIN(tp->hex_begin.total_length,
+			     JTRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 
-            /* The binary data starts at the data_start location */
-            binary_data = (char *) &tp->hex_begin.data_start;
+	    /* The binary data starts at the data_start location */
+	    binary_data = (char *) &tp->hex_begin.data_start;
 
-            /* Dump in increments of hex line size */
-            while (binary_length > 0) {
-                int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
-                printk("%s:%04x:  ", buf, idx);
-                dump_hex_line(binary_data, length2);
-                printk("\n");
-                idx += length2;
-                binary_data += length2;
-                binary_length -= length2;
-            }
-        }
-        break;
+	    /* Dump in increments of hex line size */
+	    while (binary_length > 0) {
+		int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
 
-    case JTRC_HEX_DATA_CONTINUE:
-    case JTRC_HEX_DATA_END:
-        {
-            size_t binary_length = 0;
-            char *binary_data = NULL;
+		printk("%s:%04x:  ", buf, idx);
+		dump_hex_line(binary_data, length2);
+		printk("\n");
+		idx += length2;
+		binary_data += length2;
+		binary_length -= length2;
+	    }
+	}
+	break;
 
-            binary_length =
-                (size_t) MIN(tp->hex.length, JTRC_MAX_HEX_DATA_PER_ELEM);
+	case JTRC_HEX_DATA_CONTINUE:
+	case JTRC_HEX_DATA_END:
+	{
+	    size_t binary_length = 0;
+	    char *binary_data = NULL;
 
-            /* The binary data starts at the data_start location */
-            binary_data = (char *) &tp->hex.data_start;
+	    binary_length =
+		(size_t) MIN(tp->hex.length, JTRC_MAX_HEX_DATA_PER_ELEM);
 
-            /* Dump in increments of hex line size */
-            while (binary_length > 0) {
-                int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
-                printk("%s:%04x:  ", buf, idx);
-                dump_hex_line(binary_data, length2);
-                printk("\n");
-                idx += length2;
-                binary_data += length2;
-                binary_length -= length2;
-            }
-        }
+	    /* The binary data starts at the data_start location */
+	    binary_data = (char *) &tp->hex.data_start;
 
-        if (tp->elem_fmt == JTRC_HEX_DATA_END) {
-            buf[0] = 0;
-            idx = 0;
-        }
+	    /* Dump in increments of hex line size */
+	    while (binary_length > 0) {
+		int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
 
-        break;
+		printk("%s:%04x:  ", buf, idx);
+		dump_hex_line(binary_data, length2);
+		printk("\n");
+		idx += length2;
+		binary_data += length2;
+		binary_length -= length2;
+	    }
+	}
 
-    case JTRC_PREFORMATTED_STR_BEGIN:
-        {
-            idx = 0;
+	if (tp->elem_fmt == JTRC_HEX_DATA_END) {
+		buf[0] = 0;
+		idx = 0;
+	}
 
-            prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
-                                  "%ld : %2.2d:%p:%p:%25.25s:%4d:",
-				  tp->pfs_begin.tscp,
-                                  tp->pfs_begin.cpu, tp->pfs_begin.tid,
-                                  tp->pfs_begin.id,
-                                  tp->pfs_begin.func_name,
-                                  tp->pfs_begin.line_num);
+	break;
 
-            snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
-                     "%s", (char *) &tp->pfs_begin.data_start);
-            printk("%s\n", buf);
-            buf[0] = 0;
-            idx = 0;
-        }
-        break;
+	case JTRC_PREFORMATTED_STR_BEGIN:
+		idx = 0;
 
-    case JTRC_PREFORMATTED_STR_CONTINUE:
-    case JTRC_PREFORMATTED_STR_END:
-        {
-            printk("%s\n", (char *) &tp->pfs_continue.data_start);
+		prefix_len = snprintf(buf, JTRC_KPRINT_BUF_SIZE,
+				      "%ld : %2.2d:%p:%p:%25.25s:%4d:",
+				      tp->pfs_begin.tscp,
+				      tp->pfs_begin.cpu, tp->pfs_begin.tid,
+				      tp->pfs_begin.id,
+				      tp->pfs_begin.func_name,
+				      tp->pfs_begin.line_num);
 
-            if (tp->elem_fmt == JTRC_PREFORMATTED_STR_END) {
-                buf[0] = 0;
-                idx = 0;
-            }
-        }
+		snprintf(&buf[prefix_len], JTRC_KPRINT_BUF_SIZE - prefix_len,
+			 "%s", (char *) &tp->pfs_begin.data_start);
+		printk("%s\n", buf);
+		buf[0] = 0;
+		idx = 0;
+		break;
 
-        break;
+	case JTRC_PREFORMATTED_STR_CONTINUE:
+	case JTRC_PREFORMATTED_STR_END:
+		printk("%s\n", (char *) &tp->pfs_continue.data_start);
 
-    default:
-        return;
-    }
+		if (tp->elem_fmt == JTRC_PREFORMATTED_STR_END) {
+			buf[0] = 0;
+			idx = 0;
+		}
+		break;
 
+	case JTRC_FORMAT_INVALID:
+		/* Ignore invalid entries */
+		break;
 
-    return;
+	}
 }
 
 
@@ -489,8 +479,8 @@ void jtrc_print_element(jtrc_element_t * tp)
  * @jt      - the jtrace instance
  * @num_elems - the number of elements to print, at the tail of the trace
  */
-void jtrace_print_tail(jtrace_instance_t * jt,
-                            int num_elems)
+void jtrace_print_tail(jtrace_instance_t *jt,
+			    int num_elems)
 {
 	/* Back up the index num_elems slots */
 	int32_t temp_index =
@@ -498,9 +488,8 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 	register jtrc_element_t *tp = NULL;
 	int i = 0;
 
-	if (temp_index < 0) {
+	if (temp_index < 0)
 		temp_index += jt->jtrc_cb.jtrc_num_entries;
-	}
 
 	tp = &jt->jtrc_cb.jtrc_buf[temp_index];
 
@@ -515,30 +504,27 @@ void jtrace_print_tail(jtrace_instance_t * jt,
 		num_elems++;
 
 		temp_index = jt->jtrc_cb.jtrc_buf_index - num_elems;
-		if (temp_index < 0) {
+		if (temp_index < 0)
 			temp_index += jt->jtrc_cb.jtrc_num_entries;
-		}
 
 		tp = &jt->jtrc_cb.jtrc_buf[temp_index];
 	}
 
 	temp_index = jt->jtrc_cb.jtrc_buf_index - num_elems;
 
-	if (temp_index < 0) {
+	if (temp_index < 0)
 		temp_index += jt->jtrc_cb.jtrc_num_entries;
-	}
 
 	for (i = 0; i < num_elems; i++) {
 		tp = &jt->jtrc_cb.jtrc_buf[temp_index];
 		jtrc_print_element(tp);
 
 		temp_index++;
-		if (temp_index > jt->jtrc_cb.jtrc_num_entries - 1) {
+		if (temp_index > jt->jtrc_cb.jtrc_num_entries - 1)
 			temp_index = 0;
-		}
 	}
-	return;
 }
+EXPORT_SYMBOL(jtrace_print_tail);
 
 /* Put stuff in trace buffers *********************************************/
 
@@ -554,28 +540,27 @@ void jtrace_print_tail(jtrace_instance_t * jt,
  * @jt - pointer to initialized jtrace_instance_t struct.
  *
  */
-int jtrace_register_instance(jtrace_instance_t * jt)
+int jtrace_register_instance(jtrace_instance_t *jt)
 {
 	unsigned long flags;
 
 	if (strnlen(jt->jtrc_cb.jtrc_name,
 		    sizeof(jt->jtrc_cb.jtrc_name)) == 0) {
-		printk("ERROR: jtrace_register_instance: "
-		       "jtrc_name must be non-NULL\n");
-		return (EINVAL);
+		pr_info("ERROR: %s: NULL jtrc_name\n", __func__);
+		return -EINVAL;
 	}
 
 	if (jt->jtrc_cb.jtrc_custom_flags_mask & JTR_COMMON_FLAGS_MASK) {
-		printk("ERROR: jtrace_register_instance: Custom flag values "
-		       "contain reserved JTR_COMMON_FLAGS_MASK\n");
-		return (EINVAL);
+		pr_info("ERROR: %s: Custom flags overlap with common flags\n",
+			__func__);
+		return -EINVAL;
 	}
 
 	if (!jt->jtrc_cb.jtrc_buf) {
 		jt->jtrc_cb.jtrc_buf = vmalloc_user(jt->jtrc_cb.jtrc_buf_size);
 		if (!jt->jtrc_cb.jtrc_buf) {
-			printk("jtrace: vmalloc failed\n");
-			return ENOMEM;
+			pr_info("%s: vmalloc failed\n", __func__);
+			return -ENOMEM;
 		}
 	}
 
@@ -585,9 +570,9 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 	if (jtrc_find_instance_by_addr(&jtrc_instance_list, jt) ||
 	    jtrc_find_instance_by_name(&jtrc_instance_list,
 				       jt->jtrc_cb.jtrc_name)) {
-		printk("jtrace_register_instance: EALREADY\n");
+		pr_info("jtrace_register_instance: EALREADY\n");
 		spin_unlock_irqrestore(&jtrc_config_lock, flags);
-		return (EALREADY);
+		return -EALREADY;
 	}
 
 	spin_lock_init(&jt->jtrc_buf_mutex);
@@ -599,9 +584,9 @@ int jtrace_register_instance(jtrace_instance_t * jt)
 
 	spin_unlock_irqrestore(&jtrc_config_lock, flags);
 
-	return (0);
+	return 0;
 }
-
+EXPORT_SYMBOL(jtrace_register_instance);
 
 /* Module Parameters */
 int num_trc_elements = 0x100000;
@@ -622,7 +607,9 @@ __jtrace_init(int32_t num_slots)
 	 * Create the default jtrace instance
 	 */
 	jtri = kmalloc(sizeof(jtrace_instance_t), GFP_KERNEL);
-	if (!jtri) return -ENOMEM;
+	if (!jtri)
+		return -ENOMEM;
+
 	memset(jtri, 0, sizeof(*jtri));
 
 	/* We automatically init a trace buffer with JTRC_DEFAULT_NAME
@@ -639,9 +626,8 @@ __jtrace_init(int32_t num_slots)
 	jtri->jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
 
 	result = jtrace_register_instance(jtri);
-	if (result) {
-		return (result);
-	}
+	if (result)
+		return result;
 
 #ifdef JTRC_TEST
 	jtrc_test();
@@ -660,14 +646,13 @@ void jtrace_exit(void)
 {
 	jtrace_instance_t *jtri;
 	struct list_head *this, *next;
+
 	list_for_each_safe(this, next, &jtrc_instance_list) {
 		jtri = list_entry(this, jtrace_instance_t, jtrc_list);
-		printk("jtrace: unloading instance %s\n",
+		pr_info("jtrace: unloading instance %s\n",
 		       jtri->jtrc_cb.jtrc_name);
 		jtrace_put_instance(jtri);
 	}
-
-	return;
 }
 
 #ifdef JTRC_TEST
@@ -676,20 +661,18 @@ static void jtrc_test(void)
 {
 	char *id = 0;
 	int value1 = 1;
-	//int value2 = 2;
 	char hex_dump_data[512];
 	int i = 0;
 	jtrace_instance_t *jtri;
 
 	jtri = jtrc_default_instance(&jtrc_instance_list);
 	if (jtrace_get_instance(jtri)) {
-		printk("jtrc_test: failed refount on default instance\n");
+		pr_info("jtrc_test: failed refount on default instance\n");
 		return;
 	}
 
-	for (i = 0; i < 512; i++) {
+	for (i = 0; i < 512; i++)
 		hex_dump_data[i] = (char) (i & 0xff);
-	}
 
 	jtrc_setprint(jtri, 1);
 

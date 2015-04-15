@@ -1,7 +1,7 @@
 
 
 /**
- * @file jtrc.h 
+ * @file jtrc.h
  */
 #ifndef __JTRC_H
 #define __JTRC_H
@@ -105,8 +105,8 @@ typedef struct _jtrc_prefmtstr_begin_element {
  * Preformatted str trace buffer element continue
  */
 typedef struct _jtrc_prefmtstr_element {
-    unsigned char length;                /* Length of data for this element */
-    char data_start;            /* First byte of str data in this element */
+	unsigned char length;       /* Length of data for this element */
+	char data_start;            /* First byte of str data in this element */
 } jtrc_prefmtstr_element_t;
 
 /* The jtrace element union: *******************************************/
@@ -128,19 +128,21 @@ typedef struct _jtrc_element {
 } jtrc_element_t;
 
 #define JTRC_MAX_HEX_DATA_FOR_BEG_ELEM \
-    (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex_begin.data_start))
+	(sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex_begin.data_start))
 
 #define JTRC_MAX_HEX_DATA_PER_ELEM \
-    (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex.data_start))
+	(sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex.data_start))
 
 #define JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM \
-    (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, pfs_begin.data_start)-1)
+	(sizeof(jtrc_element_t) -		\
+	 offsetof(jtrc_element_t, pfs_begin.data_start) - 1)
 
 #define JTRC_MAX_PREFMT_STR_PER_ELEM \
-    (sizeof(jtrc_element_t)-offsetof(jtrc_element_t, pfs_continue.data_start)-1)
+	(sizeof(jtrc_element_t) -		\
+	 offsetof(jtrc_element_t, pfs_continue.data_start) - 1)
 
 enum jtrace_context {
-	KERNEL=0,
+	KERNEL = 0,
 	USER,
 };
 
@@ -172,7 +174,7 @@ typedef struct _jtrc_cb {
 	/** Pointer to the trace buffer */
 	jtrc_element_t *jtrc_buf;
 
-	/** 
+	/**
 	 * If enabled, then all trace statements are sent to console.
 	 * Use this if things get hairy and the buffer cannot be
 	 * extracted. (Note, this is very slow.)
@@ -204,7 +206,7 @@ typedef struct _jtrc_flag_descriptor {
 	char jtrc_flag_description[JTRC_FLAG_DESCRIPTION_SIZE];
 } jtrc_flag_descriptor_t;
 
-#define JTR_COMMON_FLAG( jtr_flag_num ) ( 1 << (jtr_flag_num) )
+#define JTR_COMMON_FLAG(jtr_flag_num) (1 << (jtr_flag_num))
 
 #define JTR_ERR     JTR_COMMON_FLAG(0)  /* Trace error conditions */
 #define JTR_WARN    JTR_COMMON_FLAG(1)  /* Trace warning conditions */
@@ -217,11 +219,17 @@ typedef struct _jtrc_flag_descriptor {
 /* Must match the number of flags above */
 #define JTR_NUM_FLAGS 7
 
-#define JTR_COMMON_FLAGS_MASK (JTR_ERR|JTR_WARN|JTR_CONF|JTR_ENTX|JTR_IOCTL|JTR_MEM|JTR_DEBUG)
+#define JTR_COMMON_FLAGS_MASK (JTR_ERR		\
+			       | JTR_WARN	\
+			       | JTR_CONF	\
+			       | JTR_ENTX	\
+			       | JTR_IOCTL	\
+			       | JTR_MEM	\
+			       | JTR_DEBUG)
 
 /* The first "custom flag" starts at JTR_NUM_FLAGS
  * NOTE: if you add standard flags, you gotta update JTR_NUM_FLAGS */
-#define JTR_CUSTOM_FLAG( jtr_flag_num ) ( 1 << ((jtr_flag_num) + JTR_NUM_FLAGS))
+#define JTR_CUSTOM_FLAG(jtr_flag_num) (1 << ((jtr_flag_num) + JTR_NUM_FLAGS))
 
 /* Sub-commands for JTRC_CMD_IOCTL */
 typedef enum {
@@ -238,25 +246,26 @@ typedef enum {
 #define spinlock_t pthread_spinlock_t
 #define spin_lock_irqsave(lock, flags) pthread_spin_lock(lock)
 #define spin_unlock_irqrestore(lock, flags) pthread_spin_unlock(lock)
+#define EXPORT_SYMBOL(sym)
 
 static inline uint64_t
 jtrace_rdtscp(void)
 {
-        uint32_t eax = 0, edx = 0;
+	uint32_t eax = 0, edx = 0;
 
-        __asm__ __volatile__("rdtscp"
-                                : "+a" (eax), "=d" (edx)
-                                :
-                                : "%ecx", "memory");
+	__asm__ __volatile__("rdtscp"
+				: "+a" (eax), "=d" (edx)
+				:
+				: "%ecx", "memory");
 
-        return (((uint64_t)edx << 32) | eax);
+	return (((uint64_t)edx << 32) | eax);
 }
 
 #else
 /* Kernel mode */
 #define jtrace_rdtscp get_cycles
 /* Simple kernel func to print a jtrace element */
-void jtrc_print_element(jtrc_element_t * tp);
+void jtrc_print_element(jtrc_element_t *tp);
 #define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
 
@@ -266,7 +275,7 @@ extern spinlock_t jtrc_config_lock;
  * @jtrace_instance_t
  *
  * Contains the per-module trace information, plus
- * extra fields for kernel use. 
+ * extra fields for kernel use.
  * Each kernel module which uses trace facility should
  * register this structure.
  */
@@ -286,7 +295,7 @@ typedef struct _jtrace_instance {
 extern int jtrace_init(void);
 extern void jtrace_exit(void);
 extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
-extern void jtrace_print_tail(jtrace_instance_t * jtri,
+extern void jtrace_print_tail(jtrace_instance_t *jtri,
 			      int num_elems);
 
 #else
@@ -301,7 +310,7 @@ int clear_trace_buf(char *buf_name);
 int set_trc_flags(char *buf_name, int trc_flags);
 jtrc_cb_t *get_all_trc_info(char *trc_buf_name, void **buf);
 int flag_str_to_flag(char *trc_flag_str, uint *trc_flag);
-int print_trace(jtrc_cb_t * cb, uint32_t dump_mask);
+int print_trace(jtrc_cb_t *cb, uint32_t dump_mask);
 int show_trc_flags(uint32_t trc_flags);
 jtrace_instance_t *jtrace_init(const char *name, int num_entries);
 
@@ -312,20 +321,20 @@ jtrace_instance_t *jtrace_init(const char *name, int num_entries);
  * and in libjtrace */
 
 /* Register new jtrace instance: */
-extern int jtrace_register_instance(jtrace_instance_t * jtri);
+extern int jtrace_register_instance(jtrace_instance_t *jtri);
 /* Get a refcount on an existing jtrace instance: */
 extern int jtrace_get_instance(jtrace_instance_t *jtri);
 /* Put refcount on jtrace instance.  Unregister if ref goes to zero: */
 extern void jtrace_put_instance(jtrace_instance_t *jtri);
 
-extern void _jtrace(jtrace_instance_t * jtri, void *id,
+extern void _jtrace(jtrace_instance_t *jtri, void *id,
 		    uint32_t tflags,
 		    const char *func, int line, char *fmt, ...);
-extern void jtrace_preformatted_str(jtrace_instance_t * jtri,
+extern void jtrace_preformatted_str(jtrace_instance_t *jtri,
 				    void *id, uint32_t tflags,
 				    const char *func, int line,
 				    char *fmt, ...);
-extern void jtrace_hex_dump(jtrace_instance_t * jtri,
+extern void jtrace_hex_dump(jtrace_instance_t *jtri,
 			    const char *func, uint line,
 			    void *id, uint32_t tflags,
 			    char *msg, void *p, uint len);
@@ -336,9 +345,7 @@ void jtrace_config(void);
  * jtrace macros (all are user/kernel dual-mode)
  */
 #ifdef JTRC_ENABLE
-#define jtrc_setmask(jtri, mask) do{				\
-		jtri->jtrc_cb.jtrc_flags = mask;	\
-	} while (0)
+#define jtrc_setmask(jtri, mask) jtri->jtrc_cb.jtrc_flags = mask
 #define jtrc_off(jtri) jtrc_setmask(jtri, 0)
 
 /**
@@ -349,11 +356,11 @@ void jtrace_config(void);
  * @fmt  - The trace format strings.
  * @...  - Up to 5 arguments for the trace format string.
  */
-#define jtrc(jtri, mask, id, fmt, ...)  do {		   \
-    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
-	    _jtrace( jtri, (void *)(id), mask,		\
-		      __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__);	\
-    }\
+#define jtrc(jtri, mask, id, fmt, ...)  do {				\
+	if (jtri->jtrc_cb.jtrc_flags & (mask)) {			\
+		_jtrace(jtri, (void *)(id), mask,			\
+			__func__, __LINE__, (fmt), ## __VA_ARGS__);	\
+	}								\
 } while (0)
 
 
@@ -368,18 +375,19 @@ void jtrace_config(void);
  *
  * WARNING: Slow; don't use in performance path.
  */
-#define jtrc_pfs(jtri, mask, id, fmt, ...)  do {		   \
-    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
-	    jtrace_preformatted_str(jtri, (void *)(id), mask,\
-		  __FUNCTION__, __LINE__ , (fmt), ## __VA_ARGS__); \
-    }\
+#define jtrc_pfs(jtri, mask, id, fmt, ...)  do {			\
+	if (jtri->jtrc_cb.jtrc_flags & (mask)) {			\
+		jtrace_preformatted_str(jtri, (void *)(id), mask,	\
+					__func__, __LINE__, (fmt),	\
+					## __VA_ARGS__);		\
+	}								\
 } while (0)
 
 /**
  * jtrc_funcline()
  *
  * Macro to send a trace statement to the buffer, also specifying
- * function name and line number.  This is useful for trace statements 
+ * function name and line number.  This is useful for trace statements
  * in utility functions where the context of the calling function is
  * more useful than the utility function.
  *
@@ -391,10 +399,10 @@ void jtrace_config(void);
  * @param ... - Up to 5 arguments for the trace format string.
  */
 #define jtrc_funcline(jtri, mask, id, func, line, fmt, ...)  do {	\
-    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
-	    _jtrace(jtri, (void *)(id), mask,	\
-		     (func), (line), (fmt) , ## __VA_ARGS__);	\
-    }\
+	if (jtri->jtrc_cb.jtrc_flags & (mask)) {			\
+		_jtrace(jtri, (void *)(id), mask,			\
+			(func), (line), (fmt), ## __VA_ARGS__);		\
+	} \
 } while (0)
 
 /**
@@ -403,42 +411,40 @@ void jtrace_config(void);
  * Dump hex data to the trace buffer.
  * WARNING: Slow, don't use in performance path.
  *
- * @param mask - Trace flags for this statement. 
+ * @param mask - Trace flags for this statement.
  * @param id   - This can be used as a tag or correlator.
  * @param msg  - Description of what hex data is being traced.
  * @param p    - Pointer to data to dump.
  * @param len  - Length of data to dump.
  */
-#define jtrc_hexdump(jtri, mask, id, msg, p, len) do {	   \
-    if (jtri->jtrc_cb.jtrc_flags & (mask)){ \
-	jtrace_hex_dump(jtri, __FUNCTION__, __LINE__, (void *)(id),\
-			mask, (msg), (p), (len));			\
-    }\
+#define jtrc_hexdump(jtri, mask, id, msg, p, len) do {			\
+	if (jtri->jtrc_cb.jtrc_flags & (mask)) {			\
+		jtrace_hex_dump(jtri, __func__, __LINE__, (void *)(id),	\
+				mask, (msg), (p), (len));		\
+	}								\
 } while (0)
 
-#define jtrc_setprint(jtri, enabled) do {				\
-    jtri->jtrc_cb.jtrc_kprint_enabled = (enabled);\
-} while (0)
+#define jtrc_setprint(jtri, enabled)					\
+		jtri->jtrc_cb.jtrc_kprint_enabled = (enabled)
 
-#define jtrc_print_tail(jtri, num_elems) do {		\
-    jtrc_print_last_elems(jtri, (num_elems)); \
-} while(0);
+#define jtrc_print_tail(jtri, num_elems)				\
+		jtrc_print_last_elems(jtri, (num_elems))
 
-#define jtrc_entry(flags, id, fmt, ...) do { \
-    jtrc(jtri, ((flags)|JTR_ENTX), (id), ("Entry [ " fmt), ## __VA_ARGS__); \
-} while (0)
+#define jtrc_entry(flags, id, fmt, ...)					\
+		jtrc(jtri, ((flags)|JTR_ENTX), (id),			\
+		     ("Entry [ " fmt), ## __VA_ARGS__)
 
-#define jtrc_exit(flags, id, fmt, ...) do { \
-    jtrc(jtri, ((flags)|JTR_ENTX), (id), ("Exit ] " fmt), ## __VA_ARGS__); \
-} while (0)
+#define jtrc_exit(flags, id, fmt, ...)					\
+		jtrc(jtri, ((flags)|JTR_ENTX), (id),			\
+		     ("Exit ] " fmt), ## __VA_ARGS__)
 
-#define jtrc_err(flags, id, fmt, ...) do { \
-    jtrc(jtri, ((flags)|JTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
-} while (0)
+#define jtrc_err(flags, id, fmt, ...)					\
+		jtrc(jtri, ((flags)|JTR_ERR), (id),			\
+		     ("ERROR: " fmt), ## __VA_ARGS__)
 
-#define jtrc_errexit(flags, id, fmt, ...) do { \
-    jtrc(jtri, ((flags)|JTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
-    jtrc(jtri, ((flags)|JTR_ENTX), (id), "Exit ]");			\
+#define jtrc_errexit(flags, id, fmt, ...) do {				\
+	jtrc(jtri, ((flags)|JTR_ERR), (id), ("ERROR: " fmt), ## __VA_ARGS__); \
+	jtrc(jtri, ((flags)|JTR_ENTX), (id), "Exit ]")			\
 } while (0)
 
 #else
@@ -450,8 +456,8 @@ void jtrace_config(void);
 #define jtrc_setprint(jtri, enabled)
 #define jtrc_print_tail(jtri, num_elems)
 #define jtrc_entry(jtri, flags, id, fmt, ...)
-#define jtrc_exit(jtri,flags, id, fmt, ...)
-#define jtrc_err(jtri,flags, id, fmt, ...)
+#define jtrc_exit(jtri, flags, id, fmt, ...)
+#define jtrc_err(jtri, flags, id, fmt, ...)
 #define jtrc_errexit(jtri, flags, id, fmt, ...)
 
 #endif                          /* JTRC_ENABLE */

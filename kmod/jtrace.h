@@ -167,6 +167,8 @@ typedef struct _jtrc_cb {
 	/** Index to current trace entry */
 	uint32_t jtrc_buf_index;
 
+	uint32_t jtrc_num_insert; /* tmp flag for debug */
+
 	/** Pointer to the trace buffer */
 	jtrc_element_t *jtrc_buf;
 
@@ -328,7 +330,7 @@ extern void jtrace_hex_dump(jtrace_instance_t * jtri,
 			    void *id, uint32_t tflags,
 			    char *msg, void *p, uint len);
 extern void __free_jtrace_instance(jtrace_instance_t *jtri);
-
+void jtrace_config(void);
 
 /************************************************************************
  * jtrace macros (all are user/kernel dual-mode)
@@ -337,7 +339,7 @@ extern void __free_jtrace_instance(jtrace_instance_t *jtri);
 #define jtrc_setmask(jtri, mask) do{				\
 		jtri->jtrc_cb.jtrc_flags = mask;	\
 	} while (0)
-#define jtrc_off() jtrc_setmask(0)
+#define jtrc_off(jtri) jtrc_setmask(jtri, 0)
 
 /**
  * Macro to send a trace statement to the buffer.

@@ -38,8 +38,7 @@ jtrc_find_instance_by_addr(struct list_head *jtri_list,
 	jtrace_instance_t *tmp_jtri = NULL;
 	int found = 0;
 
-	list_for_each_entry(tmp_jtri,
-			    jtri_list, jtrc_list) {
+	list_for_each_entry(tmp_jtri, jtri_list, jtrc_list) {
 		if (tmp_jtri == jt) {
 			found = 1;
 			break;
@@ -151,6 +150,7 @@ jtrc_v(jtrace_instance_t * jt, void *id, uint32_t tflags,
 	    (jt->jtrc_cb.jtrc_num_entries - 1)) {
 		jt->jtrc_cb.jtrc_buf_index = 0;
 	}
+	jt->jtrc_cb.jtrc_num_insert++;
 
 	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 
@@ -232,6 +232,7 @@ __jtrace_preformatted_str(jtrace_instance_t * jt, void *id, uint32_t flags,
 	if (jt->jtrc_cb.jtrc_buf_index > (jt->jtrc_cb.jtrc_num_entries - 1)) {
 		jt->jtrc_cb.jtrc_buf_index = 0;
 	}
+	jt->jtrc_cb.jtrc_num_insert++;
 
 	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 
@@ -279,6 +280,7 @@ __jtrace_preformatted_str(jtrace_instance_t * jt, void *id, uint32_t flags,
 			    (jt->jtrc_cb.jtrc_num_entries - 1)) {
 				jt->jtrc_cb.jtrc_buf_index = 0;
 			}
+			jt->jtrc_cb.jtrc_num_insert++;
 			tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 
 			tp->elem_fmt = elem_fmt;
@@ -359,6 +361,7 @@ jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
 	if (jt->jtrc_cb.jtrc_buf_index > (jt->jtrc_cb.jtrc_num_entries - 1)) {
 		jt->jtrc_cb.jtrc_buf_index = 0;
 	}
+	jt->jtrc_cb.jtrc_num_insert++;
 
 	tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 
@@ -403,6 +406,7 @@ jtrace_hex_dump(jtrace_instance_t * jt, const char *func,
 			    (jt->jtrc_cb.jtrc_num_entries - 1)) {
 				jt->jtrc_cb.jtrc_buf_index = 0;
 			}
+			jt->jtrc_cb.jtrc_num_insert++;
 
 			tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 			tp->elem_fmt = elem_fmt;

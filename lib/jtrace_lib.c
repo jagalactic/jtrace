@@ -25,6 +25,11 @@ char *tmpfs_path = "/tmpfs";
 
 #define DEFAULT_DIR_MODE  (S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
+void jtrace_config(void)
+{
+	pthread_spin_init(&jtrc_config_lock, PTHREAD_PROCESS_PRIVATE);
+}
+
 void __free_jtrace_instance(jtrace_instance_t *jt)
 {
 	munmap(jt->jtrc_cb.jtrc_buf, jt->jtrc_cb.jtrc_buf_size);
@@ -96,11 +101,11 @@ map_user_trc_buf(const char *instancename,
 		return -1;
 	}
 	memset(jtri, 0, sizeof(jtrace_instance_t));
-	*addr = jtri;
 
 	jtri->jtrc_cb.jtrc_context = USER;
 	jtri->jtrc_cb.jtrc_num_entries = num_entries;
 	jtri->jtrc_cb.jtrc_buf_size = num_entries* sizeof(jtrc_element_t);
+	pthread_spin_init(&jtri->jtrc_buf_mutex, PTHREAD_PROCESS_PRIVATE);
 
 	/* Trace file(s) */
 	snprintf(trcfilename, MAX_NAME_LEN, "%s/jtrace/%d.%s.jtr0",
@@ -114,6 +119,7 @@ map_user_trc_buf(const char *instancename,
 	ftruncate(trc_fd, jtri->jtrc_cb.jtrc_buf_size);
 	jtri->jtrc_cb.jtrc_buf = mmap(NULL, jtri->jtrc_cb.jtrc_buf_size,
 		     PROT_READ|PROT_WRITE, MAP_SHARED, trc_fd, 0);
+	*addr = jtri;
 	return 0;
 }
 
@@ -136,7 +142,6 @@ jtrace_init(const char *name, int num_entries)
 
 	printf("jtrace_init: jtri %p\n", jtri);
 
-	memset(jtri, 0, sizeof(*jtri));
 	strncpy(jtri->jtrc_cb.jtrc_name, name, JTRC_MOD_NAME_SIZE-1);
 
 	/* XXX Take the config lock */

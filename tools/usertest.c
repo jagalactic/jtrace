@@ -29,11 +29,8 @@ int main(int argc, char **argv)
 
 	jtrace_config();
 
-#if 1
-	for (i = 0; i < 512; i++) {
+	for (i = 0; i < 512; i++)
 		hex_dump_data[i] = (char) (i & 0xff);
-	}
-#endif
 
 	INIT_LIST_HEAD(&jtrc_instance_list);
 
@@ -69,7 +66,6 @@ int main(int argc, char **argv)
 	printf("ok3 JTR_CONF %d\n", JTR_CONF);
 
 	/* Put some stuff in the trace buffer "test" */
-	//jtrc_setprint(jtri0, 1);
 
 	jtrace_stats(jtri0);
 	jtrc(jtri0, JTR_CONF, id, "First Entry");
@@ -102,7 +98,6 @@ int main(int argc, char **argv)
 	jtrc(jtri0, JTR_CONF, id, "JTRC_MAX_HEX_DATA_PER_ELEM=%d",
 	     JTRC_MAX_HEX_DATA_PER_ELEM);
 
-#if 1
 	jtrc_pfs(jtri0, JTR_CONF, id, "preformatted_data, value1=%d", value1);
 
 	jtrc_pfs(jtri0, JTR_CONF, id,
@@ -122,8 +117,6 @@ int main(int argc, char **argv)
 
 	jtrc(jtri0, JTR_CONF, id, "Last Entry");
 
-	jtrc_setprint(jtri0, 0);
-#endif
 	print_trace(&jtri0->jtrc_cb, 0xfffffff);
 
 	jtrace_stats(jtri0);

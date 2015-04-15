@@ -26,30 +26,30 @@
 void usage(int rc)
 {
 
-    fprintf(rc ? stderr : stdout,
-            "usage: jtrace -n <trc_buf_name> <options>\n"
-            "\n    Display trace information:\n"
-            "    -n <trc_buf_name>   trace buffer name\n"
-	    "    -D     use default trace buffer name\n"
-            "    [-v]        verbose\n"
-            "\n    Trace flag control (requires -n|-D first):\n"
-            "    [-h trace_flags]  trace flags absolute, hex value\n"
-            "    [-f trace_flag_strs] trace flags absolute, string values\n"
-            "    [-s trace_flag_strs] set a trace flag(s) (logical or)\n"
-            "    [-u trace_flag_strs] unset a trace flag(s) (logical nand)\n"
-            "    [-g ] Show currently set trace flags\n"
-            "\n    Output Trace to console (requires -n|-D first):\n"
-            "    [-p <0|1> ] Set printk value (1=print to console enabled) \n"
-            "\n    Clear Trace buffer (requires -n|-D first):\n"
-            "    [-c]        clear the trace buffer\n"
-            "\n    ACPI/Config helpers :\n"
-            "    [-A]        Dump ACPI info to jtrc_default.\n"
-            "    [-L]        Dump physical location info to jtrc_default.\n");
+	fprintf(rc ? stderr : stdout,
+		"usage: jtrace -n <trc_buf_name> <options>\n"
+		"\n    Display trace information:\n"
+		"    -n <trc_buf_name>   trace buffer name\n"
+		"    -D     use default trace buffer name\n"
+		"    [-v]        verbose\n"
+		"\n    Trace flag control (requires -n|-D first):\n"
+		"    [-h trace_flags]  trace flags absolute, hex value\n"
+		"    [-f trace_flag_strs] trace flags absolute, string values\n"
+		"    [-s trace_flag_strs] set a trace flag(s) (logical or)\n"
+		"    [-u trace_flag_strs] unset a trace flag(s) (logical nand)\n"
+		"    [-g ] Show currently set trace flags\n"
+		"\n    Output Trace to console (requires -n|-D first):\n"
+		"    [-p <0|1> ] Set printk value (1=print to console enabled)\n"
+		"\n    Clear Trace buffer (requires -n|-D first):\n"
+		"    [-c]        clear the trace buffer\n"
+		"\n    ACPI/Config helpers :\n"
+		"    [-A]        Dump ACPI info to jtrc_default.\n"
+		"    [-L]        Dump physical location info to jtrc_default.\n");
 
-    printf("\nValid trace flags:\n\n");
-    show_trc_flags(0xffffffff);
+	printf("\nValid trace flags:\n\n");
+	show_trc_flags(0xffffffff);
 
-    exit(rc);
+	exit(rc);
 }
 
 
@@ -106,7 +106,6 @@ int main(int argc, char **argv)
 			printf("\nPrintk set to (%d):\n\n", printk_value);
 			rc = 0;
 			goto jtrc_util_exit;
-			break;
 
 		case 'n':
 			n_flag++;
@@ -171,7 +170,6 @@ int main(int argc, char **argv)
 			show_trc_flags(trc_flags);
 			rc = 0;
 			goto jtrc_util_exit;
-			break;
 
 		case 'g':
 			if (!n_flag) {
@@ -328,7 +326,6 @@ int main(int argc, char **argv)
 			show_trc_flags(trc_flags);
 			rc = -1;
 			goto jtrc_util_exit;
-			break;
 
 		case 'c':
 			if (!n_flag) {
@@ -367,13 +364,11 @@ int main(int argc, char **argv)
 	print_trace(jtrc_cb, dump_mask);
 
 jtrc_util_exit:
-	if (all_trc_info) {
+	if (all_trc_info)
 		free(all_trc_info);
-	}
 
-	if (jtrace_kfd > 0) {
+	if (jtrace_kfd > 0)
 		close(jtrace_kfd);
-	}
 
 	exit(0);
 }

@@ -89,14 +89,15 @@ int snarf_from_kernel(void *to, void *from, size_t len)
 	cmd_req.cmd = JTRCTL_SNARF;
 	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
 		void *buf[255];
+		const int calls = backtrace(buf, 255);
+
 		fprintf(stderr, "JTRCTL_SNARF Failed errno=%d\n", errno);
-		const int calls = backtrace(buf,255);
 		backtrace_symbols_fd(buf, calls, 1);
 		exit(-1);
 		return 1;
 	}
 
-	return (0);
+	return 0;
 }
 
 void snarf(void *to, void *from, size_t len)
@@ -112,9 +113,9 @@ void snarf(void *to, void *from, size_t len)
 }
 
 struct _cache_stats {
-    int hits;
-    int misses;
-    int fastHits;
+	int hits;
+	int misses;
+	int fastHits;
 } cstats;
 
 /**
@@ -193,7 +194,7 @@ int clear_trace_buf(char *buf_name)
 		return 1;
 	}
 
-	return (0);
+	return 0;
 }
 
 int set_trc_flags(char *buf_name, int trc_flags)
@@ -210,10 +211,10 @@ int set_trc_flags(char *buf_name, int trc_flags)
 	if (rc) {
 		printf("ioctl JTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
 		       rc, errno);
-		return (rc);
+		return rc;
 	}
 
-	return (0);
+	return 0;
 }
 
 int set_printk_value(char *buf_name, int value)
@@ -231,10 +232,10 @@ int set_printk_value(char *buf_name, int value)
 	if (rc) {
 		printf("ioctl JTRCTL_SET_PRINTK failed, rc=%d errno=%d\n",
 		       rc, errno);
-		return (rc);
+		return rc;
 	}
 
-	return (0);
+	return 0;
 }
 
 
@@ -269,9 +270,8 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	}
 	/* Upon clean return, the jtrace kernel driver has set
 	 *  cmd_req.data_size to the required size */
-	if (jtrc_verbose) {
+	if (jtrc_verbose)
 		printf("required_size=%d\n", cmd_req.data_size);
-	}
 
 	*buf = malloc(cmd_req.data_size);
 	assert(*buf);
@@ -304,8 +304,7 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	out_bufp += sizeof(jtrc_num_instances);
 
 	if (jtrc_verbose) {
-		printf("jtrc_num_common_flags=%d "
-		       "jtrc_num_instances=%d\n",
+		printf("jtrc_num_common_flags=%d jtrc_num_instances=%d\n",
 		       jtrc_num_common_flags, jtrc_num_instances);
 	}
 
@@ -394,14 +393,14 @@ int show_trc_flags(uint32_t trc_flags)
 	/* Specific trace module requested */
 	if (jtrc_cb) {
 		__show_jtrc_custom_flags(jtrc_cb, trc_flags);
-		return (0);
+		return 0;
 	}
 
 	cb = jtrc_first_kernel_cb;
 	if (!cb) {
 		/* No registered trace modules */
 		printf("\n\n");
-		return (0);
+		return 0;
 	}
 
 	/*
@@ -423,7 +422,7 @@ int show_trc_flags(uint32_t trc_flags)
 	}
 
 	printf("\n\n");
-	return (0);
+	return 0;
 }
 
 int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
@@ -439,7 +438,7 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
 		    0) {
 			/* Found a match */
 			*trc_flag = JTR_COMMON_FLAG(i);
-			return (0);
+			return 0;
 		}
 	}
 
@@ -458,14 +457,14 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
 				   trc_flag_str) == 0) {
 				/* Found a match */
 				*trc_flag = JTR_CUSTOM_FLAG(i);
-				return (0);
+				return 0;
 			}
 			flag_descp++;
 		}
 	}
 
 	/* Found no match, invalid flag */
-	return (-1);
+	return -1;
 }
 
 
@@ -481,282 +480,282 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
  *
  * The format string has already been snarfed, but the args need to be snarfed
  */
-int
-printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
-       jtrc_arg_t a3, jtrc_arg_t a4)
+int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
+	   jtrc_arg_t a3, jtrc_arg_t a4)
 {
-    jtrc_arg_t abuf[5];
-    register char *p;
-    jtrc_arg_t *ap = &abuf[0];
-    register int i;
+	jtrc_arg_t abuf[5];
+	char *p;
+	int i;
+	jtrc_arg_t *ap = &abuf[0];
 
-    abuf[0] = a0;
-    abuf[1] = a1;
-    abuf[2] = a2;
-    abuf[3] = a3;
-    abuf[4] = a4;
+	abuf[0] = a0;
+	abuf[1] = a1;
+	abuf[2] = a2;
+	abuf[3] = a3;
+	abuf[4] = a4;
 
-    for (p = fmt, i = 0; *p && i < 5;) {
-        switch (*p++) {
-        case '%':
-            for (; *p;) {
-                switch (*p++) {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                case '.':
-                case '-':
-                    continue;
+	for (p = fmt, i = 0; *p && i < 5;) {
+		switch (*p++) {
+		case '%':
+			for (; *p;) {
+				switch (*p++) {
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				case '.':
+				case '-':
+					continue;
 
-                case 's':
-                        *ap = (jtrc_arg_t) snarf_str((void *) *ap);
-                    break;
+				case 's':
+					*ap = (jtrc_arg_t)snarf_str((void *)
+								    *ap);
+					break;
 
-                default:
-                    break;
-                }
-                break;
-            }
-            ++ap;
-            ++i;
-            break;
+				default:
+					break;
+				}
+				break;
+			}
+			++ap;
+			++i;
+			break;
 
-        default:
-            break;
-        }
-    }
+		default:
+			break;
+		}
+	}
 
-    printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
-	   "", "", "", "", "", "");
-    return (0);
+	printf(fmt, abuf[0], abuf[1], abuf[2], abuf[3], abuf[4],
+	       "", "", "", "", "", "");
+	return 0;
 }
 
 /**
  * display_reg_trc_elem()
  */
 static int
-display_reg_trc_elem(jtrc_element_t * te, enum jtrace_context context)
+display_reg_trc_elem(jtrc_element_t *te, enum jtrace_context context)
 {
-    register char *p;
-    jtrc_regular_element_t *tp = &te->reg;
+	register char *p;
+	jtrc_regular_element_t *tp = &te->reg;
+	int len;
+	char header[256];
 
-    char header[256];
+	if (context == KERNEL) {
+		tp->fmt = snarf_str(tp->fmt);
+		tp->func_name = snarf_str((void *) tp->func_name);
+	}
 
-    if (context == KERNEL) {
-	    tp->fmt = snarf_str(tp->fmt);
-	    tp->func_name = snarf_str((void *) tp->func_name);
-    }
+	snprintf(header, 256,
+		 "%lx : %03x:%02d:%p:0x%0*lx:%25.25s:%4.4d",
+		 tp->tscp,
+		 te->flag,
+		 tp->cpu,
+		 tp->tid,
+		 ((int) (2 * sizeof(tp->id))),
+		 (long) tp->id, tp->func_name, tp->line_num);
 
-    snprintf(header, 256,
-             "%ld : %03x:%02d:%p:0x%0*lx:%25.25s:%4.4d",
-	     tp->tscp,
-	     te->flag,
-             tp->cpu,
-             tp->tid,
-             ((int) (2 * sizeof(tp->id))),
-             (long) tp->id, tp->func_name, tp->line_num);
+	printf("%s", header);
 
-    printf("%s", header);
+	printf(":");
 
-    printf(":");
-    {
-	    int len = strlen(tp->fmt);
-	    if (tp->fmt[len-1] == '\n') tp->fmt[len-1] = 0;
-    }
-    if (context == KERNEL)
-	    printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
-    else if (context == USER)
-	    printf(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4,
-		   "", "", "", "", "", "" );
-    else
-	    printf("Oops: bogus context");
-    /*
-     * Strip any extra "\n"'s in the format strings.
-     */
-    for (p = tp->fmt; *p; ++p);
+	len = strlen(tp->fmt);
+	if (tp->fmt[len-1] == '\n')
+		tp->fmt[len-1] = 0;
 
-    printf("\n");
+	if (context == KERNEL)
+		printd(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4);
+	else if (context == USER)
+		printf(tp->fmt, tp->a0, tp->a1, tp->a2, tp->a3, tp->a4,
+		       "", "", "", "", "", "");
+	else
+		printf("Oops: bogus context");
 
-    return (0);
+	/*
+	 * Strip any extra "\n"'s in the format strings.
+	 */
+	for (p = tp->fmt; *p; ++p)
+		;
+
+	printf("\n");
+
+	return 0;
 }
 
 static void
 dump_hex_line(char *buf_ptr, int buf_len)
 {
-    int idx;
-    char ch;
+	int idx;
+	char ch;
 
-    /* Print the hexadecimal values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
-        } else {
-            printf("   ");
-        }
-    }
-    printf("  ");
-    /* Translate and print hex to ASCII values */
-    for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
-        if (idx < buf_len) {
-            ch = buf_ptr[idx];
-            if ((ch < 0x20) || (ch > 0x7e)) {
-                printf(".");
-            } else {
-                printf("%c", buf_ptr[idx]);
-            }
-        }
-    }
+	/* Print the hexadecimal values */
+	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+		if (idx < buf_len)
+			printf("%02x ", ((int) buf_ptr[idx]) & 0xff);
+		else
+			printf("   ");
+	}
+	printf("  ");
+	/* Translate and print hex to ASCII values */
+	for (idx = 0; idx < DUMP_HEX_BYTES_PER_LINE; idx++) {
+		if (idx < buf_len) {
+			ch = buf_ptr[idx];
+			if ((ch < 0x20) || (ch > 0x7e))
+				printf(".");
+			else
+				printf("%c", buf_ptr[idx]);
+		}
+	}
 }
 
 static int
-display_hex_begin_trc_elem(jtrc_element_t * trc_buf, uint32_t *curr_slot,
+display_hex_begin_trc_elem(jtrc_element_t *trc_buf, uint32_t *curr_slot,
 			   uint32_t num_slots, enum jtrace_context context)
 {
-    char *binary_data = NULL;
-    size_t binary_length = 0;
-    char header[256];
-    char *end_buf;
-    jtrc_element_t *tp = &trc_buf[*curr_slot];
+	char *binary_data = NULL;
+	size_t binary_length = 0;
+	char header[256];
+	char *end_buf;
+	int idx = 0;
+	jtrc_element_t *tp = &trc_buf[*curr_slot];
 
-    if (context == KERNEL) {
-	tp->hex_begin.func_name = snarf_str((void *) tp->hex_begin.func_name);
-	tp->hex_begin.msg = snarf_str((void *) tp->hex_begin.msg);
-    }
+	if (context == KERNEL) {
+		tp->hex_begin.func_name = snarf_str((void *)
+						    tp->hex_begin.func_name);
+		tp->hex_begin.msg = snarf_str((void *)tp->hex_begin.msg);
+	}
 
-    snprintf(header, 256,
-             "%ld : %02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
-	     tp->hex_begin.tscp,
-             tp->hex_begin.cpu,
-             tp->hex_begin.tid,
-             ((int) (2 * sizeof(tp->hex_begin.id))),
-             (long) tp->hex_begin.id, tp->hex_begin.func_name,
-             tp->hex_begin.line_num, tp->hex_begin.msg,
-             tp->hex_begin.total_length);
+	snprintf(header, 256,
+		 "%lx : %02d:%p:0x%0*lx:%25.25s:%4.4d:hex: %s len %x",
+		 tp->hex_begin.tscp,
+		 tp->hex_begin.cpu,
+		 tp->hex_begin.tid,
+		 ((int) (2 * sizeof(tp->hex_begin.id))),
+		 (long) tp->hex_begin.id, tp->hex_begin.func_name,
+		 tp->hex_begin.line_num, tp->hex_begin.msg,
+		 tp->hex_begin.total_length);
 
-    printf("%s", header);
-    printf("\n");
+	printf("%s", header);
+	printf("\n");
 
-    int idx = 0;
-    binary_length = (size_t) tp->hex_begin.total_length;
+	binary_length = (size_t) tp->hex_begin.total_length;
 
-    /* The binary data starts at the data_start location */
-    binary_data = (char *) &tp->hex_begin.data_start;
+	/* The binary data starts at the data_start location */
+	binary_data = (char *) &tp->hex_begin.data_start;
 
-    printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   "
-	   "-----ASCII------"
-	   "\n",
-	   header);
+	printf("%s:        0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f   ",
+	       header);
+	printf("-----ASCII------\n");
 
-    end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
-    char line_buf[DUMP_HEX_BYTES_PER_LINE];
-    /* Dump in increments of hex line size */
-    while (binary_length > 0) {
-        int i = 0;
-        int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
-        printf("%s:%04x:  ", header, idx);
+	end_buf = binary_data + JTRC_MAX_HEX_DATA_FOR_BEG_ELEM;
+	char line_buf[DUMP_HEX_BYTES_PER_LINE];
+	/* Dump in increments of hex line size */
+	while (binary_length > 0) {
+		int i = 0;
+		int length2 = MIN(binary_length, DUMP_HEX_BYTES_PER_LINE);
 
-        binary_length -= length2;
+		printf("%s:%04x:  ", header, idx);
+		binary_length -= length2;
 
-        /*
-         * The binary hex information is not contiguous, so
-         * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
-         */
-        for (i = 0; i < length2; i++) {
-            line_buf[i] = *binary_data;
-            binary_data++;
-            /* check for end of element */
-            if (binary_length && (binary_data >= end_buf)) {
-                /* Move to next element */
+		/*
+		 * The binary hex information is not contiguous, so
+		 * copy into a temporary buffer of DUMP_HEX_BYTES_PER_LINE size
+		 */
+		for (i = 0; i < length2; i++) {
+			line_buf[i] = *binary_data;
+			binary_data++;
+			/* check for end of element */
+			if (binary_length && (binary_data >= end_buf)) {
+				/* Move to next element */
 
-	        (*curr_slot)++;
-                if (*curr_slot >= num_slots) {
-                    *curr_slot = 0;
-                }
+				(*curr_slot)++;
+				if (*curr_slot >= num_slots)
+					*curr_slot = 0;
 
-                tp = &trc_buf[*curr_slot];
+				tp = &trc_buf[*curr_slot];
 
-                binary_data = (char *) &tp->hex.data_start;
-                end_buf = binary_data + JTRC_MAX_HEX_DATA_PER_ELEM;
-            }
-        }
-        dump_hex_line(line_buf, length2);
-        printf("\n");
-        idx += length2;
-    }
+				binary_data = (char *) &tp->hex.data_start;
+				end_buf = binary_data
+					+ JTRC_MAX_HEX_DATA_PER_ELEM;
+			}
+		}
+		dump_hex_line(line_buf, length2);
+		printf("\n");
+		idx += length2;
+	}
 
-    return (0);
+	return 0;
 }
 
 static int
-display_pfs_begin_trc_elem(jtrc_element_t * trc_buf,
+display_pfs_begin_trc_elem(jtrc_element_t *trc_buf,
 			   uint32_t *curr_slot,
 			   uint32_t num_slots,
 			   enum jtrace_context context)
 {
-    char header[256];
-    char *string_data = NULL;
-    size_t string_length = 0;
-    char *end_buf = NULL;
-    jtrc_element_t *tp = &trc_buf[*curr_slot];
+	char header[256];
+	char *string_data = NULL;
+	size_t string_length = 0;
+	char *end_buf = NULL;
+	jtrc_element_t *tp = &trc_buf[*curr_slot];
 
-    if (context == KERNEL) {
-	tp->pfs_begin.func_name = snarf_str((void *) tp->pfs_begin.func_name);
-    }
+	if (context == KERNEL) {
+		tp->pfs_begin.func_name =
+			snarf_str((void *) tp->pfs_begin.func_name);
+	}
 
-    snprintf(header, 256,
-             "%ld : %02d:%p:0x%0*lx:%25.25s:%4.4d",
-	     tp->pfs_begin.tscp,
-             tp->pfs_begin.cpu,
-             tp->pfs_begin.tid,
-             ((int) (2 * sizeof(tp->pfs_begin.id))),
-             (long) tp->pfs_begin.id, tp->pfs_begin.func_name,
-             tp->pfs_begin.line_num);
+	snprintf(header, 256,
+		 "%lx : %02d:%p:0x%0*lx:%25.25s:%4.4d",
+		 tp->pfs_begin.tscp,
+		 tp->pfs_begin.cpu,
+		 tp->pfs_begin.tid,
+		 ((int) (2 * sizeof(tp->pfs_begin.id))),
+		 (long) tp->pfs_begin.id, tp->pfs_begin.func_name,
+		 tp->pfs_begin.line_num);
 
-    string_length = (size_t) tp->pfs_begin.total_length;
-    if (jtrc_verbose) {
-        printf("\ntotal_length=%ld\n", string_length);
-    }
+	string_length = (size_t) tp->pfs_begin.total_length;
+	if (jtrc_verbose)
+		printf("\ntotal_length=%ld\n", string_length);
 
-    /* The string data starts at the data_start location */
-    string_data = (char *) &tp->pfs_begin.data_start;
+	/* The string data starts at the data_start location */
+	string_data = (char *) &tp->pfs_begin.data_start;
 
-    end_buf = string_data + JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
-    printf("%s:", header);
-    while (string_length > 0) {
-        int length2 = 0;
-        length2 = printf("%s", string_data);
-        if (jtrc_verbose) {
-            printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
-                   string_length, length2, *curr_slot);
-        }
+	end_buf = string_data + JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM;
+	printf("%s:", header);
+	while (string_length > 0) {
+		int length2 = 0;
 
-        string_data += length2;
-        string_length -= length2;
+		length2 = printf("%s", string_data);
+		if (jtrc_verbose)
+			printf("\nstring_length=%ld length2=%d curr_slot=%d\n",
+			       string_length, length2, *curr_slot);
 
-        /* check for end of element */
-        if (string_length && (string_data >= end_buf)) {
-            /* Move to next element */
-	  (*curr_slot)++;
-            if (*curr_slot >= num_slots) {
-	      *curr_slot = 0;
-            }
+		string_data += length2;
+		string_length -= length2;
 
-            tp = &trc_buf[*curr_slot];
+		/* check for end of element */
+		if (string_length && (string_data >= end_buf)) {
+			/* Move to next element */
+			(*curr_slot)++;
+			if (*curr_slot >= num_slots)
+				*curr_slot = 0;
 
-            string_data = (char *) &tp->pfs_continue.data_start;
-            end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
-        }
-    }
-    printf("\n");
+			tp = &trc_buf[*curr_slot];
 
-    return (0);
+			string_data = (char *) &tp->pfs_continue.data_start;
+			end_buf = string_data + JTRC_MAX_PREFMT_STR_PER_ELEM;
+		}
+	}
+	printf("\n");
+
+	return 0;
 }
 
 /**
@@ -767,7 +766,7 @@ display_pfs_begin_trc_elem(jtrc_element_t * trc_buf,
  * @cb - The control block for the jtrace instance of interest
  * @dump_mask - Mask to select which entries should be printed
  */
-int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
+int print_trace(jtrc_cb_t *cb, uint32_t dump_mask)
 {
 	size_t trc_buf_size;
 	uint32_t slot_idx, mark_slot;
@@ -779,8 +778,8 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 	jtrc_element_t *trc_buf;
 
 	if (!cb) {
-		fprintf(stderr, "ERROR:%s: trace_info is NULL\n", __FUNCTION__);
-		return (-1);
+		fprintf(stderr, "ERROR:%s: trace_info is NULL\n", __func__);
+		return -1;
 	}
 
 	trc_buf_size = cb->jtrc_buf_size;
@@ -789,37 +788,32 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 	/* TODO: handle core files and kernel crash dumps */
 
 	if (jtrc_verbose) {
-		printf("jtrc_info.jtrc_buf_size=0x%x,"
-		       " jtrc_info.jtrc_buf_index=0x%x\n",
-		       cb->jtrc_buf_size,
+		printf("jtrc_info.jtrc_buf_size=0x%x,",
+		       cb->jtrc_buf_size);
+		printf(" jtrc_info.jtrc_buf_index=0x%x\n",
 		       cb->jtrc_buf_index);
 
-		printf("cb->trc_buf=%p, cb->trc_buf_size=0x%x, "
-		       "cb->slotidx=0x%x "
-		       "cb->num_slots=0x%x\n",
-		       cb->jtrc_buf,
-		       cb->jtrc_buf_size,
-		       cb->jtrc_buf_index,
-		       cb->jtrc_num_entries);
+		printf("cb->trc_buf=%p, cb->trc_buf_size=0x%x, ",
+		       cb->jtrc_buf, cb->jtrc_buf_size);
+		printf("cb->slotidx=0x%x cb->num_slots=0x%x\n",
+		       cb->jtrc_buf_index, cb->jtrc_num_entries);
 	}
 
 	if (cb->jtrc_context == USER) {
-		printf("%s: USER context\n", __FUNCTION__);
+		printf("%s: USER context\n", __func__);
 		trc_buf = cb->jtrc_buf;
-	}
-	else if (cb->jtrc_context == KERNEL) {
-		printf("%s: KERNEL context\n", __FUNCTION__);
+	} else if (cb->jtrc_context == KERNEL) {
+		printf("%s: KERNEL context\n", __func__);
 		p = malloc(trc_buf_size);
 		trc_buf = (jtrc_element_t *) p;
 		if (trc_buf == NULL) {
-			fprintf(stderr, "%s: malloc failed", __FUNCTION__);
+			fprintf(stderr, "%s: malloc failed", __func__);
 			return -1;
 		}
 		/* Get the whole trc_buf in one bodacious snarf */
 		snarf((void *) trc_buf, cb->jtrc_buf, trc_buf_size);
-	}
-	else {
-		fprintf(stderr, "%s: invalid jtrc_context\n", __FUNCTION__);
+	} else {
+		fprintf(stderr, "%s: invalid jtrc_context\n", __func__);
 		return -1;
 	}
 
@@ -848,56 +842,60 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		tp = &trc_buf[curr_slot];
 
 		if (jtrc_verbose) {
-			printf("num_slots=0x%x mark_slot=0x%x, curr_slot=0x%x, "
-			       "elem_fmt=%d zero_slots=0x%x\n",
-			       num_slots, mark_slot, curr_slot,
-			       tp->elem_fmt, zero_slots);
+			printf("num_slots=0x%x mark_slot=0x%x, ",
+			       num_slots, mark_slot);
+			printf("elem_fmt=%d zero_slots=0x%x\ncurr_slot=0x%x, ",
+			       curr_slot, tp->elem_fmt, zero_slots);
 		}
 
-		if (tp->flag & dump_mask)
-		switch (tp->elem_fmt) {
-		case JTRC_FORMAT_REGULAR:
-			if (tp->reg.fmt == 0) {
-				continue;
+		if (tp->flag & dump_mask) {
+			switch (tp->elem_fmt) {
+			case JTRC_FORMAT_REGULAR:
+				if (tp->reg.fmt == 0)
+					continue;
+
+				display_reg_trc_elem(tp, cb->jtrc_context);
+				zero_slots = 0;
+				break;
+
+				/* This dumps hex data slots until
+				 * JTRC_HEX_DATA_END */
+			case JTRC_HEX_DATA_BEGIN:
+				display_hex_begin_trc_elem(trc_buf, &curr_slot,
+							   num_slots,
+							   cb->jtrc_context);
+				zero_slots = 0;
+				break;
+
+				/*
+				 * If we hit these here, we've lost the BEGIN
+				 * slot context, so just skip
+				 */
+			case JTRC_HEX_DATA_CONTINUE:
+			case JTRC_HEX_DATA_END:
+				zero_slots = 0;
+				break;
+
+			case JTRC_PREFORMATTED_STR_BEGIN:
+				display_pfs_begin_trc_elem(trc_buf, &curr_slot,
+							   num_slots,
+							   cb->jtrc_context);
+				zero_slots = 0;
+				break;
+
+				/*
+				 * If we hit these here, we've lost the BEGIN
+				 * slot context, so just skip
+				 */
+			case JTRC_PREFORMATTED_STR_CONTINUE:
+			case JTRC_PREFORMATTED_STR_END:
+				zero_slots = 0;
+				break;
+
+			default:
+				zero_slots++;
+				break;
 			}
-			display_reg_trc_elem(tp, cb->jtrc_context);
-			zero_slots = 0;
-			break;
-
-			/* This dumps hex data slots until JTRC_HEX_DATA_END */
-		case JTRC_HEX_DATA_BEGIN:
-			display_hex_begin_trc_elem(trc_buf, &curr_slot,
-						   num_slots, cb->jtrc_context);
-			zero_slots = 0;
-			break;
-
-			/*
-			 * If we hit these here, we've lost the BEGIN
-			 * slot context, so just skip
-			 */
-		case JTRC_HEX_DATA_CONTINUE:
-		case JTRC_HEX_DATA_END:
-			zero_slots = 0;
-			break;
-
-		case JTRC_PREFORMATTED_STR_BEGIN:
-			display_pfs_begin_trc_elem(trc_buf, &curr_slot,
-						   num_slots, cb->jtrc_context);
-			zero_slots = 0;
-			break;
-
-			/*
-			 * If we hit these here, we've lost the BEGIN slot
-			 * context, so just skip
-			 */
-		case JTRC_PREFORMATTED_STR_CONTINUE:
-		case JTRC_PREFORMATTED_STR_END:
-			zero_slots = 0;
-			break;
-
-		default:
-			zero_slots++;
-			break;
 		}
 		/*
 		 * The slot may have been incremented by
@@ -905,12 +903,11 @@ int print_trace(jtrc_cb_t * cb, uint32_t dump_mask)
 		 * display_pfs_begin_trc_elem().
 		 * If so and now equal to marked slot, we are done.
 		 */
-		if (curr_slot == mark_slot) {
+		if (curr_slot == mark_slot)
 			break;
-		}
 	}
 
 	printf("\n");
-	return (0);
+	return 0;
 }
 

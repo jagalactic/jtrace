@@ -61,13 +61,13 @@ map_user_trc_buf(const char *instancename,
 		/* try to make dir and reopen */
 		rc = mkdir(trcfilename, DEFAULT_DIR_MODE);
 		if (rc) {
-			fprintf(stderr,"mkdir(%s): %s\n",
+			fprintf(stderr, "mkdir(%s): %s\n",
 				trcfilename, strerror(errno));
 			return -1;
 		}
 		dir = opendir(trcfilename);
 		if (!dir) {
-			fprintf(stderr,"opendir(%s): %s\n",
+			fprintf(stderr, "opendir(%s): %s\n",
 				trcfilename, strerror(errno));
 			return -1;
 		}
@@ -88,7 +88,7 @@ map_user_trc_buf(const char *instancename,
 		 tmpfs_path, mypid, instancename);
 	meta_fd = open(trcfilename, O_RDWR|O_CREAT, 00644);
 	if (meta_fd <= 0) {
-		fprintf(stderr,"failed to create meta file %s\n",
+		fprintf(stderr, "failed to create meta file %s\n",
 			trcfilename);
 		return -1;
 	}
@@ -104,7 +104,7 @@ map_user_trc_buf(const char *instancename,
 
 	jtri->jtrc_cb.jtrc_context = USER;
 	jtri->jtrc_cb.jtrc_num_entries = num_entries;
-	jtri->jtrc_cb.jtrc_buf_size = num_entries* sizeof(jtrc_element_t);
+	jtri->jtrc_cb.jtrc_buf_size = num_entries * sizeof(jtrc_element_t);
 	pthread_spin_init(&jtri->jtrc_buf_mutex, PTHREAD_PROCESS_PRIVATE);
 
 	/* Trace file(s) */
@@ -112,7 +112,7 @@ map_user_trc_buf(const char *instancename,
 		 tmpfs_path, mypid, instancename);
 	trc_fd = open(trcfilename, O_RDWR|O_CREAT, 00644);
 	if (trc_fd <= 0) {
-		fprintf(stderr,"failed to create meta file %s\n",
+		fprintf(stderr, "failed to create meta file %s\n",
 			trcfilename);
 		return -1;
 	}

@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-void jtrace_stats(jtrace_instance_t *jtri)
+void jtrace_stats(struct jtrace_instance *jtri)
 {
 	printf("jtrace %s: context %d mask %x num_insert %d index %d\n",
 	       jtri->jtrc_cb.jtrc_name,
@@ -19,10 +19,10 @@ void jtrace_stats(jtrace_instance_t *jtri)
 int main(int argc, char **argv)
 {
 	int i;
-	jtrace_instance_t *jtri;
-	jtrace_instance_t *jtri0;
-	jtrace_instance_t *jtri1;
-	jtrace_instance_t *jtri2;
+	struct jtrace_instance *jtri;
+	struct jtrace_instance *jtri0;
+	struct jtrace_instance *jtri1;
+	struct jtrace_instance *jtri2;
 	char *id = 0;
 	int value1 = 1;
 	char hex_dump_data[512];
@@ -71,28 +71,30 @@ int main(int argc, char **argv)
 	jtrc(jtri0, JTR_CONF, id, "First Entry");
 	jtrace_stats(jtri0);
 
-	jtrc(jtri0, JTR_CONF, id, "sizeof(jtrc_element_t)=%d",
-	     sizeof(jtrc_element_t));
-	jtrc(jtri0, JTR_CONF, id, "sizeof(jtrc_regular_element_t)=%d",
-	     sizeof(jtrc_regular_element_t));
-	jtrc(jtri0, JTR_CONF, id, "sizeof(jtrc_hex_begin_element_t)=%d",
-	     sizeof(jtrc_hex_begin_element_t));
-	jtrc(jtri0, JTR_CONF, id, "sizeof(jtrc_hex_element_t)=%d",
-	     sizeof(jtrc_hex_element_t));
-	jtrc(jtri0, JTR_CONF, id, "sizeof(jtrc_element_fmt_t)=%d",
-	     sizeof(jtrc_element_fmt_t));
-	jtrc(jtri0, JTR_CONF, id, "offsetof(jtrc_element_t, elem_fmt)=%d",
-	     offsetof(jtrc_element_t, elem_fmt));
-	jtrc(jtri0, JTR_CONF, id, "offsetof(jtrc_element_t, hex.length)=%d",
-	     offsetof(jtrc_element_t, hex.length));
-	jtrc(jtri0, JTR_CONF, id, "offsetof(jtrc_element_t, hex.data_start)=%d",
-	     offsetof(jtrc_element_t, hex.data_start));
+	jtrc(jtri0, JTR_CONF, id, "sizeof(struct jtrc_entry)=%d",
+	     sizeof(struct jtrc_entry));
+	jtrc(jtri0, JTR_CONF, id, "sizeof(struct jtrc_reg_entry)=%d",
+	     sizeof(struct jtrc_reg_entry));
+	jtrc(jtri0, JTR_CONF, id, "sizeof(struct jtrc_hex_entry)=%d",
+	     sizeof(struct jtrc_hex_entry));
+	jtrc(jtri0, JTR_CONF, id, "sizeof(struct jtrc_hex_continue)=%d",
+	     sizeof(struct jtrc_hex_continue));
+	jtrc(jtri0, JTR_CONF, id, "sizeof(enum jtrc_entry_fmt)=%d",
+	     sizeof(enum jtrc_entry_fmt));
+	jtrc(jtri0, JTR_CONF, id, "offsetof(struct jtrc_entry, elem_fmt)=%d",
+	     offsetof(struct jtrc_entry, elem_fmt));
 	jtrc(jtri0, JTR_CONF, id,
-	     "offsetof(jtrc_element_t, hex_begin.total_length)=%d",
-	     offsetof(jtrc_element_t, hex_begin.total_length));
+	     "offsetof(struct jtrc_entry, hex_continue.length)=%d",
+	     offsetof(struct jtrc_entry, hex_continue.length));
 	jtrc(jtri0, JTR_CONF, id,
-	     "offsetof(jtrc_element_t, hex_begin.data_start)=%d",
-	     offsetof(jtrc_element_t, hex_begin.data_start));
+	     "offsetof(struct jtrc_entry, hex_continue.data_start)=%d",
+	     offsetof(struct jtrc_entry, hex_continue.data_start));
+	jtrc(jtri0, JTR_CONF, id,
+	     "offsetof(struct jtrc_entry, hex_begin.total_length)=%d",
+	     offsetof(struct jtrc_entry, hex_begin.total_length));
+	jtrc(jtri0, JTR_CONF, id,
+	     "offsetof(struct jtrc_entry, hex_begin.data_start)=%d",
+	     offsetof(struct jtrc_entry, hex_begin.data_start));
 	jtrc(jtri0, JTR_CONF, id, "JTRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
 	     JTRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 	jtrc(jtri0, JTR_CONF, id, "JTRC_MAX_HEX_DATA_PER_ELEM=%d",

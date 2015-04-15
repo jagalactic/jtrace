@@ -31,11 +31,11 @@
  *
  * Find instance in jtrc_instance_list list by address.
  */
-jtrace_instance_t *
+struct jtrace_instance *
 jtrc_find_instance_by_addr(struct list_head *jtri_list,
-			   jtrace_instance_t *jt)
+			   struct jtrace_instance *jt)
 {
-	jtrace_instance_t *tmp_jtri = NULL;
+	struct jtrace_instance *tmp_jtri = NULL;
 	int found = 0;
 
 	list_for_each_entry(tmp_jtri, jtri_list, jtrc_list) {
@@ -55,11 +55,11 @@ jtrc_find_instance_by_addr(struct list_head *jtri_list,
  *
  * Find trace info by name.
  */
-jtrace_instance_t *
+struct jtrace_instance *
 jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
 {
 	int found = 0;
-	jtrace_instance_t *jt = NULL;
+	struct jtrace_instance *jt = NULL;
 
 	list_for_each_entry(jt, jtri_list, jtrc_list) {
 		if (strncmp(jt->jtrc_cb.jtrc_name, trc_name,
@@ -74,7 +74,7 @@ jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
 	return jt;
 }
 
-jtrace_instance_t *
+struct jtrace_instance *
 jtrc_default_instance(struct list_head *jtri_list)
 {
 	return jtrc_find_instance_by_name(jtri_list, JTRC_DEFAULT_NAME);
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(jtrc_default_instance);
  *
  * Get a refcount on an existing jtrace instance
  */
-int jtrace_get_instance(jtrace_instance_t *jt)
+int jtrace_get_instance(struct jtrace_instance *jt)
 {
 #ifdef __KERNEL__
 	unsigned long flags;
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(jtrace_get_instance);
  *
  * Put a refcount on a jtrace instance
  */
-void jtrace_put_instance(jtrace_instance_t *jt)
+void jtrace_put_instance(struct jtrace_instance *jt)
 {
 #ifdef __KERNEL__
 	unsigned long flags;
@@ -134,10 +134,10 @@ EXPORT_SYMBOL(jtrace_put_instance);
  * jtrc_v() - add trace entries to buffer
  */
 static void
-jtrc_v(jtrace_instance_t *jt, void *id, uint32_t tflags,
+jtrc_v(struct jtrace_instance *jt, void *id, uint32_t tflags,
 	const char *func_name, int line_num, char *fmt, va_list vap)
 {
-	register jtrc_element_t *tp;
+	struct jtrc_entry *tp;
 #ifdef __KERNEL__
 	unsigned long flags = 0;
 #endif
@@ -168,11 +168,11 @@ jtrc_v(jtrace_instance_t *jt, void *id, uint32_t tflags,
 	tp->reg.line_num = line_num;
 	tp->reg.id = id;
 	tp->reg.fmt = fmt;
-	tp->reg.a0 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a1 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a2 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a3 = va_arg(vap, jtrc_arg_t);
-	tp->reg.a4 = va_arg(vap, jtrc_arg_t);
+	tp->reg.a0 = va_arg(vap, void *);
+	tp->reg.a1 = va_arg(vap, void *);
+	tp->reg.a2 = va_arg(vap, void *);
+	tp->reg.a3 = va_arg(vap, void *);
+	tp->reg.a4 = va_arg(vap, void *);
 
 	/*
 	 * If things are really crashing, enable jtrc_kprint_enabled = 1
@@ -189,7 +189,7 @@ jtrc_v(jtrace_instance_t *jt, void *id, uint32_t tflags,
 /**
  * _jtrace() -    add trace entries to buffer
  */
-void _jtrace(jtrace_instance_t *jt, void *id,
+void _jtrace(struct jtrace_instance *jt, void *id,
 	     uint32_t flags, const char *func, int line, char *fmt, ...)
 {
 	va_list vap;
@@ -206,12 +206,12 @@ EXPORT_SYMBOL(_jtrace);
  * jtrace_preformatted_str_v() - add trace entries to buffer
  */
 static void
-__jtrace_preformatted_str(jtrace_instance_t *jt, void *id, uint32_t flags,
+__jtrace_preformatted_str(struct jtrace_instance *jt, void *id, uint32_t flags,
 			  const char *func_name, int line_num, char *buf,
 			  int str_len)
 {
-	register jtrc_element_t *tp;
-	jtrc_element_fmt_t elem_fmt;
+	register struct jtrc_entry *tp;
+	enum jtrc_entry_fmt elem_fmt;
 
 	char *in_buf = (char *) buf;
 	char *in_buf_end = NULL;
@@ -302,7 +302,7 @@ __jtrace_preformatted_str(jtrace_instance_t *jt, void *id, uint32_t flags,
 
 #define MAX_PREFORMATTED_STR_LEN 256
 static char pre_fmt_buf[MAX_PREFORMATTED_STR_LEN];
-void jtrace_preformatted_str(jtrace_instance_t *jt,
+void jtrace_preformatted_str(struct jtrace_instance *jt,
 			     void *id, uint32_t tflags,
 			     const char *func, int line,
 			     char *fmt, ...)
@@ -328,16 +328,16 @@ void jtrace_preformatted_str(jtrace_instance_t *jt,
  * jtrace_hex_dump() - add a HEX dump to the trace
  */
 void
-jtrace_hex_dump(jtrace_instance_t *jt, const char *func,
+jtrace_hex_dump(struct jtrace_instance *jt, const char *func,
 		uint line, void *id, uint32_t tflags,
 		char *msg, void *p, uint len)
 {
-	register jtrc_element_t *tp = NULL;
+	struct jtrc_entry *tp = NULL;
 	int max_len = 0;
 	char *in_buf = (char *) p;
 	char *in_buf_end = NULL;
 	char *out_buf = NULL;
-	jtrc_element_fmt_t elem_fmt;
+	enum jtrc_entry_fmt elem_fmt;
 	unsigned char length2;
 #ifdef __KERNEL__
 	unsigned long flags;
@@ -402,9 +402,9 @@ jtrace_hex_dump(jtrace_instance_t *jt, const char *func,
 
 			tp = &jt->jtrc_cb.jtrc_buf[jt->jtrc_cb.jtrc_buf_index];
 			tp->elem_fmt = elem_fmt;
-			tp->hex.length = length2;
+			tp->hex_continue.length = length2;
 
-			out_buf = (char *) &tp->hex.data_start;
+			out_buf = (char *) &tp->hex_continue.data_start;
 
 			memcpy(out_buf, in_buf, length2);
 

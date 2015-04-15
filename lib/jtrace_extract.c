@@ -35,14 +35,14 @@ int jtrace_kfd = -1;  /* File descriptor for jtrace kernel module */
  * These globals are initialized when we get_all_trc_info from the kernel:
  */
 int jtrc_num_common_flags = 0;
-jtrc_flag_descriptor_t *jtrc_common_flag_array = 0;
+struct jtrc_flag_descriptor *jtrc_common_flag_array = 0;
 int jtrc_num_instances = 0;
 /* first cb returned by the kernel module */
-jtrc_cb_t *jtrc_first_kernel_cb = NULL;
+struct jtrc_cb *jtrc_first_kernel_cb = NULL;
 
 /* cb returned by jtrace kernel module that matches name search;
  * NULL if no match */
-jtrc_cb_t *jtrc_cb = NULL;
+struct jtrc_cb *jtrc_cb = NULL;
 
 /*******************************************************************/
 
@@ -80,7 +80,7 @@ jtrace_kopen(void)
  */
 int snarf_from_kernel(void *to, void *from, size_t len)
 {
-	jtrc_cmd_req_t cmd_req;
+	struct jtrc_cmd_req cmd_req;
 
 	cmd_req.snarf_addr = from;
 	cmd_req.data = to;
@@ -182,9 +182,9 @@ char *snarf_str(void *from)
 
 int clear_trace_buf(char *buf_name)
 {
-	jtrc_cmd_req_t cmd_req;
+	struct jtrc_cmd_req cmd_req;
 
-	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
+	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
@@ -200,9 +200,9 @@ int clear_trace_buf(char *buf_name)
 int set_trc_flags(char *buf_name, int trc_flags)
 {
 	int rc = 0;
-	jtrc_cmd_req_t cmd_req;
+	struct jtrc_cmd_req cmd_req;
 
-	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
+	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
 	cmd_req.cmd = JTRCTL_SET_TRC_FLAGS;
@@ -220,9 +220,9 @@ int set_trc_flags(char *buf_name, int trc_flags)
 int set_printk_value(char *buf_name, int value)
 {
 	int rc = 0;
-	jtrc_cmd_req_t cmd_req;
+	struct jtrc_cmd_req cmd_req;
 
-	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
+	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
 
@@ -247,16 +247,16 @@ int set_printk_value(char *buf_name, int value)
  *
  * XXX: should de-obfuscate this...
  */
-jtrc_cb_t *
+struct jtrc_cb *
 get_all_trc_info(char *trc_buf_name, void **buf)
 {
-	jtrc_cb_t *cb = NULL;
-	jtrc_cmd_req_t cmd_req;
+	struct jtrc_cb *cb = NULL;
+	struct jtrc_cmd_req cmd_req;
 	int i = 0;
 	char *out_bufp = 0;
 	int rc = 0;
 
-	bzero(&cmd_req, sizeof(jtrc_cmd_req_t));
+	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 
 	cmd_req.cmd = JTRCTL_GET_ALL_TRC_INFO;
 	cmd_req.data = 0;
@@ -295,8 +295,9 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	out_bufp += sizeof(jtrc_num_common_flags);
 
 	/* Array of common flag descriptors */
-	jtrc_common_flag_array = (jtrc_flag_descriptor_t *) out_bufp;
-	out_bufp += (jtrc_num_common_flags * sizeof(jtrc_flag_descriptor_t));
+	jtrc_common_flag_array = (struct jtrc_flag_descriptor *) out_bufp;
+	out_bufp += (jtrc_num_common_flags
+		     * sizeof(struct jtrc_flag_descriptor));
 
 	/* Number of registered modules */
 	memcpy(&jtrc_num_instances, out_bufp,
@@ -311,7 +312,7 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	/* Array of registered modules, each followed
 	 * by optional custom flags */
 	if (jtrc_num_instances) {
-		jtrc_first_kernel_cb = (jtrc_cb_t *) out_bufp;
+		jtrc_first_kernel_cb = (struct jtrc_cb *) out_bufp;
 		cb = jtrc_first_kernel_cb;
 	}
 
@@ -330,12 +331,12 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 			/* Get next trace information */
 			out_bufp = (char *) cb;
 			/* Skip past this trace information */
-			out_bufp += sizeof(jtrc_cb_t);
+			out_bufp += sizeof(struct jtrc_cb);
 			/* Also, skip past any custom flag descriptions */
 			out_bufp +=
 				(cb->jtrc_num_custom_flags *
-				 sizeof(jtrc_flag_descriptor_t));
-			cb = (jtrc_cb_t *) out_bufp;
+				 sizeof(struct jtrc_flag_descriptor));
+			cb = (struct jtrc_cb *) out_bufp;
 		}
 	}
 
@@ -343,19 +344,19 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 }
 
 static void
-__show_jtrc_custom_flags(jtrc_cb_t *cb, uint32_t trc_flags)
+__show_jtrc_custom_flags(struct jtrc_cb *cb, uint32_t trc_flags)
 {
 	char *ptr = NULL;
 	int i;
-	jtrc_flag_descriptor_t *flag_descp = NULL;
+	struct jtrc_flag_descriptor *flag_descp = NULL;
 
 	if (cb->jtrc_num_custom_flags) {
 		printf("\nCustom trace flags for module %s:\n",
 		       cb->jtrc_name);
 		/* Custom flags start after the module trc info */
 		ptr = (char *) cb;
-		ptr += sizeof(jtrc_cb_t);
-		flag_descp = (jtrc_flag_descriptor_t *) ptr;
+		ptr += sizeof(struct jtrc_cb);
+		flag_descp = (struct jtrc_flag_descriptor *) ptr;
 		for (i = 0; i < (cb->jtrc_num_custom_flags); i++) {
 			if ((JTR_CUSTOM_FLAG(i)) & trc_flags) {
 				printf("%12s (0x%08x) - %s\n",
@@ -376,8 +377,8 @@ int show_trc_flags(uint32_t trc_flags)
 {
 	int i = 0;
 	char *ptr = NULL;
-	jtrc_flag_descriptor_t *flag_descp = NULL;
-	jtrc_cb_t *cb = NULL;
+	struct jtrc_flag_descriptor *flag_descp = NULL;
+	struct jtrc_cb *cb = NULL;
 
 	printf("\nCommon trace flags:\n");
 	for (i = 0; i < jtrc_num_common_flags; i++) {
@@ -413,12 +414,12 @@ int show_trc_flags(uint32_t trc_flags)
 		/* Get next trace information */
 		ptr = (char *) cb;
 		/* Skip past this trace information */
-		ptr += sizeof(jtrc_cb_t);
+		ptr += sizeof(struct jtrc_cb);
 		/* Also, skip past any custom flag descriptions */
 		ptr +=
 			(cb->jtrc_num_custom_flags *
-			 sizeof(jtrc_flag_descriptor_t));
-		cb = (jtrc_cb_t *) ptr;
+			 sizeof(struct jtrc_flag_descriptor));
+		cb = (struct jtrc_cb *) ptr;
 	}
 
 	printf("\n\n");
@@ -429,7 +430,7 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
 {
 	int i = 0;
 	char *ptr = NULL;
-	jtrc_flag_descriptor_t *flag_descp = NULL;
+	struct jtrc_flag_descriptor *flag_descp = NULL;
 
 	for (i = 0; i < jtrc_num_common_flags; i++) {
 		flag_descp = &jtrc_common_flag_array[i];
@@ -449,8 +450,8 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
 		}
 		/* Custom flags start after the module trc info */
 		ptr = (char *) jtrc_cb;
-		ptr += sizeof(jtrc_cb_t);
-		flag_descp = (jtrc_flag_descriptor_t *) ptr;
+		ptr += sizeof(struct jtrc_cb);
+		flag_descp = (struct jtrc_flag_descriptor *) ptr;
 		for (i = 0;
 		     i < (jtrc_cb->jtrc_num_custom_flags); i++) {
 			if (strcmp(flag_descp->jtrc_flag_cmd_line_name,
@@ -480,13 +481,12 @@ int flag_str_to_flag(char *trc_flag_str, uint *trc_flag)
  *
  * The format string has already been snarfed, but the args need to be snarfed
  */
-int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
-	   jtrc_arg_t a3, jtrc_arg_t a4)
+int printd(char *fmt, void *a0, void *a1, void *a2, void *a3, void *a4)
 {
-	jtrc_arg_t abuf[5];
+	void *abuf[5];
 	char *p;
 	int i;
-	jtrc_arg_t *ap = &abuf[0];
+	void **ap = &abuf[0];
 
 	abuf[0] = a0;
 	abuf[1] = a1;
@@ -514,7 +514,7 @@ int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
 					continue;
 
 				case 's':
-					*ap = (jtrc_arg_t)snarf_str((void *)
+					*ap = (void *)snarf_str((void *)
 								    *ap);
 					break;
 
@@ -541,10 +541,10 @@ int printd(char *fmt, jtrc_arg_t a0, jtrc_arg_t a1, jtrc_arg_t a2,
  * display_reg_trc_elem()
  */
 static int
-display_reg_trc_elem(jtrc_element_t *te, enum jtrace_context context)
+display_reg_trc_elem(struct jtrc_entry *te, enum jtrace_context context)
 {
 	register char *p;
-	jtrc_regular_element_t *tp = &te->reg;
+	struct jtrc_reg_entry *tp = &te->reg;
 	int len;
 	char header[256];
 
@@ -616,7 +616,7 @@ dump_hex_line(char *buf_ptr, int buf_len)
 }
 
 static int
-display_hex_begin_trc_elem(jtrc_element_t *trc_buf, uint32_t *curr_slot,
+display_hex_begin_trc_elem(struct jtrc_entry *trc_buf, uint32_t *curr_slot,
 			   uint32_t num_slots, enum jtrace_context context)
 {
 	char *binary_data = NULL;
@@ -624,7 +624,7 @@ display_hex_begin_trc_elem(jtrc_element_t *trc_buf, uint32_t *curr_slot,
 	char header[256];
 	char *end_buf;
 	int idx = 0;
-	jtrc_element_t *tp = &trc_buf[*curr_slot];
+	struct jtrc_entry *tp = &trc_buf[*curr_slot];
 
 	if (context == KERNEL) {
 		tp->hex_begin.func_name = snarf_str((void *)
@@ -681,7 +681,8 @@ display_hex_begin_trc_elem(jtrc_element_t *trc_buf, uint32_t *curr_slot,
 
 				tp = &trc_buf[*curr_slot];
 
-				binary_data = (char *) &tp->hex.data_start;
+				binary_data = (char *)
+					&tp->hex_continue.data_start;
 				end_buf = binary_data
 					+ JTRC_MAX_HEX_DATA_PER_ELEM;
 			}
@@ -695,7 +696,7 @@ display_hex_begin_trc_elem(jtrc_element_t *trc_buf, uint32_t *curr_slot,
 }
 
 static int
-display_pfs_begin_trc_elem(jtrc_element_t *trc_buf,
+display_pfs_begin_trc_elem(struct jtrc_entry *trc_buf,
 			   uint32_t *curr_slot,
 			   uint32_t num_slots,
 			   enum jtrace_context context)
@@ -704,7 +705,7 @@ display_pfs_begin_trc_elem(jtrc_element_t *trc_buf,
 	char *string_data = NULL;
 	size_t string_length = 0;
 	char *end_buf = NULL;
-	jtrc_element_t *tp = &trc_buf[*curr_slot];
+	struct jtrc_entry *tp = &trc_buf[*curr_slot];
 
 	if (context == KERNEL) {
 		tp->pfs_begin.func_name =
@@ -766,16 +767,16 @@ display_pfs_begin_trc_elem(jtrc_element_t *trc_buf,
  * @cb - The control block for the jtrace instance of interest
  * @dump_mask - Mask to select which entries should be printed
  */
-int print_trace(jtrc_cb_t *cb, uint32_t dump_mask)
+int print_trace(struct jtrc_cb *cb, uint32_t dump_mask)
 {
 	size_t trc_buf_size;
 	uint32_t slot_idx, mark_slot;
-	jtrc_element_t *tp;
+	struct jtrc_entry *tp;
 	void *p = NULL;
 	uint32_t zero_slots = 0;
 	uint32_t curr_slot;
 	uint32_t num_slots;
-	jtrc_element_t *trc_buf;
+	struct jtrc_entry *trc_buf;
 
 	if (!cb) {
 		fprintf(stderr, "ERROR:%s: trace_info is NULL\n", __func__);
@@ -805,7 +806,7 @@ int print_trace(jtrc_cb_t *cb, uint32_t dump_mask)
 	} else if (cb->jtrc_context == KERNEL) {
 		printf("%s: KERNEL context\n", __func__);
 		p = malloc(trc_buf_size);
-		trc_buf = (jtrc_element_t *) p;
+		trc_buf = (struct jtrc_entry *) p;
 		if (trc_buf == NULL) {
 			fprintf(stderr, "%s: malloc failed", __func__);
 			return -1;
@@ -821,10 +822,8 @@ int print_trace(jtrc_cb_t *cb, uint32_t dump_mask)
 	if (jtrc_verbose) {
 		printf("trc_buf = %p, trc_buf_size=%lx slot_idx=0x%x\n",
 		       trc_buf, (long) trc_buf_size, slot_idx);
-		printf("sizeof(jtrc_arg_t)=%ld\n",
-		       (long) sizeof(jtrc_arg_t));
-		printf("sizeof(jtrc_element_t)=%ld\n",
-		       (long) sizeof(jtrc_element_t));
+		printf("sizeof(struct jtrc_entry)=%ld\n",
+		       (long) sizeof(struct jtrc_entry));
 	}
 
 	num_slots = cb->jtrc_num_entries;

@@ -1,5 +1,4 @@
 
-
 /**
  * @file jtrc.h
  */
@@ -14,12 +13,10 @@
 
 #include "jtrace_mod.h"
 
-typedef void *jtrc_arg_t;
-
 /* Default trace buffer name */
 #define JTRC_DEFAULT_NAME "jtrc_default"
 
-typedef enum {
+enum jtrc_entry_fmt {
 	JTRC_FORMAT_INVALID = 0,
 	JTRC_FORMAT_REGULAR,
 	JTRC_HEX_DATA_BEGIN,
@@ -28,7 +25,7 @@ typedef enum {
 	JTRC_PREFORMATTED_STR_BEGIN,
 	JTRC_PREFORMATTED_STR_CONTINUE,
 	JTRC_PREFORMATTED_STR_END
-} jtrc_element_fmt_t;
+};
 
 
 /* Members of the jtrace element union: *****************************/
@@ -38,27 +35,27 @@ typedef enum {
  *
  * Regular format trace buffer element
  */
-typedef struct _jtrc_regular_element {
-	int cpu;                    /* cpu */
-	unsigned long tscp;         /* time from rdtscp */
-	void *tid;                  /* tasket or tid */
-	const char *func_name;      /* pointer to function name */
-	int line_num;               /* line number */
-	void *id;                   /* correlator */
-	char *fmt;                  /* printf() format string */
-	jtrc_arg_t a0;             /* arg 0 */
-	jtrc_arg_t a1;             /* arg 1 */
-	jtrc_arg_t a2;             /* arg 2 */
-	jtrc_arg_t a3;             /* arg 3 */
-	jtrc_arg_t a4;             /* arg 4 */
-} jtrc_regular_element_t;
+struct jtrc_reg_entry {
+	int cpu;                /* cpu */
+	unsigned long tscp;     /* time from rdtscp */
+	void *tid;              /* tasket or tid */
+	const char *func_name;  /* pointer to function name */
+	int line_num;           /* line number */
+	void *id;               /* correlator */
+	char *fmt;              /* printf() format string */
+	void *a0;		/* arg 0 */
+	void *a1;		/* arg 1 */
+	void *a2;		/* arg 2 */
+	void *a3;		/* arg 3 */
+	void *a4;		/* arg 4 */
+};
 
 /**
- * @jtrc_hex_begin_element_t
+ * struct @jtrc_hex_entry
  *
  * Hex dump begin format trace buffer element
  */
-typedef struct _jtrc_hex_begin_element {
+struct jtrc_hex_entry {
 	int cpu;                    /* cpu */
 	unsigned long tscp;         /* time from rdtscp */
 	void *tid;                  /* tasket or tid */
@@ -68,7 +65,7 @@ typedef struct _jtrc_hex_begin_element {
 	char *msg;                  /* message to print */
 	int total_length;           /* Total length of data to dump */
 	char data_start;            /* First byte of binary hex data */
-} jtrc_hex_begin_element_t;
+};
 
 
 /**
@@ -76,10 +73,10 @@ typedef struct _jtrc_hex_begin_element {
  *
  * Hex dump format trace buffer element
  */
-typedef struct _jtrc_hex_element {
+struct jtrc_hex_continue {
 	unsigned char length;            /* Length of data for this element */
 	char data_start;   /* First byte of binary hex data in this element */
-} jtrc_hex_element_t;
+};
 
 
 /**
@@ -87,7 +84,7 @@ typedef struct _jtrc_hex_element {
  *
  * Preformatted str trace buffer element begin
  */
-typedef struct _jtrc_prefmtstr_begin_element {
+struct jtrc_pfs_entry {
 	int cpu;                    /* cpu */
 	unsigned long tscp;         /* time from rdtscp */
 	void *tid;                  /* tasket or tid */
@@ -96,50 +93,52 @@ typedef struct _jtrc_prefmtstr_begin_element {
 	void *id;                   /* correlator */
 	int total_length;           /* Total length of formatted str to dump */
 	char data_start;            /* First byte of formatted str */
-} jtrc_prefmtstr_begin_element_t;
+};
 
 
 /**
- * @jtrc_prefmtstr_element_t
+ * struct @jtrc_prefmtstr_element_t
  *
  * Preformatted str trace buffer element continue
  */
-typedef struct _jtrc_prefmtstr_element {
+struct jtrc_pfs_continue {
 	unsigned char length;       /* Length of data for this element */
 	char data_start;            /* First byte of str data in this element */
-} jtrc_prefmtstr_element_t;
+};
 
 /* The jtrace element union: *******************************************/
 /**
- * @jtrc_element_t
+ * struct @struct jtrc_entry
  *
  * Trace buffer element
  */
-typedef struct _jtrc_element {
-	jtrc_element_fmt_t elem_fmt; /* Element format type */
+struct jtrc_entry {
+	enum jtrc_entry_fmt elem_fmt; /* Element format type */
 	uint32_t flag;
 	union {
-		jtrc_regular_element_t reg;
-		jtrc_hex_begin_element_t hex_begin;
-		jtrc_hex_element_t hex;
-		jtrc_prefmtstr_begin_element_t pfs_begin;
-		jtrc_prefmtstr_element_t pfs_continue;
+		struct jtrc_reg_entry reg;
+		struct jtrc_hex_entry hex_begin;
+		struct jtrc_hex_continue hex_continue;
+		struct jtrc_pfs_entry pfs_begin;
+		struct jtrc_pfs_continue pfs_continue;
 	};
-} jtrc_element_t;
+};
 
-#define JTRC_MAX_HEX_DATA_FOR_BEG_ELEM \
-	(sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex_begin.data_start))
+#define JTRC_MAX_HEX_DATA_FOR_BEG_ELEM 					\
+	(sizeof(struct jtrc_entry)					\
+	 -offsetof(struct jtrc_entry, hex_begin.data_start))
 
-#define JTRC_MAX_HEX_DATA_PER_ELEM \
-	(sizeof(jtrc_element_t)-offsetof(jtrc_element_t, hex.data_start))
+#define JTRC_MAX_HEX_DATA_PER_ELEM 					\
+	(sizeof(struct jtrc_entry)					\
+	 -offsetof(struct jtrc_entry, hex_continue.data_start))
 
 #define JTRC_MAX_PREFMT_STR_FOR_BEG_ELEM \
-	(sizeof(jtrc_element_t) -		\
-	 offsetof(jtrc_element_t, pfs_begin.data_start) - 1)
+	(sizeof(struct jtrc_entry) -		\
+	 offsetof(struct jtrc_entry, pfs_begin.data_start) - 1)
 
 #define JTRC_MAX_PREFMT_STR_PER_ELEM \
-	(sizeof(jtrc_element_t) -		\
-	 offsetof(jtrc_element_t, pfs_continue.data_start) - 1)
+	(sizeof(struct jtrc_entry) -		\
+	 offsetof(struct jtrc_entry, pfs_continue.data_start) - 1)
 
 enum jtrace_context {
 	KERNEL = 0,
@@ -147,13 +146,13 @@ enum jtrace_context {
 };
 
 /**
- * @jtrc_cb_t
+ * struct @jtrc_cb
  *
  * Trace module control block
  *
  * Location, size, number of entries in the trace buffer, flag values, etc.
  */
-typedef struct _jtrc_cb {
+struct jtrc_cb {
 	enum jtrace_context jtrc_context;
 
 	/** Module trace info name */
@@ -172,7 +171,7 @@ typedef struct _jtrc_cb {
 	uint32_t jtrc_num_insert; /* tmp flag for debug */
 
 	/** Pointer to the trace buffer */
-	jtrc_element_t *jtrc_buf;
+	struct jtrc_entry *jtrc_buf;
 
 	/**
 	 * If enabled, then all trace statements are sent to console.
@@ -197,14 +196,14 @@ typedef struct _jtrc_cb {
 	 * Mask of valid custom flags.
 	 */
 	uint32_t jtrc_custom_flags_mask;
-} jtrc_cb_t;
+};
 
 #define JTRC_FLAG_CMD_LINE_SIZE 32
 #define JTRC_FLAG_DESCRIPTION_SIZE 128
-typedef struct _jtrc_flag_descriptor {
+struct jtrc_flag_descriptor {
 	char jtrc_flag_cmd_line_name[JTRC_FLAG_CMD_LINE_SIZE];
 	char jtrc_flag_description[JTRC_FLAG_DESCRIPTION_SIZE];
-} jtrc_flag_descriptor_t;
+};
 
 #define JTR_COMMON_FLAG(jtr_flag_num) (1 << (jtr_flag_num))
 
@@ -232,22 +231,26 @@ typedef struct _jtrc_flag_descriptor {
 #define JTR_CUSTOM_FLAG(jtr_flag_num) (1 << ((jtr_flag_num) + JTR_NUM_FLAGS))
 
 /* Sub-commands for JTRC_CMD_IOCTL */
-typedef enum {
+enum jtrc_cmd {
 	JTRCTL_SET_TRC_FLAGS,   /* Set trace flag mask (what will be logged) */
 	JTRCTL_SET_PRINTK,
 	JTRCTL_CLEAR,
 	JTRCTL_GET_ALL_TRC_INFO,
 	JTRCTL_SNARF
-} jtrc_cmd_t;
+};
 
 #ifndef __KERNEL__
 #include "userlist.h"
 #include <pthread.h>
+
+/* The common code uses kernel APIs;
+ * macros to fix that up to run in user space: */
 #define spinlock_t pthread_spinlock_t
 #define spin_lock_irqsave(lock, flags) pthread_spin_lock(lock)
 #define spin_unlock_irqrestore(lock, flags) pthread_spin_unlock(lock)
 #define EXPORT_SYMBOL(sym)
 
+/* Read the tscp timer register */
 static inline uint64_t
 jtrace_rdtscp(void)
 {
@@ -265,27 +268,53 @@ jtrace_rdtscp(void)
 /* Kernel mode */
 #define jtrace_rdtscp get_cycles
 /* Simple kernel func to print a jtrace element */
-void jtrc_print_element(jtrc_element_t *tp);
+void jtrc_print_element(struct jtrc_entry *tp);
 #define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
 
 extern spinlock_t jtrc_config_lock;
 
 /**
- * @jtrace_instance_t
+ * @struct jtrace_instance
  *
  * Contains the per-module trace information, plus
  * extra fields for kernel use.
  * Each kernel module which uses trace facility should
  * register this structure.
  */
-typedef struct _jtrace_instance {
-	jtrc_cb_t jtrc_cb;
-	struct _jtrc_flag_descriptor *custom_flags;
+struct jtrace_instance {
+	struct jtrc_cb jtrc_cb;
+	struct jtrc_flag_descriptor *custom_flags;
 	spinlock_t jtrc_buf_mutex;
 	struct list_head jtrc_list;  /* List of jtrace instances */
 	int refcount;
-} jtrace_instance_t;
+};
+
+
+/* jtrace driver ioctl interface */
+
+#define JTRACE_DEV_SPECIAL_FILE_NAME "jtrace"
+#define JTRACE_DEV_SPECIAL_FILE "/dev/jtrace"
+
+#ifndef JTRC_ENABLE
+#define JTRC_ENABLE
+#endif
+
+#define JTRACE_IOCTL_BASE 0xCC
+
+/*
+ * Kernel trace buffer controls and information.
+ */
+struct jtrc_cmd_req {
+	char trc_name[32];
+	enum jtrc_cmd cmd;
+	void *snarf_addr;   /* jtrace buffer addr */
+	void *data;         /* Client address */
+	int data_size;      /* Amount of data requested */
+	int status;
+};
+
+#define JTRC_CMD_IOCTL _IOWR(JTRACE_IOCTL_BASE, 0x1, struct jtrc_cmd_req)
 
 #ifdef __KERNEL__
 
@@ -294,8 +323,8 @@ typedef struct _jtrace_instance {
 /* Kernel-only prototypes */
 extern int jtrace_init(void);
 extern void jtrace_exit(void);
-extern int jtrace_cmd(struct _jtrc_cmd_req *cmd_req, void *uaddr);
-extern void jtrace_print_tail(jtrace_instance_t *jtri,
+extern int jtrace_cmd(struct jtrc_cmd_req *cmd_req, void *uaddr);
+extern void jtrace_print_tail(struct jtrace_instance *jtri,
 			      int num_elems);
 
 #else
@@ -308,11 +337,11 @@ int jtrace_kopen(void);
 int set_printk_value(char *buf_name, int value);
 int clear_trace_buf(char *buf_name);
 int set_trc_flags(char *buf_name, int trc_flags);
-jtrc_cb_t *get_all_trc_info(char *trc_buf_name, void **buf);
+struct jtrc_cb *get_all_trc_info(char *trc_buf_name, void **buf);
 int flag_str_to_flag(char *trc_flag_str, uint *trc_flag);
-int print_trace(jtrc_cb_t *cb, uint32_t dump_mask);
+int print_trace(struct jtrc_cb *cb, uint32_t dump_mask);
 int show_trc_flags(uint32_t trc_flags);
-jtrace_instance_t *jtrace_init(const char *name, int num_entries);
+struct jtrace_instance *jtrace_init(const char *name, int num_entries);
 
 #endif                          /* __KERNEL__ / USER */
 
@@ -321,24 +350,24 @@ jtrace_instance_t *jtrace_init(const char *name, int num_entries);
  * and in libjtrace */
 
 /* Register new jtrace instance: */
-extern int jtrace_register_instance(jtrace_instance_t *jtri);
+extern int jtrace_register_instance(struct jtrace_instance *jtri);
 /* Get a refcount on an existing jtrace instance: */
-extern int jtrace_get_instance(jtrace_instance_t *jtri);
+extern int jtrace_get_instance(struct jtrace_instance *jtri);
 /* Put refcount on jtrace instance.  Unregister if ref goes to zero: */
-extern void jtrace_put_instance(jtrace_instance_t *jtri);
+extern void jtrace_put_instance(struct jtrace_instance *jtri);
 
-extern void _jtrace(jtrace_instance_t *jtri, void *id,
+extern void _jtrace(struct jtrace_instance *jtri, void *id,
 		    uint32_t tflags,
 		    const char *func, int line, char *fmt, ...);
-extern void jtrace_preformatted_str(jtrace_instance_t *jtri,
+extern void jtrace_preformatted_str(struct jtrace_instance *jtri,
 				    void *id, uint32_t tflags,
 				    const char *func, int line,
 				    char *fmt, ...);
-extern void jtrace_hex_dump(jtrace_instance_t *jtri,
+extern void jtrace_hex_dump(struct jtrace_instance *jtri,
 			    const char *func, uint line,
 			    void *id, uint32_t tflags,
 			    char *msg, void *p, uint len);
-extern void __free_jtrace_instance(jtrace_instance_t *jtri);
+extern void __free_jtrace_instance(struct jtrace_instance *jtri);
 void jtrace_config(void);
 
 /************************************************************************
@@ -461,5 +490,6 @@ void jtrace_config(void);
 #define jtrc_errexit(jtri, flags, id, fmt, ...)
 
 #endif                          /* JTRC_ENABLE */
+
 
 #endif                          /* __JTRC_H */

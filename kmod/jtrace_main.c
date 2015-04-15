@@ -24,7 +24,7 @@
 /*
  * A reasonable amount of common flags.
  */
-jtrc_flag_descriptor_t jtrc_common_flag_array[] = {
+struct jtrc_flag_descriptor jtrc_common_flag_array[] = {
 	{"ERROR", "Trace error conditions"}
 	,
 	{"WARN", "Trace warning conditions"}
@@ -40,7 +40,7 @@ jtrc_flag_descriptor_t jtrc_common_flag_array[] = {
 };
 
 #define JTRC_NUM_COMMON_FLAGS (sizeof(jtrc_common_flag_array)		\
-			       / sizeof(jtrc_flag_descriptor_t))
+			       / sizeof(struct jtrc_flag_descriptor))
 static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
 
 /**
@@ -64,7 +64,7 @@ static void dump_hex_line(char *buf_ptr, int buf_len);
 static void jtrc_test(void);
 #endif
 
-void __free_jtrace_instance(jtrace_instance_t *jt)
+void __free_jtrace_instance(struct jtrace_instance *jt)
 {
 	vfree(jt->jtrc_cb.jtrc_buf);
 	kfree(jt);
@@ -127,14 +127,15 @@ copyout_append(char **out_buffer,  /* Where to copy */
  * 1. The number of common flags
  * 2. The common flags descriptors
  * 3. The number of registered modules
- * 4. the (module_trc_info_t, (jtrc_flag_descriptor_t, ...)) set for each module
+ * 4. the (module_trc_info_t, (struct jtrc_flag_descriptor, ...))
+ *    set for each module
  */
-static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
+static int jtrc_get_all_trc_info(struct jtrc_cmd_req *cmd_req)
 {
 	char *out_buffer = 0;
 	int out_buf_remainder = 0;
 	int total_bytes = 0;
-	jtrace_instance_t *jtri = NULL;
+	struct jtrace_instance *jtri = NULL;
 	int i = 0;
 	int rc = 0;
 	int req_size;
@@ -156,7 +157,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
 	for (i = 0; i < jtrc_num_common_flags; i++) {
 		copyout_append(&out_buffer,
 			       (void *) &jtrc_common_flag_array[i],
-			       sizeof(jtrc_flag_descriptor_t),
+			       sizeof(struct jtrc_flag_descriptor),
 			       &total_bytes,
 			       &out_buf_remainder);
 	}
@@ -172,7 +173,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
 	list_for_each_entry(jtri, &jtrc_instance_list, jtrc_list) {
 		copyout_append(&out_buffer,
 			       (char *) &jtri->jtrc_cb,
-			       sizeof(jtrc_cb_t),
+			       sizeof(struct jtrc_cb),
 			       &total_bytes,
 			       &out_buf_remainder);
 
@@ -182,7 +183,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
 		     i++) {
 			copyout_append(&out_buffer,
 				       &jtri->custom_flags[i],
-				       sizeof(jtrc_flag_descriptor_t),
+				       sizeof(struct jtrc_flag_descriptor),
 				       &total_bytes,
 				       &out_buf_remainder);
 		}
@@ -196,7 +197,7 @@ static int jtrc_get_all_trc_info(jtrc_cmd_req_t *cmd_req)
 }
 
 
-static int jtrc_snarf(jtrc_cmd_req_t *cmd_req)
+static int jtrc_snarf(struct jtrc_cmd_req *cmd_req)
 {
 	int rc = 0;
 
@@ -215,12 +216,12 @@ static int jtrc_snarf(jtrc_cmd_req_t *cmd_req)
  *
  * IOCTL handler for jtrc
  *
- * @cmd_req - jtrc_cmd_req_t struct, describing what the caller wants
+ * @cmd_req - struct jtrc_cmd_req struct, describing what the caller wants
  */
-int jtrace_cmd(jtrc_cmd_req_t *cmd_req, void *uaddr)
+int jtrace_cmd(struct jtrc_cmd_req *cmd_req, void *uaddr)
 {
 	int rc = 0;
-	jtrace_instance_t *jt = NULL;
+	struct jtrace_instance *jt = NULL;
 
 	/* JTRCTL_GET_ALL_TRC_INFO does not require valid jtrace context */
 	if (cmd_req->cmd == JTRCTL_GET_ALL_TRC_INFO) {
@@ -342,7 +343,7 @@ static int idx;
  * This prints a trace element to the system log (printk) in an
  * element-type-dependent format
  */
-void jtrc_print_element(jtrc_element_t *tp)
+void jtrc_print_element(struct jtrc_entry *tp)
 {
 	int prefix_len = 0;
 
@@ -412,10 +413,11 @@ void jtrc_print_element(jtrc_element_t *tp)
 	    char *binary_data = NULL;
 
 	    binary_length =
-		(size_t) MIN(tp->hex.length, JTRC_MAX_HEX_DATA_PER_ELEM);
+		(size_t)MIN(tp->hex_continue.length,
+			    JTRC_MAX_HEX_DATA_PER_ELEM);
 
 	    /* The binary data starts at the data_start location */
-	    binary_data = (char *) &tp->hex.data_start;
+	    binary_data = (char *)&tp->hex_continue.data_start;
 
 	    /* Dump in increments of hex line size */
 	    while (binary_length > 0) {
@@ -479,13 +481,13 @@ void jtrc_print_element(jtrc_element_t *tp)
  * @jt      - the jtrace instance
  * @num_elems - the number of elements to print, at the tail of the trace
  */
-void jtrace_print_tail(jtrace_instance_t *jt,
+void jtrace_print_tail(struct jtrace_instance *jt,
 			    int num_elems)
 {
 	/* Back up the index num_elems slots */
 	int32_t temp_index =
 		jt->jtrc_cb.jtrc_buf_index - num_elems;
-	register jtrc_element_t *tp = NULL;
+	register struct jtrc_entry *tp = NULL;
 	int i = 0;
 
 	if (temp_index < 0)
@@ -537,10 +539,10 @@ EXPORT_SYMBOL(jtrace_print_tail);
  * Create a jtrace instance, and get its handle.  Fail if there is already
  * an instance with the same name.
  *
- * @jt - pointer to initialized jtrace_instance_t struct.
+ * @jt - pointer to initialized struct jtrace_instance struct.
  *
  */
-int jtrace_register_instance(jtrace_instance_t *jt)
+int jtrace_register_instance(struct jtrace_instance *jt)
 {
 	unsigned long flags;
 
@@ -601,12 +603,12 @@ static int
 __jtrace_init(int32_t num_slots)
 {
 	int result;
-	jtrace_instance_t *jtri = NULL;
+	struct jtrace_instance *jtri = NULL;
 
 	/*
 	 * Create the default jtrace instance
 	 */
-	jtri = kmalloc(sizeof(jtrace_instance_t), GFP_KERNEL);
+	jtri = kmalloc(sizeof(struct jtrace_instance), GFP_KERNEL);
 	if (!jtri)
 		return -ENOMEM;
 
@@ -619,7 +621,7 @@ __jtrace_init(int32_t num_slots)
 		JTRC_DEFAULT_NAME, sizeof(jtri->jtrc_cb.jtrc_name));
 	jtri->jtrc_cb.jtrc_buf = NULL;
 	jtri->jtrc_cb.jtrc_num_entries = num_slots;
-	jtri->jtrc_cb.jtrc_buf_size = num_slots * sizeof(jtrc_element_t);
+	jtri->jtrc_cb.jtrc_buf_size = num_slots * sizeof(struct jtrc_entry);
 
 	jtri->jtrc_cb.jtrc_buf_index = 0;
 	jtri->jtrc_cb.jtrc_kprint_enabled = 0;
@@ -644,11 +646,11 @@ int jtrace_init(void)
 
 void jtrace_exit(void)
 {
-	jtrace_instance_t *jtri;
+	struct jtrace_instance *jtri;
 	struct list_head *this, *next;
 
 	list_for_each_safe(this, next, &jtrc_instance_list) {
-		jtri = list_entry(this, jtrace_instance_t, jtrc_list);
+		jtri = list_entry(this, struct jtrace_instance, jtrc_list);
 		pr_info("jtrace: unloading instance %s\n",
 		       jtri->jtrc_cb.jtrc_name);
 		jtrace_put_instance(jtri);
@@ -663,7 +665,7 @@ static void jtrc_test(void)
 	int value1 = 1;
 	char hex_dump_data[512];
 	int i = 0;
-	jtrace_instance_t *jtri;
+	struct jtrace_instance *jtri;
 
 	jtri = jtrc_default_instance(&jtrc_instance_list);
 	if (jtrace_get_instance(jtri)) {
@@ -678,28 +680,29 @@ static void jtrc_test(void)
 
 	jtrc(jtri, JTR_CONF, id, "First Entry");
 
-	jtrc(jtri, JTR_CONF, id, "sizeof(jtrc_element_t)=%d",
-	     sizeof(jtrc_element_t));
-	jtrc(jtri, JTR_CONF, id, "sizeof(jtrc_regular_element_t)=%d",
-	     sizeof(jtrc_regular_element_t));
-	jtrc(jtri, JTR_CONF, id, "sizeof(jtrc_hex_begin_element_t)=%d",
-	     sizeof(jtrc_hex_begin_element_t));
-	jtrc(jtri, JTR_CONF, id, "sizeof(jtrc_hex_element_t)=%d",
-	     sizeof(jtrc_hex_element_t));
-	jtrc(jtri, JTR_CONF, id, "sizeof(jtrc_element_fmt_t)=%d",
-	     sizeof(jtrc_element_fmt_t));
-	jtrc(jtri, JTR_CONF, id, "offsetof(jtrc_element_t, elem_fmt)=%d",
-	     offsetof(jtrc_element_t, elem_fmt));
-	jtrc(jtri, JTR_CONF, id, "offsetof(jtrc_element_t, hex.length)=%d",
-	     offsetof(jtrc_element_t, hex.length));
-	jtrc(jtri, JTR_CONF, id, "offsetof(jtrc_element_t, hex.data_start)=%d",
-	     offsetof(jtrc_element_t, hex.data_start));
+	jtrc(jtri, JTR_CONF, id, "sizeof(struct jtrc_entry)=%d",
+	     sizeof(struct jtrc_entry));
+	jtrc(jtri, JTR_CONF, id, "sizeof(struct jtrc_reg_entry)=%d",
+	     sizeof(struct jtrc_reg_entry));
+	jtrc(jtri, JTR_CONF, id, "sizeof(struct jtrc_hex_entry)=%d",
+	     sizeof(struct jtrc_hex_entry));
+	jtrc(jtri, JTR_CONF, id, "sizeof(struct jtrc_hex_continue)=%d",
+	     sizeof(struct jtrc_hex_continue));
+	jtrc(jtri, JTR_CONF, id, "sizeof(enum jtrc_entry_fmt)=%d",
+	     sizeof(enum jtrc_entry_fmt));
+	jtrc(jtri, JTR_CONF, id, "offsetof(struct jtrc_entry, elem_fmt)=%d",
+	     offsetof(struct jtrc_entry, elem_fmt));
+	jtrc(jtri, JTR_CONF, id, "offsetof(struct jtrc_entry, hex.length)=%d",
+	     offsetof(struct jtrc_entry, hex_continue.length));
 	jtrc(jtri, JTR_CONF, id,
-	     "offsetof(jtrc_element_t, hex_begin.total_length)=%d",
-	     offsetof(jtrc_element_t, hex_begin.total_length));
+	     "offsetof(struct jtrc_entry, hex.data_start)=%d",
+	     offsetof(struct jtrc_entry, hex_continue.data_start));
 	jtrc(jtri, JTR_CONF, id,
-	     "offsetof(jtrc_element_t, hex_begin.data_start)=%d",
-	     offsetof(jtrc_element_t, hex_begin.data_start));
+	     "offsetof(struct jtrc_entry, hex_begin.total_length)=%d",
+	     offsetof(struct jtrc_entry, hex_begin.total_length));
+	jtrc(jtri, JTR_CONF, id,
+	     "offsetof(struct jtrc_entry, hex_begin.data_start)=%d",
+	     offsetof(struct jtrc_entry, hex_begin.data_start));
 	jtrc(jtri, JTR_CONF, id, "JTRC_MAX_HEX_DATA_FOR_BEG_ELEM=%d",
 	     JTRC_MAX_HEX_DATA_FOR_BEG_ELEM);
 	jtrc(jtri, JTR_CONF, id, "JTRC_MAX_HEX_DATA_PER_ELEM=%d",

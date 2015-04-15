@@ -30,7 +30,7 @@ void jtrace_config(void)
 	pthread_spin_init(&jtrc_config_lock, PTHREAD_PROCESS_PRIVATE);
 }
 
-void __free_jtrace_instance(jtrace_instance_t *jt)
+void __free_jtrace_instance(struct jtrace_instance *jt)
 {
 	munmap(jt->jtrc_cb.jtrc_buf, jt->jtrc_cb.jtrc_buf_size);
 	munmap(jt, sizeof(*jt));
@@ -44,14 +44,14 @@ void __free_jtrace_instance(jtrace_instance_t *jt)
 int
 map_user_trc_buf(const char *instancename,
 		 int num_entries,
-		 jtrace_instance_t **addr)
+		 struct jtrace_instance **addr)
 {
 	int rc;
 	pid_t mypid = getpid();
 	DIR *dir;
 	char *trcfilename = malloc(MAX_NAME_LEN);
 	int meta_fd, trc_fd;
-	jtrace_instance_t *jtri;
+	struct jtrace_instance *jtri;
 
 	snprintf(trcfilename, MAX_NAME_LEN, "%s/jtrace", tmpfs_path);
 
@@ -92,19 +92,20 @@ map_user_trc_buf(const char *instancename,
 			trcfilename);
 		return -1;
 	}
-	ftruncate(meta_fd, MAX(sizeof(jtrace_instance_t), 4096));
-	jtri = (jtrace_instance_t *)mmap(NULL, sizeof(jtrace_instance_t),
-					 PROT_READ|PROT_WRITE, MAP_SHARED,
+	ftruncate(meta_fd, MAX(sizeof(struct jtrace_instance), 4096));
+	jtri = (struct jtrace_instance *)
+		mmap(NULL, sizeof(struct jtrace_instance),
+		     PROT_READ|PROT_WRITE, MAP_SHARED,
 					 meta_fd, 0);
 	if (MAP_FAILED == (void *)jtri) {
 		fprintf(stderr, "failed to map meta file\n");
 		return -1;
 	}
-	memset(jtri, 0, sizeof(jtrace_instance_t));
+	memset(jtri, 0, sizeof(struct jtrace_instance));
 
 	jtri->jtrc_cb.jtrc_context = USER;
 	jtri->jtrc_cb.jtrc_num_entries = num_entries;
-	jtri->jtrc_cb.jtrc_buf_size = num_entries * sizeof(jtrc_element_t);
+	jtri->jtrc_cb.jtrc_buf_size = num_entries * sizeof(struct jtrc_entry);
 	pthread_spin_init(&jtri->jtrc_buf_mutex, PTHREAD_PROCESS_PRIVATE);
 
 	/* Trace file(s) */
@@ -123,14 +124,14 @@ map_user_trc_buf(const char *instancename,
 	return 0;
 }
 
-jtrace_instance_t *jtri = 0;
+struct jtrace_instance *jtri = 0;
 
 struct list_head jtrc_instance_list;
 
-jtrace_instance_t *
+struct jtrace_instance *
 jtrace_init(const char *name, int num_entries)
 {
-	jtrace_instance_t *jtri;
+	struct jtrace_instance *jtri;
 
 	if (strlen(name) > (JTRC_MOD_NAME_SIZE - 1)) {
 		fprintf(stderr, "jtrace_init: invalid name (%s)\n", name);

@@ -29,7 +29,7 @@ jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case JTRC_CMD_IOCTL: {
-		jtrc_cmd_req_t cmd_req;
+		struct jtrc_cmd_req cmd_req;
 
 		if (!arg) {
 			pr_info("arg must be non-zero\n");
@@ -64,7 +64,7 @@ static struct miscdevice jtr_mdev = {
 	.fops = &jtrc_fops,
 };
 
-static jtrace_instance_t tmp_jtr;
+static struct jtrace_instance tmp_jtr;
 
 static int __init jtrace_cdev_init(void)
 {
@@ -85,7 +85,7 @@ static int __init jtrace_cdev_init(void)
 	 */
 #define NUM_ELEM 1048576
 	{
-		int elem_size = sizeof(jtrc_element_t);
+		int elem_size = sizeof(struct jtrc_entry);
 		int bufsize = (elem_size * NUM_ELEM);
 		char *buf;
 
@@ -98,7 +98,7 @@ static int __init jtrace_cdev_init(void)
 
 		buf = vmalloc_user(bufsize);
 
-		tmp_jtr.jtrc_cb.jtrc_buf = (jtrc_element_t *)buf;
+		tmp_jtr.jtrc_cb.jtrc_buf = (struct jtrc_entry *)buf;
 		if (!buf) {
 			pr_info("jtrace: unable to vmalloc master buffer\n");
 			goto errexit;

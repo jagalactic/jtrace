@@ -1,7 +1,12 @@
 
 all:
 	mkdir -p builds
-	cd builds; cmake ..; make
+	cd builds; cmake -DCMAKE_BUILD_TYPE=Release ..; make
+	cd kmod; make all
+
+debug:
+	mkdir -p builds
+	cd builds; cmake -DCMAKE_BUILD_TYPE=Debug ..; make
 	cd kmod; make all
 
 oldall:

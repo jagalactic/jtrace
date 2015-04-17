@@ -48,22 +48,21 @@ static int jtrc_num_common_flags = JTRC_NUM_COMMON_FLAGS;
  * This is the kernel-mode list of extant jtrace instances
  */
 DEFINE_SPINLOCK(jtrc_config_lock);
-struct list_head jtrc_instance_list
-	    = LIST_HEAD_INIT(jtrc_instance_list);
 
 int jtrc_num_instances;
 
-/*
- * local fuctions
- */
-
-#define DUMP_HEX_BYTES_PER_LINE 16
 static void dump_hex_line(char *buf_ptr, int buf_len);
 
 #ifdef JTRC_TEST
 static void jtrc_test(void);
 #endif
 
+/**
+ * __free_jtrace_instance()
+ *
+ * Called from jtrace_common.c to free allocated resources.  Kernel and user
+ * must provide separate versions of this function.
+ */
 void __free_jtrace_instance(struct jtrace_instance *jt)
 {
 	vfree(jt->jtrc_cb.jtrc_buf);
@@ -240,8 +239,7 @@ int jtrace_cmd(struct jtrc_cmd_req *cmd_req, void *uaddr)
 	}
 
 	/* All others require valid trc_name info */
-	jt = jtrc_find_instance_by_name(&jtrc_instance_list,
-					cmd_req->trc_name);
+	jt = jtrc_find_get_instance(cmd_req->trc_name);
 	if (!jt) {
 		cmd_req->status = ENODEV;
 		return -ENODEV;
@@ -292,6 +290,8 @@ int jtrace_cmd(struct jtrc_cmd_req *cmd_req, void *uaddr)
 
 	return rc;
 }
+
+#define DUMP_HEX_BYTES_PER_LINE 16
 
 void dump_hex_line(char *buf_ptr, int buf_len)
 {
@@ -533,62 +533,6 @@ EXPORT_SYMBOL(jtrace_print_tail);
 
 /***************************************************************************/
 
-/**
- * jtrace_register_instance()
- *
- * Create a jtrace instance, and get its handle.  Fail if there is already
- * an instance with the same name.
- *
- * @jt - pointer to initialized struct jtrace_instance struct.
- *
- */
-int jtrace_register_instance(struct jtrace_instance *jt)
-{
-	unsigned long flags;
-
-	if (strnlen(jt->jtrc_cb.jtrc_name,
-		    sizeof(jt->jtrc_cb.jtrc_name)) == 0) {
-		pr_info("ERROR: %s: NULL jtrc_name\n", __func__);
-		return -EINVAL;
-	}
-
-	if (jt->jtrc_cb.jtrc_custom_flags_mask & JTR_COMMON_FLAGS_MASK) {
-		pr_info("ERROR: %s: Custom flags overlap with common flags\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	if (!jt->jtrc_cb.jtrc_buf) {
-		jt->jtrc_cb.jtrc_buf = vmalloc_user(jt->jtrc_cb.jtrc_buf_size);
-		if (!jt->jtrc_cb.jtrc_buf) {
-			pr_info("%s: vmalloc failed\n", __func__);
-			return -ENOMEM;
-		}
-	}
-
-	spin_lock_irqsave(&jtrc_config_lock, flags);
-
-	/* Does this instance already exist? */
-	if (jtrc_find_instance_by_addr(&jtrc_instance_list, jt) ||
-	    jtrc_find_instance_by_name(&jtrc_instance_list,
-				       jt->jtrc_cb.jtrc_name)) {
-		pr_info("jtrace_register_instance: EALREADY\n");
-		spin_unlock_irqrestore(&jtrc_config_lock, flags);
-		return -EALREADY;
-	}
-
-	spin_lock_init(&jt->jtrc_buf_mutex);
-	jt->jtrc_cb.jtrc_buf_index = 0;
-	memset((caddr_t) jt->jtrc_cb.jtrc_buf, 0, jt->jtrc_cb.jtrc_buf_size);
-	list_add_tail(&jt->jtrc_list, &jtrc_instance_list);
-	jtrc_num_instances++;
-	jt->refcount++;
-
-	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(jtrace_register_instance);
 
 /* Module Parameters */
 int num_trc_elements = 0x100000;
@@ -626,10 +570,23 @@ __jtrace_init(int32_t num_slots)
 	jtri->jtrc_cb.jtrc_buf_index = 0;
 	jtri->jtrc_cb.jtrc_kprint_enabled = 0;
 	jtri->jtrc_cb.jtrc_flags = JTR_COMMON_FLAGS_MASK;
+	spin_lock_init(&jtri->jtrc_buf_mutex);
+
+	if (!jtri->jtrc_cb.jtrc_buf) {
+		jtri->jtrc_cb.jtrc_buf =
+			vmalloc_user(jtri->jtrc_cb.jtrc_buf_size);
+		if (!jtri->jtrc_cb.jtrc_buf) {
+			pr_info("%s: vmalloc failed\n", __func__);
+			return -ENOMEM;
+		}
+	}
 
 	result = jtrace_register_instance(jtri);
-	if (result)
+	if (result) {
+		vfree(jtri->jtrc_cb.jtrc_buf);
+		kfree(jtri);
 		return result;
+	}
 
 #ifdef JTRC_TEST
 	jtrc_test();
@@ -667,7 +624,7 @@ static void jtrc_test(void)
 	int i = 0;
 	struct jtrace_instance *jtri;
 
-	jtri = jtrc_default_instance(&jtrc_instance_list);
+	jtri = jtrc_default_instance();
 	if (jtrace_get_instance(jtri)) {
 		pr_info("jtrc_test: failed refount on default instance\n");
 		return;

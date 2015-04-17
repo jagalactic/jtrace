@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 	char *trc_buf_name = NULL;
 	void *all_trc_info = NULL;
 	int jtrace_kfd;
-	struct jtrc_cb *jtrc_cb;
+	struct jtrc_cb *jtrc_cb = NULL;
 
 	jtrace_kfd = jtrace_kopen();
 	if (jtrace_kfd < 0) {

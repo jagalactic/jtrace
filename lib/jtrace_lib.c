@@ -145,9 +145,9 @@ jtrace_init(const char *name, int num_entries)
 
 	strncpy(jtri->jtrc_cb.jtrc_name, name, JTRC_MOD_NAME_SIZE-1);
 
-	/* XXX Take the config lock */
-	list_add_tail(&jtri->jtrc_list, &jtrc_instance_list);
-	/* XXX free config lock */
+	if (jtrace_register_instance(jtri) != 0)
+		return NULL;
+
 	return jtri;
 }
 

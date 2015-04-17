@@ -21,53 +21,41 @@
 #include <string.h>
 #include <stdarg.h>
 #include <sys/param.h>
+#include <errno.h>
 #endif
 
 #include "jtrace.h"
 #include "jtrace_common.h"
 
-/**
- * jtrc_find_instance_by_addr()
- *
- * Find instance in jtrc_instance_list list by address.
- */
-struct jtrace_instance *
-jtrc_find_instance_by_addr(struct list_head *jtri_list,
-			   struct jtrace_instance *jt)
-{
-	struct jtrace_instance *tmp_jtri = NULL;
-	int found = 0;
-
-	list_for_each_entry(tmp_jtri, jtri_list, jtrc_list) {
-		if (tmp_jtri == jt) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found)
-		return NULL;
-	return tmp_jtri;
-}
+struct list_head jtrc_instance_list
+	    = LIST_HEAD_INIT(jtrc_instance_list);
 
 /**
- * jtrc_find_instance_by_name()
+ * jtrc_find_get_instance()
  *
  * Find trace info by name.
  */
 struct jtrace_instance *
-jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
+jtrc_find_get_instance(char *trc_name)
 {
 	int found = 0;
 	struct jtrace_instance *jt = NULL;
+#ifdef __KERNEL__
+	unsigned long flags;
+#endif
 
-	list_for_each_entry(jt, jtri_list, jtrc_list) {
+	spin_lock_irqsave(&jtrc_config_lock, flags);
+	list_for_each_entry(jt, &jtrc_instance_list, jtrc_list) {
 		if (strncmp(jt->jtrc_cb.jtrc_name, trc_name,
 			    sizeof(jt->jtrc_cb.jtrc_name)) == 0) {
 			found = 1;
 			break;
 		}
 	}
+	if (found)
+		jt->refcount++;
+
+	spin_unlock_irqrestore(&jtrc_config_lock, flags);
 
 	if (!found)
 		return NULL;
@@ -75,9 +63,9 @@ jtrc_find_instance_by_name(struct list_head *jtri_list, char *trc_name)
 }
 
 struct jtrace_instance *
-jtrc_default_instance(struct list_head *jtri_list)
+jtrc_default_instance(void)
 {
-	return jtrc_find_instance_by_name(jtri_list, JTRC_DEFAULT_NAME);
+	return jtrc_find_get_instance(JTRC_DEFAULT_NAME);
 }
 EXPORT_SYMBOL(jtrc_default_instance);
 
@@ -111,14 +99,13 @@ void jtrace_put_instance(struct jtrace_instance *jt)
 #endif
 
 	spin_lock_irqsave(&jtrc_config_lock, flags);
-	/* Can only put if it's on the instance list */
-	if (!jtrc_find_instance_by_addr(&jtrc_instance_list, jt)) {
-		spin_unlock_irqrestore(&jtrc_config_lock, flags);
-		return;
-	}
 
 	jt->refcount--;
 	if (jt->refcount == 0) {
+#ifndef __KERNEL__
+		printf("%s: list_del prev %p next %p\n",
+		       __func__, jt->jtrc_list.prev, jt->jtrc_list.next);
+#endif
 		list_del(&jt->jtrc_list);
 		jtrc_num_instances--;
 		__free_jtrace_instance(jt);
@@ -128,7 +115,55 @@ void jtrace_put_instance(struct jtrace_instance *jt)
 }
 EXPORT_SYMBOL(jtrace_put_instance);
 
-/******************************************* NEW ***************************/
+/**
+ * jtrace_register_instance()
+ *
+ * Create a jtrace instance, and get its handle.  Fail if there is already
+ * an instance with the same name.
+ *
+ * @jt - pointer to initialized struct jtrace_instance struct.
+ *
+ */
+int jtrace_register_instance(struct jtrace_instance *jt)
+{
+#ifdef __KERNEL__
+	unsigned long flags;
+#endif
+	struct jtrace_instance *tmp_jt;
+
+	if (strnlen(jt->jtrc_cb.jtrc_name,
+		    sizeof(jt->jtrc_cb.jtrc_name)) == 0) {
+		pr_info("ERROR: %s: NULL jtrc_name\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Does this instance already exist? */
+	if ((tmp_jt = jtrc_find_get_instance(jt->jtrc_cb.jtrc_name))) {
+		pr_info("%s: EALREADY\n", __func__);
+		jtrace_put_instance(tmp_jt);
+		return -EALREADY;
+	}
+
+	if (jt->jtrc_cb.jtrc_custom_flags_mask & JTR_COMMON_FLAGS_MASK) {
+		pr_info("ERROR: %s: Custom flags overlap with common flags\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	jt->jtrc_cb.jtrc_buf_index = 0;
+	memset((caddr_t) jt->jtrc_cb.jtrc_buf, 0, jt->jtrc_cb.jtrc_buf_size);
+	jt->refcount = 1;
+
+	spin_lock_irqsave(&jtrc_config_lock, flags);
+	list_add_tail(&jt->jtrc_list, &jtrc_instance_list);
+	jtrc_num_instances++;
+	spin_unlock_irqrestore(&jtrc_config_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(jtrace_register_instance);
+
+/**************** put entries in the jtrace buffer(s) **********************/
 
 /**
  * jtrc_v() - add trace entries to buffer
@@ -210,7 +245,7 @@ __jtrace_preformatted_str(struct jtrace_instance *jt, void *id, uint32_t flags,
 			  const char *func_name, int line_num, char *buf,
 			  int str_len)
 {
-	register struct jtrc_entry *tp;
+	struct jtrc_entry *tp;
 	enum jtrc_entry_fmt elem_fmt;
 
 	char *in_buf = (char *) buf;

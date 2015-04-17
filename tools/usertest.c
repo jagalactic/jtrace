@@ -52,11 +52,11 @@ int main(int argc, char **argv)
 		printf("bad context for jtri0 %d\n",
 		       jtri0->jtrc_cb.jtrc_context);
 
-	jtri = jtrc_find_instance_by_name(&jtrc_instance_list, "frog");
-	printf("jtrc_find_instance_by_name(frog): %p\n", jtri);
+	jtri = jtrc_find_get_instance("frog");
+	printf("jtrc_find_get_instance(frog): %p\n", jtri);
 	assert(jtri == jtri1);
 	list_del(&jtri->jtrc_list);
-	jtri = jtrc_find_instance_by_name(&jtrc_instance_list, "frog");
+	jtri = jtrc_find_get_instance("frog");
 	assert(jtri == NULL);
 
 	printf("ok1\n");

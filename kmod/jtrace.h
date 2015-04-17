@@ -248,6 +248,7 @@ enum jtrc_cmd {
 #define spinlock_t pthread_spinlock_t
 #define spin_lock_irqsave(lock, flags) pthread_spin_lock(lock)
 #define spin_unlock_irqrestore(lock, flags) pthread_spin_unlock(lock)
+#define pr_info printf
 #define EXPORT_SYMBOL(sym)
 
 /* Read the tscp timer register */

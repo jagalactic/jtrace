@@ -1,3 +1,9 @@
+#
+# Makefile for jtrace
+#
+# Note: cmake is used for user space.  Executables and libs end up in ./builds
+#       cmake is NOT currently used for ./kmod.
+#
 
 all:
 	mkdir -p builds

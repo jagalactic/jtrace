@@ -82,11 +82,13 @@ int snarf_from_kernel(void *to, void *from, size_t len)
 {
 	struct jtrc_cmd_req cmd_req;
 
+	memset(&cmd_req, 0, sizeof(cmd_req));
 	cmd_req.snarf_addr = from;
 	cmd_req.data = to;
 	cmd_req.data_size = len;
 
 	cmd_req.cmd = JTRCTL_SNARF;
+	printf("&cmd_req: %p\n", &cmd_req);
 	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
 		void *buf[255];
 		const int calls = backtrace(buf, 255);
@@ -127,19 +129,16 @@ struct _cache_stats {
  *
  * I have no recollection of writing this, so somebody else is probably the
  * culprit ;-).  Strings must be <128b.
- * XXX: Looks like don't currently check that there is a NULL in the 1st 128b.
- * But on the plus side, if it's recently been snarfed, we'll deliver it from
- * cache...
  */
 char *snarf_str(void *from)
 {
+	static uint lru;
+	struct StrCache *ent, *old;
 	static struct StrCache {
 		void *addr;
 		char str[128];
 		uint lru;
-	} cache[512], *last, *hiwat = &cache[0];
-	static uint lru;
-	struct StrCache *ent, *old;
+	} cache[512], *last = NULL, *hiwat = &cache[0];
 
 	if (last && last->addr == from) {
 		++cstats.fastHits;
@@ -172,7 +171,7 @@ char *snarf_str(void *from)
 	ent->lru = ++lru;
 
 	snarf(ent->str, from, (size_t) sizeof(ent->str));
-	ent->str[sizeof(ent->str) - 1] = 0;
+	ent->str[sizeof(ent->str) - 1] = 0; /* put NULL @ end just in case */
 	++cstats.misses;
 
 	return (last = ent)->str;
@@ -255,6 +254,7 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	int i = 0;
 	char *out_bufp = 0;
 	int rc = 0;
+	int offset = 0;
 
 	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 
@@ -273,10 +273,15 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	if (jtrc_verbose)
 		printf("required_size=%d\n", cmd_req.data_size);
 
-	*buf = malloc(cmd_req.data_size);
-	assert(*buf);
+	/* We currently "leak" this, since a bunch of stuff gets packed
+	 * into it, and that stuff is referenced through globals.
+	 * TODO: get our payload out of the kernel in a less brain-dead way
+	 */
+	out_bufp = malloc(cmd_req.data_size);
+	memset(out_bufp, 0, cmd_req.data_size); /* for valgrind :-/ */
 
-	cmd_req.data = *buf;
+	/* Now know how much data is coming, and we have a buffer big enough */
+	cmd_req.data = out_bufp;
 	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
 	if (rc) {
 		fprintf(stderr,
@@ -286,34 +291,34 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	}
 
 	/*
-	 * use out_bufp to walk through the glob that we got from the kernel
+	 * use out_bufp[offset] to walk through the glob that we got from
+	 * the kernel
 	 */
-	out_bufp = *buf;
 	/* Number of common Flags */
-	memcpy(&jtrc_num_common_flags, out_bufp,
+	offset = 0; /* # common flags is first; will increment offset after...*/
+	memcpy(&jtrc_num_common_flags, &out_bufp[offset],
 	       sizeof(jtrc_num_common_flags));
-	out_bufp += sizeof(jtrc_num_common_flags);
+	offset += sizeof(jtrc_num_common_flags);
 
 	/* Array of common flag descriptors */
-	jtrc_common_flag_array = (struct jtrc_flag_descriptor *) out_bufp;
-	out_bufp += (jtrc_num_common_flags
-		     * sizeof(struct jtrc_flag_descriptor));
+	jtrc_common_flag_array = (struct jtrc_flag_descriptor *)
+		&out_bufp[offset];
+	offset += (jtrc_num_common_flags * sizeof(struct jtrc_flag_descriptor));
 
-	/* Number of registered modules */
-	memcpy(&jtrc_num_instances, out_bufp,
+	/* Number of registered instances */
+	memcpy(&jtrc_num_instances, &out_bufp[offset],
 	       sizeof(jtrc_num_instances));
-	out_bufp += sizeof(jtrc_num_instances);
+	offset += sizeof(jtrc_num_instances);
 
 	if (jtrc_verbose) {
 		printf("jtrc_num_common_flags=%d jtrc_num_instances=%d\n",
 		       jtrc_num_common_flags, jtrc_num_instances);
 	}
 
-	/* Array of registered modules, each followed
+	/* Array of registered instances, each followed
 	 * by optional custom flags */
 	if (jtrc_num_instances) {
-		jtrc_first_kernel_cb = (struct jtrc_cb *) out_bufp;
-		cb = jtrc_first_kernel_cb;
+		jtrc_first_kernel_cb = (struct jtrc_cb *)&out_bufp[offset];
 	}
 
 	/*
@@ -322,21 +327,19 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 	 */
 	if (trc_buf_name) {
 		for (i = 0; i < jtrc_num_instances; i++) {
+			cb = (struct jtrc_cb *)&out_bufp[offset];
 			if (strcmp(cb->jtrc_name,
 				   trc_buf_name) == 0) {
 				/* Found a match */
 				jtrc_cb = cb;
 				break;
 			}
-			/* Get next trace information */
-			out_bufp = (char *) cb;
-			/* Skip past this trace information */
-			out_bufp += sizeof(struct jtrc_cb);
-			/* Also, skip past any custom flag descriptions */
-			out_bufp +=
-				(cb->jtrc_num_custom_flags *
-				 sizeof(struct jtrc_flag_descriptor));
-			cb = (struct jtrc_cb *) out_bufp;
+			/* Increment past the current cb */
+			offset += sizeof(struct jtrc_cb);
+			/* Following the current cb is (maybe) some custom
+			 * flag descriptors.  Skip past those too */
+			offset += (cb->jtrc_num_custom_flags *
+				   sizeof(struct jtrc_flag_descriptor));
 		}
 	}
 
@@ -772,11 +775,11 @@ int print_trace(struct jtrc_cb *cb, uint32_t dump_mask)
 	size_t trc_buf_size;
 	uint32_t slot_idx, mark_slot;
 	struct jtrc_entry *tp;
-	void *p = NULL;
 	uint32_t zero_slots = 0;
 	uint32_t curr_slot;
 	uint32_t num_slots;
 	struct jtrc_entry *trc_buf;
+	int trc_buf_allocated = 0;
 
 	if (!cb) {
 		fprintf(stderr, "ERROR:%s: trace_info is NULL\n", __func__);
@@ -805,19 +808,18 @@ int print_trace(struct jtrc_cb *cb, uint32_t dump_mask)
 		trc_buf = cb->jtrc_buf;
 	} else if (cb->jtrc_context == KERNEL) {
 		printf("%s: KERNEL context\n", __func__);
-		p = malloc(trc_buf_size);
-		trc_buf = (struct jtrc_entry *) p;
+		trc_buf = (struct jtrc_entry *)calloc(1, trc_buf_size);
 		if (trc_buf == NULL) {
 			fprintf(stderr, "%s: malloc failed", __func__);
 			return -1;
 		}
+		trc_buf_allocated = 1;
 		/* Get the whole trc_buf in one bodacious snarf */
 		snarf((void *) trc_buf, cb->jtrc_buf, trc_buf_size);
 	} else {
 		fprintf(stderr, "%s: invalid jtrc_context\n", __func__);
 		return -1;
 	}
-
 
 	if (jtrc_verbose) {
 		printf("trc_buf = %p, trc_buf_size=%lx slot_idx=0x%x\n",
@@ -907,6 +909,8 @@ int print_trace(struct jtrc_cb *cb, uint32_t dump_mask)
 	}
 
 	printf("\n");
+	if (trc_buf_allocated)
+		free(trc_buf);
 	return 0;
 }
 

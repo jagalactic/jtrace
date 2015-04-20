@@ -32,6 +32,7 @@ void jtrace_config(void)
 
 void __free_jtrace_instance(struct jtrace_instance *jt)
 {
+	assert(jt->jtrc_cb.jtrc_name);
 	munmap(jt->jtrc_cb.jtrc_buf, jt->jtrc_cb.jtrc_buf_size);
 	munmap(jt, sizeof(*jt));
 }
@@ -46,7 +47,7 @@ map_user_trc_buf(const char *instancename,
 		 int num_entries,
 		 struct jtrace_instance **addr)
 {
-	int rc;
+	int rc = 0;
 	pid_t mypid = getpid();
 	DIR *dir;
 	char *trcfilename = malloc(MAX_NAME_LEN);
@@ -63,17 +64,21 @@ map_user_trc_buf(const char *instancename,
 		if (rc) {
 			fprintf(stderr, "mkdir(%s): %s\n",
 				trcfilename, strerror(errno));
-			return -1;
+			rc = -1;
+			goto out;
 		}
 		dir = opendir(trcfilename);
 		if (!dir) {
 			fprintf(stderr, "opendir(%s): %s\n",
 				trcfilename, strerror(errno));
-			return -1;
+			rc = -1;
+			goto out;
 		}
 		closedir(dir);
 		/* We have a trace directory */
 	}
+	if (dir)
+		closedir(dir);
 
 	/**
 	 * Now create the trace files
@@ -90,7 +95,8 @@ map_user_trc_buf(const char *instancename,
 	if (meta_fd <= 0) {
 		fprintf(stderr, "failed to create meta file %s\n",
 			trcfilename);
-		return -1;
+		rc = -1;
+		goto out;
 	}
 	ftruncate(meta_fd, MAX(sizeof(struct jtrace_instance), 4096));
 	jtri = (struct jtrace_instance *)
@@ -99,7 +105,8 @@ map_user_trc_buf(const char *instancename,
 					 meta_fd, 0);
 	if (MAP_FAILED == (void *)jtri) {
 		fprintf(stderr, "failed to map meta file\n");
-		return -1;
+		rc = -1;
+		goto out;
 	}
 	memset(jtri, 0, sizeof(struct jtrace_instance));
 
@@ -115,13 +122,17 @@ map_user_trc_buf(const char *instancename,
 	if (trc_fd <= 0) {
 		fprintf(stderr, "failed to create meta file %s\n",
 			trcfilename);
-		return -1;
+		rc =  -1;
+		goto out;
 	}
 	ftruncate(trc_fd, jtri->jtrc_cb.jtrc_buf_size);
 	jtri->jtrc_cb.jtrc_buf = mmap(NULL, jtri->jtrc_cb.jtrc_buf_size,
 		     PROT_READ|PROT_WRITE, MAP_SHARED, trc_fd, 0);
 	*addr = jtri;
-	return 0;
+
+out:
+	free(trcfilename);
+	return rc;
 }
 
 struct jtrace_instance *jtri = 0;
@@ -150,4 +161,3 @@ jtrace_init(const char *name, int num_entries)
 
 	return jtri;
 }
-

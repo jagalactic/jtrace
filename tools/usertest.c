@@ -19,7 +19,7 @@ void jtrace_stats(struct jtrace_instance *jtri)
 int main(int argc, char **argv)
 {
 	int i;
-	struct jtrace_instance *jtri;
+	struct jtrace_instance *jtrix;
 	struct jtrace_instance *jtri0;
 	struct jtrace_instance *jtri1;
 	struct jtrace_instance *jtri2;
@@ -52,12 +52,12 @@ int main(int argc, char **argv)
 		printf("bad context for jtri0 %d\n",
 		       jtri0->jtrc_cb.jtrc_context);
 
-	jtri = jtrc_find_get_instance("frog");
-	printf("jtrc_find_get_instance(frog): %p\n", jtri);
-	assert(jtri == jtri1);
-	list_del(&jtri->jtrc_list);
-	jtri = jtrc_find_get_instance("frog");
-	assert(jtri == NULL);
+	jtrix = jtrc_find_get_instance("frog");
+	printf("jtrc_find_get_instance(frog): %p\n", jtrix);
+	assert(jtrix == jtri1);
+	list_del(&jtrix->jtrc_list);
+	jtrix = jtrc_find_get_instance("frog");
+	assert(jtrix == NULL);
 
 	printf("ok1\n");
 	jtrace_put_instance(jtri1); /* frog */
@@ -122,6 +122,8 @@ int main(int argc, char **argv)
 	print_trace(&jtri0->jtrc_cb, 0xfffffff);
 
 	jtrace_stats(jtri0);
+
+	jtrace_put_instance(jtri0);
 
 	return 0;
 }

@@ -10,8 +10,6 @@ $(MODULE_NAME)-objs = jtrace_main.o \
 	jtrace_mod.o \
 	jtrace_common.o
 
-#EXTRA_CFLAGS += -I $(PWD)/../common
-
 jtrace_common.c:
 	ln -s ../common/$@ $@
 
@@ -26,10 +24,14 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 
+MODPATH=lib/modules/`uname -r`/updates/kernel/drivers/misc
+INCPATH=usr/include
+
 install:
-	mkdir -p /lib/modules/`uname -r`/updates/kernel/drivers/misc
-	cp jtrace.ko /lib/modules/`uname -r`/updates/kernel/drivers/misc
-	cp jtrace.h /usr/include/linux
-	cp jtrace_mod.h /usr/include/linux
-	depmod -a
+	mkdir -p $(PREFIX)/$(MODPATH) $(PREFIX)/$(INCPATH)
+	install -t $(PREFIX)/$(MODPATH) jtrace.ko
+	install -t $(PREFIX)/$(INCPATH) jtrace.h
+	if [ ! $(PREFIX) ]; then \
+		-depmod -a ; \
+	fi
 

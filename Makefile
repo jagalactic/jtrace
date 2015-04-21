@@ -5,6 +5,12 @@
 #       cmake is NOT currently used for ./kmod.
 #
 
+OUTPUT_PATH=builds
+BINFILES = tools/jtrace \
+	tools/usertest
+LIBS = lib/libjtrace_lib.a
+
+
 all:
 	mkdir -p builds
 	cd builds; cmake -DCMAKE_BUILD_TYPE=Release ..; make
@@ -25,9 +31,10 @@ clean:
 	cd tools;   make -k clean
 
 install:
-	cd kmod; make install
-	cd tools; make install
-#	cp jtrace/j_trc.h /usr/include/linux/j_trc.h
+	cd kmod; make PREFIX=$(PREFIX) install
+	mkdir -p $(PREFIX)/bin $(PREFIX)/lib
+	cd $(OUTPUT_PATH) ; install -t $(PREFIX)/bin $(BINFILES)
+	cd $(OUTPUT_PATH) ; install -t $(PREFIX)/lib $(LIBS)
 
 load:
 	insmod kmod/jtrace.ko

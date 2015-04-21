@@ -117,7 +117,7 @@ space.
 
 # Plans
 
-This version of jtrace only supports both user and kernel trace, with a
+This version of jtrace supports both user and kernel trace, with a
 one trace buffer in user space, and one in kernel space.  Merging is reports
 from user and kernel will be the work of a script (TBD).
 

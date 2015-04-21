@@ -1,7 +1,6 @@
 
 #define JTRC_ENABLE
 #include <jtrace.h>
-#include <jtrace_common.h>
 
 #include <stdio.h>
 #include <assert.h>

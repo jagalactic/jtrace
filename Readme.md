@@ -14,8 +14,6 @@ Source tree structure:
 	          (aka "snarfing")
     lib     - The user space library for tracing, retrieving and printing
 	          traces
-    common  - The common code which is linked into both the kernel and user
-              space programs
     tools   - The command line tools for starting, stopping and snarfing
               traces
     include - jtrace include files that are not private to a single module

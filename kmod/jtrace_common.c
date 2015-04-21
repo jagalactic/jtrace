@@ -25,7 +25,6 @@
 #endif
 
 #include "jtrace.h"
-#include "jtrace_common.h"
 
 struct list_head jtrc_instance_list
 	    = LIST_HEAD_INIT(jtrc_instance_list);

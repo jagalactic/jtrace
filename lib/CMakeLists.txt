@@ -6,6 +6,6 @@ include_directories("${PROJECT_SOURCE_DIR}/kmod")
 include_directories("${PROJECT_SOURCE_DIR}/common")
 
 add_library(jtrace_lib jtrace_lib.c
-    ${PROJECT_SOURCE_DIR}/common/jtrace_common.c
+    ${PROJECT_SOURCE_DIR}/kmod/jtrace_common.c
     jtrace_extract.c
 )

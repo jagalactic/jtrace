@@ -23,8 +23,6 @@
 #include <execinfo.h> /* backtrace() */
 #include <pthread.h>
 
-#include <jtrace_common.h>
-
 /*
  * Global vars
  */

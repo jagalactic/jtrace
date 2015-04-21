@@ -20,7 +20,6 @@
 #include <linux/smp.h>
 
 #include "jtrace.h"
-#include "jtrace_common.h"
 
 long
 jtrace_ioctl(struct file *file, unsigned int cmd, unsigned long arg)

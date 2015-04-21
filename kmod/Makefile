@@ -10,17 +10,10 @@ $(MODULE_NAME)-objs = jtrace_main.o \
 	jtrace_mod.o \
 	jtrace_common.o
 
-jtrace_common.c:
-	ln -s ../common/$@ $@
-
-jtrace_common.h:
-	ln -s ../common/$@ $@
-
-all:	jtrace_common.c jtrace_common.h
+all:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
-	-rm jtrace_common.[ch]
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 

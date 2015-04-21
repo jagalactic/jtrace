@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 
 #include "jtrace.h"
-#include "jtrace_common.h"
 
 /*
  * A reasonable amount of common flags.

@@ -119,7 +119,8 @@ int jtrace_register_instance(struct jtrace_instance *jt)
 	}
 
 	/* Does this instance already exist? */
-	if ((tmp_jt = jtrc_find_get_instance(jt->jtrc_cb.jtrc_name))) {
+	tmp_jt = jtrc_find_get_instance(jt->jtrc_cb.jtrc_name);
+	if (tmp_jt) {
 		pr_info("%s: EALREADY\n", __func__);
 		jtrace_put_instance(tmp_jt);
 		return -EALREADY;

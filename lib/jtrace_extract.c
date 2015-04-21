@@ -134,6 +134,7 @@ char *snarf_str(void *from)
 {
 	static uint lru;
 	struct StrCache *ent, *old;
+
 	static struct StrCache {
 		void *addr;
 		char str[128];
@@ -246,7 +247,6 @@ void jtrc_set_flags(struct jtrace_instance *jti, int flags)
 		return;
 
 	jti->jtrc_cb.jtrc_flags = flags;
-	return;
 }
 
 /**
@@ -264,7 +264,7 @@ int jtrc_set_flags_by_name(char *buf_name, int trc_flags) /* kernel XXX */
 	if (jtri) {
 		jtrc_set_flags(jtri, trc_flags);
 		jtrace_put_instance(jtri);
-		found ++;
+		found++;
 	}
 
 	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
@@ -392,9 +392,8 @@ get_all_trc_info(char *trc_buf_name, void **buf)
 
 	/* Array of registered instances, each followed
 	 * by optional custom flags */
-	if (jtrc_num_instances) {
+	if (jtrc_num_instances)
 		jtrc_first_kernel_cb = (struct jtrc_cb *)&out_bufp[offset];
-	}
 
 	/*
 	 * If there is more than one registered instance (jtrc_cb), we will

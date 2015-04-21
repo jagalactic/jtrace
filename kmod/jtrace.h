@@ -122,11 +122,11 @@ struct jtrc_entry {
 	};
 };
 
-#define JTRC_MAX_HEX_DATA_FOR_BEG_ELEM 					\
+#define JTRC_MAX_HEX_DATA_FOR_BEG_ELEM					\
 	(sizeof(struct jtrc_entry)					\
 	 -offsetof(struct jtrc_entry, hex_begin.data_start))
 
-#define JTRC_MAX_HEX_DATA_PER_ELEM 					\
+#define JTRC_MAX_HEX_DATA_PER_ELEM					\
 	(sizeof(struct jtrc_entry)					\
 	 -offsetof(struct jtrc_entry, hex_continue.data_start))
 

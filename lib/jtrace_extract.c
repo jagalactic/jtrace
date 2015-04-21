@@ -91,7 +91,6 @@ int snarf_from_kernel(void *to, void *from, size_t len)
 	cmd_req.data_size = len;
 
 	cmd_req.cmd = JTRCTL_SNARF;
-	printf("&cmd_req: %p\n", &cmd_req);
 	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
 		void *buf[255];
 		const int calls = backtrace(buf, 255);

@@ -35,35 +35,24 @@ int main(int argc, char **argv)
 	INIT_LIST_HEAD(&jtrc_instance_list);
 
 	jtri0 = jtrace_init("test", 64);
-	printf("test: %p\n", jtri0);
 	assert(jtri0);
 	jtri1 = jtrace_init("frog", 0x100000);
-	printf("frog: %p\n", jtri1);
 	assert(jtri1);
 	jtri2 = jtrace_init("bunny", 0x100000);
-	printf("bunny: %p\n", jtri2);
 	assert(jtri2);
 
 	jtrace_stats(jtri0);
 	jtrc_setmask(jtri0, 0xfffffff);
 	jtrace_stats(jtri0);
 
-	if (jtri0->jtrc_cb.jtrc_context != USER)
-		printf("bad context for jtri0 %d\n",
-		       jtri0->jtrc_cb.jtrc_context);
-
 	jtrix = jtrc_find_get_instance("frog");
-	printf("jtrc_find_get_instance(frog): %p\n", jtrix);
 	assert(jtrix == jtri1);
 	list_del(&jtrix->jtrc_list);
 	jtrix = jtrc_find_get_instance("frog");
 	assert(jtrix == NULL);
 
-	printf("ok1\n");
 	jtrace_put_instance(jtri1); /* frog */
-	printf("ok2\n");
 	jtrace_put_instance(jtri2); /* bunny */
-	printf("ok3 JTR_CONF %d\n", JTR_CONF);
 
 	/* Put some stuff in the trace buffer "test" */
 

@@ -28,7 +28,6 @@ oldall:
 clean:
 	rm -rf builds
 	cd kmod; make -k clean
-	cd tools;   make -k clean
 
 install:
 	cd kmod; make PREFIX=$(PREFIX) install

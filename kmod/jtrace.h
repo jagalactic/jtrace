@@ -335,9 +335,9 @@ extern int jtrc_verbose;
 
 /* Userspace libjtrace prototypes */
 int jtrace_kopen(void);
-int set_printk_value(char *buf_name, int value);
-int clear_trace_buf(char *buf_name);
-int set_trc_flags(char *buf_name, int trc_flags);
+int jtrc_set_printk_by_name(char *buf_name, int value);
+int jtrc_clear_by_name(char *buf_name);
+int jtrc_set_flags_by_name(char *buf_name, int trc_flags);
 struct jtrc_cb *get_all_trc_info(char *trc_buf_name, void **buf);
 int flag_str_to_flag(char *trc_flag_str, uint *trc_flag);
 int print_trace(struct jtrc_cb *cb, uint32_t dump_mask);

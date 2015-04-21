@@ -96,7 +96,8 @@ int main(int argc, char **argv)
 			}
 
 			printk_value = strtol(optarg, NULL, 16);
-			rc = set_printk_value(trc_buf_name, printk_value);
+			rc = jtrc_set_printk_by_name(trc_buf_name,
+						     printk_value);
 			if (rc) {
 				printf("Could not set trace flags to 0x%x\n",
 				       trc_flags);
@@ -158,7 +159,7 @@ int main(int argc, char **argv)
 			}
 
 			trc_flags = strtol(optarg, NULL, 16);
-			rc = set_trc_flags(trc_buf_name, trc_flags);
+			rc = jtrc_set_flags_by_name(trc_buf_name, trc_flags);
 			if (rc) {
 				printf("Could not set trace flags to 0x%x\n",
 				       trc_flags);
@@ -220,7 +221,7 @@ int main(int argc, char **argv)
 				optind++;
 			}
 			/* Set the flags to the new value */
-			rc = set_trc_flags(trc_buf_name, trc_flags);
+			rc = jtrc_set_flags_by_name(trc_buf_name, trc_flags);
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
@@ -267,7 +268,7 @@ int main(int argc, char **argv)
 				optind++;
 			}
 			/* Set the flags to the new value */
-			rc = set_trc_flags(trc_buf_name, trc_flags);
+			rc = jtrc_set_flags_by_name(trc_buf_name, trc_flags);
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
@@ -314,7 +315,7 @@ int main(int argc, char **argv)
 				optind++;
 			}
 			/* Set the flags to the new value */
-			rc = set_trc_flags(trc_buf_name, trc_flags);
+			rc = jtrc_set_flags_by_name(trc_buf_name, trc_flags);
 			if (rc) {
 				printf("Could not set trace flags.\n");
 				rc = -1;
@@ -334,7 +335,7 @@ int main(int argc, char **argv)
 				rc = -1;
 				goto jtrc_util_exit;
 			}
-			clear_trace_buf(trc_buf_name);
+			jtrc_clear_by_name(trc_buf_name);
 			printf("Trace buffer cleared\n");
 			rc = 0;
 			goto jtrc_util_exit;

@@ -606,6 +606,9 @@ void jtrace_exit(void)
 	struct jtrace_instance *jtri;
 	struct list_head *this, *next;
 
+	/* will module_exit (this function) be called if other modules depend
+	 * on this one?  If not, this should be solid.  Drain the instance
+	 * list, putting refcounts, and then exit. */
 	list_for_each_safe(this, next, &jtrc_instance_list) {
 		jtri = list_entry(this, struct jtrace_instance, jtrc_list);
 		pr_info("jtrace: unloading instance %s\n",

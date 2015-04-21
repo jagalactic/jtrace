@@ -21,6 +21,9 @@
 #include <assert.h>
 #include <sys/param.h> /* MIN() / MAX() */
 #include <execinfo.h> /* backtrace() */
+#include <pthread.h>
+
+#include <jtrace_common.h>
 
 /*
  * Global vars
@@ -179,27 +182,93 @@ char *snarf_str(void *from)
 
 /**********************************************************************/
 
-int clear_trace_buf(char *buf_name)
+/**
+ * jtrc_clear()
+ *
+ * Clear a user space trace buffer.
+ *
+ */
+int jtrc_clear(struct jtrace_instance *jti)
 {
-	struct jtrc_cmd_req cmd_req;
+	int rc = 0;
 
-	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
-
-	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
-
-	cmd_req.cmd = JTRCTL_CLEAR;
-	if (ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req)) {
-		fprintf(stderr, "JTRCTL_CLEAR Failed errno=%d\n", errno);
-		return 1;
+	spin_lock_irqsave(&jti->jtrc_buf_mutex, flags);
+	if (jti->jtrc_cb.jtrc_flags) {
+		fprintf(stderr,
+			"%s: tracing must be off (flags=0) to clear trace\n",
+			__func__);
+		rc = -EBUSY;
+		goto out;
 	}
+	memset(jti->jtrc_cb.jtrc_buf, 0, jti->jtrc_cb.jtrc_buf_size);
 
-	return 0;
+out:
+	spin_unlock_irqrestore(&jti->jtrc_buf_mutex, flags);
+	return rc;
 }
 
-int set_trc_flags(char *buf_name, int trc_flags)
+int jtrc_clear_by_name(char *buf_name) /* kernel XXX */
+{
+	struct jtrc_cmd_req cmd_req;
+	struct jtrace_instance *jtri;
+	int found = 0;
+	int rc = 0;
+
+	/* If there is a userspace instance, clear it */
+	jtri = jtrc_find_get_instance(buf_name);
+	if (jtri) {
+		found++;
+		rc = jtrc_clear(jtri);
+		jtrace_put_instance(jtri);
+		/* If we found one and jtrc_clear failed, fail */
+		if (rc)
+			return rc;
+	}
+
+	/* If there is a kernel instance clear it */
+	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
+	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
+	cmd_req.cmd = JTRCTL_CLEAR;
+	rc = ioctl(jtrace_kfd, JTRC_CMD_IOCTL, &cmd_req);
+
+	/* If user space succeeded, it's success even if kernel space failed */
+	if (found)
+		return 0;
+
+	return rc;
+}
+
+/**
+ * jtrc_set_flags()
+ *
+ * Set the flag mask for a user space jtrace instance
+ */
+void jtrc_set_flags(struct jtrace_instance *jti, int flags)
+{
+	if (jti->jtrc_cb.jtrc_context != USER)
+		return;
+
+	jti->jtrc_cb.jtrc_flags = flags;
+	return;
+}
+
+/**
+ * jtrc_set_flags_by_name()
+ */
+int jtrc_set_flags_by_name(char *buf_name, int trc_flags) /* kernel XXX */
 {
 	int rc = 0;
 	struct jtrc_cmd_req cmd_req;
+	struct jtrace_instance *jtri;
+	int found = 0;
+
+	/* If there is a userspace instance, set flags for it */
+	jtri = jtrc_find_get_instance(buf_name);
+	if (jtri) {
+		jtrc_set_flags(jtri, trc_flags);
+		jtrace_put_instance(jtri);
+		found ++;
+	}
 
 	bzero(&cmd_req, sizeof(struct jtrc_cmd_req));
 	strncpy(cmd_req.trc_name, buf_name, sizeof(cmd_req.trc_name));
@@ -210,13 +279,20 @@ int set_trc_flags(char *buf_name, int trc_flags)
 	if (rc) {
 		printf("ioctl JTRCTL_SET_TRC_FLAGS failed, rc=%d errno=%d\n",
 		       rc, errno);
-		return rc;
 	}
 
-	return 0;
+	if (found)
+		return 0;
+
+	return rc;
 }
 
-int set_printk_value(char *buf_name, int value)
+/**
+ * jtrc_set_printk_by_name()
+ *
+ * This is a kernel-only function
+ */
+int jtrc_set_printk_by_name(char *buf_name, int value) /* kernel XXX */
 {
 	int rc = 0;
 	struct jtrc_cmd_req cmd_req;
@@ -245,6 +321,8 @@ int set_printk_value(char *buf_name, int value)
  * what gets packed into the output buffer by the jtrace kernel module.
  *
  * XXX: should de-obfuscate this...
+ *
+ * This function gets trace info from the KERNEL ONLY
  */
 struct jtrc_cb *
 get_all_trc_info(char *trc_buf_name, void **buf)

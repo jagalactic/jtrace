@@ -350,8 +350,6 @@ struct jtrace_instance *jtrace_init(const char *name, int num_entries);
 
 /* Register new jtrace instance: */
 extern int jtrace_register_instance(struct jtrace_instance *jtri);
-/* Get a refcount on an existing jtrace instance: */
-extern int jtrace_get_instance(struct jtrace_instance *jtri);
 /* Put refcount on jtrace instance.  Unregister if ref goes to zero: */
 extern void jtrace_put_instance(struct jtrace_instance *jtri);
 

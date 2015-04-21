@@ -70,24 +70,6 @@ jtrc_default_instance(void)
 EXPORT_SYMBOL(jtrc_default_instance);
 
 /**
- * jtrace_get_instance()
- *
- * Get a refcount on an existing jtrace instance
- */
-int jtrace_get_instance(struct jtrace_instance *jt)
-{
-#ifdef __KERNEL__
-	unsigned long flags;
-#endif
-
-	spin_lock_irqsave(&jtrc_config_lock, flags);
-	jt->refcount++;
-	spin_unlock_irqrestore(&jtrc_config_lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(jtrace_get_instance);
-
-/**
  * jtrace_put_instance()
  *
  * Put a refcount on a jtrace instance

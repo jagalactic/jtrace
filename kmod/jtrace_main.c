@@ -628,10 +628,6 @@ static void jtrc_test(void)
 	struct jtrace_instance *jtri;
 
 	jtri = jtrc_default_instance();
-	if (jtrace_get_instance(jtri)) {
-		pr_info("jtrc_test: failed refount on default instance\n");
-		return;
-	}
 
 	for (i = 0; i < 512; i++)
 		hex_dump_data[i] = (char) (i & 0xff);

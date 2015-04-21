@@ -11,8 +11,6 @@
 #include <inttypes.h>
 #endif
 
-#include "jtrace_mod.h"
-
 /* Default trace buffer name */
 #define JTRC_DEFAULT_NAME "jtrc_default"
 

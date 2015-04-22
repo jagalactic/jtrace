@@ -295,10 +295,6 @@ struct jtrace_instance {
 #define JTRACE_DEV_SPECIAL_FILE_NAME "jtrace"
 #define JTRACE_DEV_SPECIAL_FILE "/dev/jtrace"
 
-#ifndef JTRC_ENABLE
-#define JTRC_ENABLE
-#endif
-
 #define JTRACE_IOCTL_BASE 0xCC
 
 /*
@@ -475,16 +471,18 @@ void jtrace_config(void);
 
 #else
 
-#define jtrc(jtri, mask, id, fmt, ...)
-#define jtrc_pfs(jtri, mask, id, fmt, ...)
-#define jtrc_funcline(jtri, mask, id, func, line, fmt, ...)
-#define jtrc_hexdump(jtri, mask, id, msg, p, len)
-#define jtrc_setprint(jtri, enabled)
-#define jtrc_print_tail(jtri, num_elems)
-#define jtrc_entry(jtri, flags, id, fmt, ...)
-#define jtrc_exit(jtri, flags, id, fmt, ...)
-#define jtrc_err(jtri, flags, id, fmt, ...)
-#define jtrc_errexit(jtri, flags, id, fmt, ...)
+#define jtrc_setmask(jtri, mask) ;
+#define jtrc_off(jtri) ;
+#define jtrc(jtri, mask, id, fmt, ...) ;
+#define jtrc_pfs(jtri, mask, id, fmt, ...) ;
+#define jtrc_funcline(jtri, mask, id, func, line, fmt, ...) ;
+#define jtrc_hexdump(jtri, mask, id, msg, p, len) ;
+#define jtrc_setprint(jtri, enabled) ;
+#define jtrc_print_tail(jtri, num_elems) ;
+#define jtrc_entry(jtri, flags, id, fmt, ...) ;
+#define jtrc_exit(jtri, flags, id, fmt, ...) ;
+#define jtrc_err(jtri, flags, id, fmt, ...) ;
+#define jtrc_errexit(jtri, flags, id, fmt, ...) ;
 
 #endif                          /* JTRC_ENABLE */
 

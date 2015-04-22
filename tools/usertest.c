@@ -1,5 +1,4 @@
 
-#define JTRC_ENABLE
 #include <jtrace.h>
 
 #include <stdio.h>
@@ -17,19 +16,21 @@ void jtrace_stats(struct jtrace_instance *jtri)
 
 int main(int argc, char **argv)
 {
-	int i;
 	struct jtrace_instance *jtrix;
 	struct jtrace_instance *jtri0;
 	struct jtrace_instance *jtri1;
 	struct jtrace_instance *jtri2;
+#ifdef JTRC_ENABLE
+	int i;
 	char *id = 0;
 	int value1 = 1;
 	char hex_dump_data[512];
 
-	jtrace_config();
-
 	for (i = 0; i < 512; i++)
 		hex_dump_data[i] = (char) (i & 0xff);
+#endif
+
+	jtrace_config();
 
 	INIT_LIST_HEAD(&jtrc_instance_list);
 

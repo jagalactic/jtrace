@@ -620,8 +620,10 @@ void jtrace_exit(void)
 
 static void jtrc_test(void)
 {
+#ifdef JTRC_ENABLE
 	char *id = 0;
 	int value1 = 1;
+#endif
 	char hex_dump_data[512];
 	int i = 0;
 	struct jtrace_instance *jtri;

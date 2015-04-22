@@ -10,6 +10,12 @@ $(MODULE_NAME)-objs = jtrace_main.o \
 	jtrace_mod.o \
 	jtrace_common.o
 
+
+# There isn't much point in building the jtrace kernel module without
+# JTRC_ENABLE. However, modules that can use jtrace should only depend on
+# this module if build with -DJTRC_ENABLE.
+EXTRA_CFLAGS = -DJTRC_ENABLE
+
 all:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 

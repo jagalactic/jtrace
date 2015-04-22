@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DJTRC_ENABLE" )
+
 include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/kmod")
 include_directories("${PROJECT_SOURCE_DIR}/common")

@@ -16,17 +16,19 @@ all:
 	cd builds; cmake -DCMAKE_BUILD_TYPE=Release ..; make
 	cd kmod; make all
 
+allv:
+	make VERBOSE=1 all
+
 debug:
 	mkdir -p builds
 	cd builds; cmake -DCMAKE_BUILD_TYPE=Debug ..; make
 	cd kmod; make all
 
-oldall:
-	cd kmod; make -k
-	cd tools;   make -k jtrace
+debugv:
+	make VERBOSE=1 debug
 
 clean:
-	rm -rf builds
+	rm -rf $(OUTPUT_PATH)
 	cd kmod; make -k clean
 
 install:

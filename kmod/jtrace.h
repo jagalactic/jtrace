@@ -5,7 +5,10 @@
 #ifndef __JTRC_H
 #define __JTRC_H
 
-#ifndef __KERNEL__
+#ifdef __KERNEL__
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#else
 #include <time.h>
 #include <sys/types.h>
 #include <inttypes.h>

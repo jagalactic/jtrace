@@ -4,6 +4,8 @@
 
 #define JTRC_TEST
 
+#include "jtrace.h"
+
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -17,8 +19,6 @@
 #include <asm/current.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
-
-#include "jtrace.h"
 
 /*
  * A reasonable amount of common flags.

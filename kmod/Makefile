@@ -18,7 +18,7 @@ clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 
 MODPATH=lib/modules/`uname -r`/updates/kernel/drivers/misc
-INCPATH=usr/include
+INCPATH=include
 
 install:
 	mkdir -p $(PREFIX)/$(MODPATH) $(PREFIX)/$(INCPATH)
